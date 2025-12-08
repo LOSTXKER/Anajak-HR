@@ -17,8 +17,10 @@ interface LineMessage {
 /**
  * Get LINE settings from database (server-side only)
  */
-async function getLineSettings() {
+export async function getLineSettings() {
   try {
+    console.log("[LINE] Fetching settings from database...");
+    
     const { data, error } = await supabaseServer
       .from("system_settings")
       .select("setting_key, setting_value")
@@ -29,20 +31,29 @@ async function getLineSettings() {
       ]);
 
     if (error) {
-      console.error("Error fetching LINE settings:", error);
+      console.error("[LINE] Error fetching settings:", error);
       return null;
     }
 
-    if (!data) return null;
+    if (!data || data.length === 0) {
+      console.warn("[LINE] No settings found in database");
+      return null;
+    }
 
-    const settings: any = {};
-    data.forEach((item) => {
+    const settings: Record<string, string> = {};
+    data.forEach((item: { setting_key: string; setting_value: string }) => {
       settings[item.setting_key] = item.setting_value;
+    });
+
+    console.log("[LINE] Settings loaded:", {
+      enable_notifications: settings.enable_notifications,
+      hasToken: !!settings.line_channel_access_token,
+      hasRecipient: !!settings.line_recipient_id,
     });
 
     return settings;
   } catch (error) {
-    console.error("Error fetching LINE settings:", error);
+    console.error("[LINE] Exception fetching settings:", error);
     return null;
   }
 }
@@ -60,11 +71,18 @@ export async function sendLineMessage(
   accessToken?: string
 ): Promise<boolean> {
   try {
+    console.log("[LINE] Attempting to send message...");
+    
     // Get settings from database if not provided
     const settings = await getLineSettings();
 
-    if (!settings || settings.enable_notifications !== "true") {
-      console.log("LINE notifications are disabled");
+    if (!settings) {
+      console.warn("[LINE] Failed to load settings from database");
+      return false;
+    }
+
+    if (settings.enable_notifications !== "true") {
+      console.log("[LINE] Notifications are disabled in settings");
       return false;
     }
 
@@ -72,14 +90,16 @@ export async function sendLineMessage(
     const recipient = to || settings.line_recipient_id;
 
     if (!token) {
-      console.warn("LINE Channel Access Token not configured");
+      console.warn("[LINE] Channel Access Token not configured - please set in Admin Settings");
       return false;
     }
 
     if (!recipient) {
-      console.warn("LINE recipient (User ID or Group ID) not configured");
+      console.warn("[LINE] Recipient ID not configured - please set in Admin Settings");
       return false;
     }
+
+    console.log("[LINE] Sending to:", recipient.substring(0, 10) + "...");
 
     const messages: LineMessage[] = [
       {
@@ -102,12 +122,14 @@ export async function sendLineMessage(
 
     if (!response.ok) {
       const error = await response.json();
+      console.error("[LINE] API Error:", error);
       throw new Error(`LINE Messaging API error: ${JSON.stringify(error)}`);
     }
 
+    console.log("[LINE] Message sent successfully!");
     return true;
   } catch (error) {
-    console.error("Error sending LINE message:", error);
+    console.error("[LINE] Error sending message:", error);
     return false;
   }
 }

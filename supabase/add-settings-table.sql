@@ -15,8 +15,9 @@ ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Only admins can view settings" ON system_settings;
 DROP POLICY IF EXISTS "Only admins can update settings" ON system_settings;
 DROP POLICY IF EXISTS "Only admins can insert settings" ON system_settings;
+DROP POLICY IF EXISTS "Service role can read settings" ON system_settings;
 
--- Only admins can view/edit settings
+-- Only admins can view/edit settings (via web UI)
 CREATE POLICY "Only admins can view settings"
   ON system_settings FOR SELECT
   USING (EXISTS (SELECT 1 FROM employees WHERE id::text = auth.uid()::text AND role = 'admin'));
@@ -28,6 +29,11 @@ CREATE POLICY "Only admins can update settings"
 CREATE POLICY "Only admins can insert settings"
   ON system_settings FOR INSERT
   WITH CHECK (EXISTS (SELECT 1 FROM employees WHERE id::text = auth.uid()::text AND role = 'admin'));
+
+-- Allow service role to read settings (for API routes)
+CREATE POLICY "Service role can read settings"
+  ON system_settings FOR SELECT
+  USING (auth.jwt()->>'role' = 'service_role');
 
 -- Insert default settings
 INSERT INTO system_settings (setting_key, setting_value, description) VALUES
