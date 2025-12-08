@@ -15,6 +15,8 @@ import {
   ChevronRight,
   FileText,
   ExternalLink,
+  Camera,
+  X,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { th } from "date-fns/locale";
@@ -38,6 +40,7 @@ function HistoryContent() {
   const [otRequests, setOtRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [viewingPhoto, setViewingPhoto] = useState<{ url: string; type: string } | null>(null);
 
   useEffect(() => {
     if (employee) fetchHistory();
@@ -300,6 +303,29 @@ function HistoryContent() {
                           {log.is_late ? "สาย" : "ปกติ"}
                         </Badge>
                       </div>
+                      {/* รูปภาพเช็คอิน/เช็คเอาท์ */}
+                      {(log.clock_in_photo_url || log.clock_out_photo_url) && (
+                        <div className="mt-3 pt-3 border-t border-[#e8e8ed] flex gap-2">
+                          {log.clock_in_photo_url && (
+                            <button
+                              onClick={() => setViewingPhoto({ url: log.clock_in_photo_url, type: "เช็คอิน" })}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/20 transition-colors"
+                            >
+                              <Camera className="w-3.5 h-3.5" />
+                              ดูรูปเข้างาน
+                            </button>
+                          )}
+                          {log.clock_out_photo_url && (
+                            <button
+                              onClick={() => setViewingPhoto({ url: log.clock_out_photo_url, type: "เช็คเอาท์" })}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] text-[#34c759] bg-[#34c759]/10 rounded-lg hover:bg-[#34c759]/20 transition-colors"
+                            >
+                              <Camera className="w-3.5 h-3.5" />
+                              ดูรูปออกงาน
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </Card>
                   ))}
                 </div>
@@ -401,6 +427,35 @@ function HistoryContent() {
           </>
         )}
       </main>
+
+      {/* Photo Modal */}
+      {viewingPhoto && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+          onClick={() => setViewingPhoto(null)}
+        >
+          <div className="relative max-w-full max-h-[90vh]">
+            <button
+              className="absolute -top-12 right-0 p-2 bg-white rounded-full shadow-lg"
+              onClick={() => setViewingPhoto(null)}
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="bg-white rounded-2xl overflow-hidden">
+              <div className="px-4 py-2 bg-[#f5f5f7] border-b border-[#e8e8ed]">
+                <p className="text-[14px] font-medium text-[#1d1d1f]">
+                  รูปภาพ{viewingPhoto.type}
+                </p>
+              </div>
+              <img
+                src={viewingPhoto.url}
+                alt={viewingPhoto.type}
+                className="max-w-[90vw] max-h-[70vh] object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

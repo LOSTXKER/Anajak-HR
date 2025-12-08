@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
-import { ChevronLeft, ChevronRight, Download, Clock, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Clock, X, Camera, Image } from "lucide-react";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { th } from "date-fns/locale";
 
@@ -149,6 +149,9 @@ function AttendanceContent() {
                   <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">
                     สถานะ
                   </th>
+                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">
+                    รูปภาพ
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e8e8ed]">
@@ -192,6 +195,33 @@ function AttendanceContent() {
                       <Badge variant={log.is_late ? "warning" : "success"}>
                         {log.is_late ? "สาย" : "ปกติ"}
                       </Badge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        {log.clock_in_photo_url && (
+                          <button
+                            onClick={() => setViewingPhoto(log.clock_in_photo_url)}
+                            className="flex items-center gap-1 px-2 py-1 text-[12px] text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/20 transition-colors"
+                            title="รูปเช็คอิน"
+                          >
+                            <Camera className="w-3 h-3" />
+                            เข้า
+                          </button>
+                        )}
+                        {log.clock_out_photo_url && (
+                          <button
+                            onClick={() => setViewingPhoto(log.clock_out_photo_url)}
+                            className="flex items-center gap-1 px-2 py-1 text-[12px] text-[#34c759] bg-[#34c759]/10 rounded-lg hover:bg-[#34c759]/20 transition-colors"
+                            title="รูปเช็คเอาท์"
+                          >
+                            <Camera className="w-3 h-3" />
+                            ออก
+                          </button>
+                        )}
+                        {!log.clock_in_photo_url && !log.clock_out_photo_url && (
+                          <span className="text-[12px] text-[#86868b]">-</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
