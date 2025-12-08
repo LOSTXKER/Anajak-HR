@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     // เช็คว่าเปิดการแจ้งเตือนหรือไม่
     const { data: settings } = await supabaseServer
       .from("system_settings")
-      .select("setting_value")
+      .select("setting_key, setting_value")
       .in("setting_key", ["enable_checkin_notifications", "enable_notifications"]);
 
     if (!settings || settings.length === 0) {
