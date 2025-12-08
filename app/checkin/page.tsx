@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { uploadAttendancePhoto } from "@/lib/utils/upload-photo";
 import { Camera, MapPin, ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
 
 function CheckinContent() {
@@ -92,6 +93,14 @@ function CheckinContent() {
         return;
       }
 
+      // อัปโหลดรูปภาพไปที่ Supabase Storage
+      const photoUrl = await uploadAttendancePhoto(photo, employee.id, "checkin");
+      if (!photoUrl) {
+        setError("ไม่สามารถอัปโหลดรูปภาพได้");
+        setLoading(false);
+        return;
+      }
+
       // Check late (after 9:00 AM)
       const now = new Date();
       const isLate = now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() > 0);
@@ -104,7 +113,7 @@ function CheckinContent() {
           clock_in_time: now.toISOString(),
           clock_in_gps_lat: location.lat,
           clock_in_gps_lng: location.lng,
-          clock_in_photo_url: photo,
+          clock_in_photo_url: photoUrl, // ใช้ URL แทน base64
           is_late: isLate,
         });
 

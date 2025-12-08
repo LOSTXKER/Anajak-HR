@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { uploadAttendancePhoto } from "@/lib/utils/upload-photo";
 import { Camera, MapPin, ArrowLeft, CheckCircle, AlertCircle, Clock } from "lucide-react";
 
 function CheckoutContent() {
@@ -90,6 +91,21 @@ function CheckoutContent() {
     setError("");
 
     try {
+      // ตรวจสอบว่าเช็คเอาท์แล้วหรือยัง
+      if (todayLog.clock_out_time) {
+        setError("คุณได้เช็คเอาท์วันนี้แล้ว");
+        setLoading(false);
+        return;
+      }
+
+      // อัปโหลดรูปภาพไปที่ Supabase Storage
+      const photoUrl = await uploadAttendancePhoto(photo, employee.id, "checkout");
+      if (!photoUrl) {
+        setError("ไม่สามารถอัปโหลดรูปภาพได้");
+        setLoading(false);
+        return;
+      }
+
       const now = new Date();
       const clockIn = new Date(todayLog.clock_in_time);
       const totalHours = (now.getTime() - clockIn.getTime()) / (1000 * 60 * 60);
@@ -100,7 +116,7 @@ function CheckoutContent() {
           clock_out_time: now.toISOString(),
           clock_out_gps_lat: location.lat,
           clock_out_gps_lng: location.lng,
-          clock_out_photo_url: photo,
+          clock_out_photo_url: photoUrl, // ใช้ URL แทน base64
           total_hours: totalHours,
         })
         .eq("id", todayLog.id);
