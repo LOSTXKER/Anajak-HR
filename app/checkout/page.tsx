@@ -9,7 +9,16 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { uploadAttendancePhoto } from "@/lib/utils/upload-photo";
-import { Camera, MapPin, ArrowLeft, CheckCircle, AlertCircle, Clock } from "lucide-react";
+import { isWithinRadius, formatDistance } from "@/lib/utils/geo";
+import { Camera, MapPin, ArrowLeft, CheckCircle, AlertCircle, Clock, Navigation } from "lucide-react";
+
+interface Branch {
+  id: string;
+  name: string;
+  gps_lat: number;
+  gps_lng: number;
+  radius_meters: number;
+}
 
 function CheckoutContent() {
   const { employee } = useAuth();
@@ -23,6 +32,10 @@ function CheckoutContent() {
   const [success, setSuccess] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [todayLog, setTodayLog] = useState<any>(null);
+  
+  // ข้อมูลสาขาและการตรวจรัศมี
+  const [branch, setBranch] = useState<Branch | null>(null);
+  const [radiusCheck, setRadiusCheck] = useState<{ inRadius: boolean; distance: number } | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -33,8 +46,38 @@ function CheckoutContent() {
     startCamera();
     getLocation();
     checkTodayLog();
+    fetchBranch();
     return () => stopCamera();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employee]);
+
+  // เช็ครัศมีเมื่อมี location และ branch
+  useEffect(() => {
+    if (location && branch) {
+      const result = isWithinRadius(
+        location.lat,
+        location.lng,
+        branch.gps_lat,
+        branch.gps_lng,
+        branch.radius_meters
+      );
+      setRadiusCheck(result);
+    }
+  }, [location, branch]);
+
+  const fetchBranch = async () => {
+    if (!employee?.branch_id) return;
+
+    const { data: branchData } = await supabase
+      .from("branches")
+      .select("id, name, gps_lat, gps_lng, radius_meters")
+      .eq("id", employee.branch_id)
+      .single();
+
+    if (branchData) {
+      setBranch(branchData);
+    }
+  };
 
   const checkTodayLog = async () => {
     if (!employee) return;
@@ -116,7 +159,7 @@ function CheckoutContent() {
           clock_out_time: now.toISOString(),
           clock_out_gps_lat: location.lat,
           clock_out_gps_lng: location.lng,
-          clock_out_photo_url: photoUrl, // ใช้ URL แทน base64
+          clock_out_photo_url: photoUrl,
           total_hours: totalHours,
         })
         .eq("id", todayLog.id);
@@ -132,7 +175,7 @@ function CheckoutContent() {
             employeeName: employee.name,
             time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }),
             totalHours: totalHours,
-            location: "สำนักงาน", // TODO: ดึงชื่อสาขาจาก branch_id
+            location: branch?.name || "สำนักงาน",
           }),
         }).catch((err) => console.error("Failed to send check-out notification:", err));
       } catch (notifyError) {
@@ -282,18 +325,67 @@ function CheckoutContent() {
         </Card>
 
         {/* Status */}
-        <div className="flex items-center justify-center gap-6 mb-6">
-          <div className="flex items-center gap-2">
+        <div className="space-y-3 mb-6">
+          {/* GPS Status */}
+          <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-[#e8e8ed]">
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  location ? "bg-[#34c759]/10" : "bg-[#ff9500]/10"
+                }`}
+              >
+                <MapPin className={`w-5 h-5 ${location ? "text-[#34c759]" : "text-[#ff9500]"}`} />
+              </div>
+              <div>
+                <p className="text-[15px] font-medium text-[#1d1d1f]">
+                  {location ? "พบตำแหน่ง GPS" : "กำลังหาตำแหน่ง..."}
+                </p>
+                {location && (
+                  <p className="text-[13px] text-[#86868b]">
+                    {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+                  </p>
+                )}
+              </div>
+            </div>
             <div
-              className={`w-3 h-3 rounded-full ${
-                location ? "bg-[#34c759]" : "bg-[#ff9500]"
-              }`}
+              className={`w-3 h-3 rounded-full ${location ? "bg-[#34c759]" : "bg-[#ff9500] animate-pulse"}`}
             />
-            <span className="text-[14px] text-[#6e6e73]">
-              <MapPin className="w-4 h-4 inline mr-1" />
-              {location ? "พบตำแหน่ง" : "กำลังหา..."}
-            </span>
           </div>
+
+          {/* Radius Check Status */}
+          {branch && radiusCheck && (
+            <div
+              className={`flex items-center justify-between p-4 rounded-xl border ${
+                radiusCheck.inRadius
+                  ? "bg-[#34c759]/10 border-[#34c759]/30"
+                  : "bg-[#ff9500]/10 border-[#ff9500]/30"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    radiusCheck.inRadius ? "bg-[#34c759]/20" : "bg-[#ff9500]/20"
+                  }`}
+                >
+                  <Navigation
+                    className={`w-5 h-5 ${radiusCheck.inRadius ? "text-[#34c759]" : "text-[#ff9500]"}`}
+                  />
+                </div>
+                <div>
+                  <p
+                    className={`text-[15px] font-medium ${
+                      radiusCheck.inRadius ? "text-[#34c759]" : "text-[#ff9500]"
+                    }`}
+                  >
+                    {radiusCheck.inRadius ? "อยู่ในรัศมีสาขา ✓" : "อยู่นอกรัศมีสาขา"}
+                  </p>
+                  <p className="text-[13px] text-[#86868b]">
+                    📍 {branch.name} • ห่าง {formatDistance(radiusCheck.distance)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Error */}

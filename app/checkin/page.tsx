@@ -9,7 +9,16 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { uploadAttendancePhoto } from "@/lib/utils/upload-photo";
-import { Camera, MapPin, ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
+import { isWithinRadius, formatDistance } from "@/lib/utils/geo";
+import { Camera, MapPin, ArrowLeft, CheckCircle, AlertCircle, Navigation } from "lucide-react";
+
+interface Branch {
+  id: string;
+  name: string;
+  gps_lat: number;
+  gps_lng: number;
+  radius_meters: number;
+}
 
 function CheckinContent() {
   const { employee } = useAuth();
@@ -22,6 +31,11 @@ function CheckinContent() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // ข้อมูลสาขาและการตรวจรัศมี
+  const [branch, setBranch] = useState<Branch | null>(null);
+  const [radiusCheck, setRadiusCheck] = useState<{ inRadius: boolean; distance: number } | null>(null);
+  const [requireRadius, setRequireRadius] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -31,8 +45,50 @@ function CheckinContent() {
   useEffect(() => {
     startCamera();
     getLocation();
+    fetchBranchAndSettings();
     return () => stopCamera();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // เช็ครัศมีเมื่อมี location และ branch
+  useEffect(() => {
+    if (location && branch) {
+      const result = isWithinRadius(
+        location.lat,
+        location.lng,
+        branch.gps_lat,
+        branch.gps_lng,
+        branch.radius_meters
+      );
+      setRadiusCheck(result);
+    }
+  }, [location, branch]);
+
+  const fetchBranchAndSettings = async () => {
+    if (!employee?.branch_id) return;
+
+    // ดึงข้อมูลสาขา
+    const { data: branchData } = await supabase
+      .from("branches")
+      .select("id, name, gps_lat, gps_lng, radius_meters")
+      .eq("id", employee.branch_id)
+      .single();
+
+    if (branchData) {
+      setBranch(branchData);
+    }
+
+    // ดึงค่า settings ว่าบังคับรัศมีหรือไม่
+    const { data: settings } = await supabase
+      .from("system_settings")
+      .select("setting_value")
+      .eq("setting_key", "require_gps")
+      .single();
+
+    if (settings?.setting_value === "true") {
+      setRequireRadius(true);
+    }
+  };
 
   const startCamera = async () => {
     try {
@@ -72,6 +128,12 @@ function CheckinContent() {
 
   const handleCheckin = async () => {
     if (!photo || !location || !employee) return;
+
+    // ตรวจสอบรัศมี (ถ้าบังคับ)
+    if (requireRadius && radiusCheck && !radiusCheck.inRadius) {
+      setError(`คุณอยู่นอกรัศมีที่อนุญาต (ห่าง ${formatDistance(radiusCheck.distance)})`);
+      return;
+    }
 
     setLoading(true);
     setError("");
@@ -113,7 +175,7 @@ function CheckinContent() {
           clock_in_time: now.toISOString(),
           clock_in_gps_lat: location.lat,
           clock_in_gps_lng: location.lng,
-          clock_in_photo_url: photoUrl, // ใช้ URL แทน base64
+          clock_in_photo_url: photoUrl,
           is_late: isLate,
         });
 
@@ -127,7 +189,7 @@ function CheckinContent() {
           body: JSON.stringify({
             employeeName: employee.name,
             time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }),
-            location: "สำนักงาน", // TODO: ดึงชื่อสาขาจาก branch_id
+            location: branch?.name || "สำนักงาน",
             isLate,
           }),
         }).catch((err) => console.error("Failed to send check-in notification:", err));
@@ -217,28 +279,103 @@ function CheckinContent() {
         </Card>
 
         {/* Status */}
-        <div className="flex items-center justify-center gap-6 mb-6">
-          <div className="flex items-center gap-2">
+        <div className="space-y-3 mb-6">
+          {/* GPS Status */}
+          <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-[#e8e8ed]">
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  location ? "bg-[#34c759]/10" : "bg-[#ff9500]/10"
+                }`}
+              >
+                <MapPin className={`w-5 h-5 ${location ? "text-[#34c759]" : "text-[#ff9500]"}`} />
+              </div>
+              <div>
+                <p className="text-[15px] font-medium text-[#1d1d1f]">
+                  {location ? "พบตำแหน่ง GPS" : "กำลังหาตำแหน่ง..."}
+                </p>
+                {location && (
+                  <p className="text-[13px] text-[#86868b]">
+                    {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+                  </p>
+                )}
+              </div>
+            </div>
             <div
-              className={`w-3 h-3 rounded-full ${
-                location ? "bg-[#34c759]" : "bg-[#ff9500]"
-              }`}
+              className={`w-3 h-3 rounded-full ${location ? "bg-[#34c759]" : "bg-[#ff9500] animate-pulse"}`}
             />
-            <span className="text-[14px] text-[#6e6e73]">
-              <MapPin className="w-4 h-4 inline mr-1" />
-              {location ? "พบตำแหน่ง" : "กำลังหา..."}
-            </span>
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Radius Check Status */}
+          {branch && radiusCheck && (
             <div
-              className={`w-3 h-3 rounded-full ${
-                stream ? "bg-[#34c759]" : "bg-[#ff9500]"
+              className={`flex items-center justify-between p-4 rounded-xl border ${
+                radiusCheck.inRadius
+                  ? "bg-[#34c759]/10 border-[#34c759]/30"
+                  : "bg-[#ff3b30]/10 border-[#ff3b30]/30"
               }`}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    radiusCheck.inRadius ? "bg-[#34c759]/20" : "bg-[#ff3b30]/20"
+                  }`}
+                >
+                  <Navigation
+                    className={`w-5 h-5 ${radiusCheck.inRadius ? "text-[#34c759]" : "text-[#ff3b30]"}`}
+                  />
+                </div>
+                <div>
+                  <p
+                    className={`text-[15px] font-medium ${
+                      radiusCheck.inRadius ? "text-[#34c759]" : "text-[#ff3b30]"
+                    }`}
+                  >
+                    {radiusCheck.inRadius ? "อยู่ในรัศมีที่อนุญาต ✓" : "อยู่นอกรัศมีที่อนุญาต ✗"}
+                  </p>
+                  <p className="text-[13px] text-[#86868b]">
+                    📍 {branch.name} • ห่าง {formatDistance(radiusCheck.distance)} (รัศมี {branch.radius_meters} ม.)
+                  </p>
+                </div>
+              </div>
+              <div
+                className={`w-3 h-3 rounded-full ${
+                  radiusCheck.inRadius ? "bg-[#34c759]" : "bg-[#ff3b30]"
+                }`}
+              />
+            </div>
+          )}
+
+          {/* No Branch Warning */}
+          {!branch && employee?.branch_id === null && (
+            <div className="flex items-center gap-3 p-4 bg-[#ff9500]/10 rounded-xl border border-[#ff9500]/30">
+              <AlertCircle className="w-5 h-5 text-[#ff9500]" />
+              <div>
+                <p className="text-[15px] font-medium text-[#ff9500]">ไม่ได้กำหนดสาขา</p>
+                <p className="text-[13px] text-[#86868b]">
+                  กรุณาติดต่อ Admin เพื่อกำหนดสาขาของคุณ
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Camera Status */}
+          <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-[#e8e8ed]">
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  stream ? "bg-[#34c759]/10" : "bg-[#ff9500]/10"
+                }`}
+              >
+                <Camera className={`w-5 h-5 ${stream ? "text-[#34c759]" : "text-[#ff9500]"}`} />
+              </div>
+              <p className="text-[15px] font-medium text-[#1d1d1f]">
+                {stream ? "กล้องพร้อมใช้งาน" : "กำลังเปิดกล้อง..."}
+              </p>
+            </div>
+            <div
+              className={`w-3 h-3 rounded-full ${stream ? "bg-[#34c759]" : "bg-[#ff9500] animate-pulse"}`}
             />
-            <span className="text-[14px] text-[#6e6e73]">
-              <Camera className="w-4 h-4 inline mr-1" />
-              {stream ? "กล้องพร้อม" : "กำลังเปิด..."}
-            </span>
           </div>
         </div>
 
@@ -268,7 +405,7 @@ function CheckinContent() {
                 fullWidth
                 onClick={handleCheckin}
                 loading={loading}
-                disabled={!location}
+                disabled={!location || (requireRadius && radiusCheck && !radiusCheck.inRadius)}
                 size="lg"
               >
                 <CheckCircle className="w-5 h-5" />
@@ -285,6 +422,13 @@ function CheckinContent() {
             </>
           )}
         </div>
+
+        {/* Warning if outside radius but can still check in */}
+        {radiusCheck && !radiusCheck.inRadius && !requireRadius && (
+          <p className="text-center text-[13px] text-[#ff9500] mt-4">
+            ⚠️ คุณอยู่นอกรัศมีสาขา แต่ยังสามารถเช็คอินได้
+          </p>
+        )}
       </main>
     </div>
   );
