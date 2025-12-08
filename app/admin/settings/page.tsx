@@ -35,6 +35,8 @@ function SettingsContent() {
     requireAccountApproval: true,
     enableHolidayNotifications: true,
     holidayNotificationDaysBefore: "1",
+    enableCheckinNotifications: false,
+    enableCheckoutNotifications: false,
     lineChannelToken: "",
     lineRecipientId: "",
     lineRecipientType: "group",
@@ -69,6 +71,8 @@ function SettingsContent() {
           enableNotifications: settingsMap.enable_notifications === "true",
           enableHolidayNotifications: settingsMap.enable_holiday_notifications !== "false",
           holidayNotificationDaysBefore: settingsMap.holiday_notification_days_before || "1",
+          enableCheckinNotifications: settingsMap.enable_checkin_notifications === "true",
+          enableCheckoutNotifications: settingsMap.enable_checkout_notifications === "true",
           lineChannelToken: settingsMap.line_channel_access_token || "",
           lineRecipientId: settingsMap.line_recipient_id || "",
           lineRecipientType: settingsMap.line_recipient_type || "group",
@@ -95,6 +99,8 @@ function SettingsContent() {
         { key: "enable_notifications", value: settings.enableNotifications.toString() },
         { key: "enable_holiday_notifications", value: settings.enableHolidayNotifications.toString() },
         { key: "holiday_notification_days_before", value: settings.holidayNotificationDaysBefore },
+        { key: "enable_checkin_notifications", value: settings.enableCheckinNotifications.toString() },
+        { key: "enable_checkout_notifications", value: settings.enableCheckoutNotifications.toString() },
         { key: "line_channel_access_token", value: settings.lineChannelToken },
         { key: "line_recipient_id", value: settings.lineRecipientId },
         { key: "line_recipient_type", value: settings.lineRecipientType },
@@ -288,9 +294,14 @@ function SettingsContent() {
             </label>
 
             <label className="flex items-center justify-between p-4 bg-[#f5f5f7] rounded-xl cursor-pointer hover:bg-[#e8e8ed] transition-colors">
-              <span className="text-[15px] text-[#1d1d1f]">
-                เปิดการแจ้งเตือน
-              </span>
+              <div>
+                <span className="text-[15px] text-[#1d1d1f] block">
+                  เปิดการแจ้งเตือน
+                </span>
+                <span className="text-[13px] text-[#86868b]">
+                  เปิด/ปิดการแจ้งเตือนทั้งหมด
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={() =>
@@ -300,18 +311,100 @@ function SettingsContent() {
                   })
                 }
                 className={`
-                  relative w-12 h-7 rounded-full transition-colors
+                  relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ml-4
                   ${settings.enableNotifications ? "bg-[#34c759]" : "bg-[#d2d2d7]"}
                 `}
               >
                 <span
                   className={`
-                    absolute top-1 w-5 h-5 bg-white rounded-full transition-transform
+                    absolute top-1 w-5 h-5 bg-white rounded-full transition-transform shadow-sm
                     ${settings.enableNotifications ? "right-1" : "left-1"}
                   `}
                 />
               </button>
             </label>
+          </div>
+        </Card>
+
+        {/* Attendance Notification Settings */}
+        <Card elevated>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-[#5ac8fa]/10 rounded-xl flex items-center justify-center">
+              <Clock className="w-5 h-5 text-[#5ac8fa]" />
+            </div>
+            <div>
+              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
+                แจ้งเตือนการเข้า-ออกงาน
+              </h3>
+              <p className="text-[13px] text-[#86868b]">แจ้งเตือนเมื่อมีการบันทึกเวลา</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <label className="flex items-center justify-between p-4 bg-[#f5f5f7] rounded-xl cursor-pointer hover:bg-[#e8e8ed] transition-colors">
+              <div>
+                <span className="text-[15px] text-[#1d1d1f] block">
+                  แจ้งเตือนเมื่อเช็คอิน
+                </span>
+                <span className="text-[13px] text-[#86868b]">
+                  ส่งแจ้งเตือนทุกครั้งที่พนักงานเช็คอินเข้างาน
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setSettings({ ...settings, enableCheckinNotifications: !settings.enableCheckinNotifications })
+                }
+                className={`
+                  relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ml-4
+                  ${settings.enableCheckinNotifications ? "bg-[#34c759]" : "bg-[#d2d2d7]"}
+                `}
+              >
+                <span
+                  className={`
+                    absolute top-1 w-5 h-5 bg-white rounded-full transition-transform shadow-sm
+                    ${settings.enableCheckinNotifications ? "right-1" : "left-1"}
+                  `}
+                />
+              </button>
+            </label>
+
+            <label className="flex items-center justify-between p-4 bg-[#f5f5f7] rounded-xl cursor-pointer hover:bg-[#e8e8ed] transition-colors">
+              <div>
+                <span className="text-[15px] text-[#1d1d1f] block">
+                  แจ้งเตือนเมื่อเช็คเอาท์
+                </span>
+                <span className="text-[13px] text-[#86868b]">
+                  ส่งแจ้งเตือนทุกครั้งที่พนักงานเช็คเอาท์ออกงาน
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setSettings({ ...settings, enableCheckoutNotifications: !settings.enableCheckoutNotifications })
+                }
+                className={`
+                  relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ml-4
+                  ${settings.enableCheckoutNotifications ? "bg-[#34c759]" : "bg-[#d2d2d7]"}
+                `}
+              >
+                <span
+                  className={`
+                    absolute top-1 w-5 h-5 bg-white rounded-full transition-transform shadow-sm
+                    ${settings.enableCheckoutNotifications ? "right-1" : "left-1"}
+                  `}
+                />
+              </button>
+            </label>
+
+            {(settings.enableCheckinNotifications || settings.enableCheckoutNotifications) && (
+              <div className="bg-[#5ac8fa]/10 rounded-xl p-4">
+                <p className="text-[13px] text-[#5ac8fa] leading-relaxed">
+                  ⚠️ <strong>คำเตือน:</strong> การแจ้งเตือนทุกครั้งอาจทำให้มีข้อความมากในกลุ่ม 
+                  แนะนำให้ใช้เฉพาะเมื่อจำเป็น หรือเปิดเฉพาะเช็คอินเพื่อตรวจสอบการมาสาย
+                </p>
+              </div>
+            )}
           </div>
         </Card>
 

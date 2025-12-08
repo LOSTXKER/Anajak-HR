@@ -445,3 +445,81 @@ export async function formatHolidayToday(
 ขอให้มีความสุขกับวันหยุด! 😊`;
 }
 
+/**
+ * Format check-in notification
+ */
+export async function formatCheckInMessage(
+  employeeName: string,
+  time: string,
+  location: string,
+  isLate: boolean
+): Promise<string> {
+  const templateKey = "line_msg_checkin";
+  
+  const lateStatus = isLate ? "⚠️ สถานะ: มาสาย" : "✅ สถานะ: ตรงเวลา";
+
+  try {
+    const { data } = await supabaseServer
+      .from("system_settings")
+      .select("setting_value")
+      .eq("setting_key", templateKey)
+      .single();
+
+    if (data?.setting_value) {
+      return data.setting_value
+        .replace(/{employeeName}/g, employeeName)
+        .replace(/{time}/g, time)
+        .replace(/{location}/g, location)
+        .replace(/{lateStatus}/g, lateStatus);
+    }
+  } catch (error) {
+    console.error("Error fetching message template:", error);
+  }
+
+  // Fallback to default message
+  return `✅ เช็คอินเข้างาน
+
+👤 พนักงาน: ${employeeName}
+⏰ เวลา: ${time}
+📍 สถานที่: ${location}
+${lateStatus}`;
+}
+
+/**
+ * Format check-out notification
+ */
+export async function formatCheckOutMessage(
+  employeeName: string,
+  time: string,
+  totalHours: number,
+  location: string
+): Promise<string> {
+  const templateKey = "line_msg_checkout";
+
+  try {
+    const { data } = await supabaseServer
+      .from("system_settings")
+      .select("setting_value")
+      .eq("setting_key", templateKey)
+      .single();
+
+    if (data?.setting_value) {
+      return data.setting_value
+        .replace(/{employeeName}/g, employeeName)
+        .replace(/{time}/g, time)
+        .replace(/{totalHours}/g, totalHours.toFixed(1))
+        .replace(/{location}/g, location);
+    }
+  } catch (error) {
+    console.error("Error fetching message template:", error);
+  }
+
+  // Fallback to default message
+  return `✅ เช็คเอาท์ออกงาน
+
+👤 พนักงาน: ${employeeName}
+⏰ เวลา: ${time}
+⏱️ ทำงาน: ${totalHours.toFixed(1)} ชั่วโมง
+📍 สถานที่: ${location}`;
+}
+

@@ -123,6 +123,22 @@ function CheckoutContent() {
 
       if (updateError) throw updateError;
 
+      // ส่งแจ้งเตือน LINE (ไม่บล็อก UI)
+      try {
+        fetch("/api/checkout-notification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            employeeName: employee.name,
+            time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }),
+            totalHours: totalHours,
+            location: "สำนักงาน", // TODO: ดึงชื่อสาขาจาก branch_id
+          }),
+        }).catch((err) => console.error("Failed to send check-out notification:", err));
+      } catch (notifyError) {
+        console.error("Notification error:", notifyError);
+      }
+
       setSuccess(true);
       stopCamera();
       setTimeout(() => router.push("/"), 2000);

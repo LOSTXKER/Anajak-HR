@@ -119,6 +119,22 @@ function CheckinContent() {
 
       if (insertError) throw insertError;
 
+      // ส่งแจ้งเตือน LINE (ไม่บล็อก UI)
+      try {
+        fetch("/api/checkin-notification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            employeeName: employee.name,
+            time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }),
+            location: "สำนักงาน", // TODO: ดึงชื่อสาขาจาก branch_id
+            isLate,
+          }),
+        }).catch((err) => console.error("Failed to send check-in notification:", err));
+      } catch (notifyError) {
+        console.error("Notification error:", notifyError);
+      }
+
       setSuccess(true);
       stopCamera();
       setTimeout(() => router.push("/"), 2000);

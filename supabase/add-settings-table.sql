@@ -105,7 +105,19 @@ INSERT INTO system_settings (setting_key, setting_value, description) VALUES
 📅 {holidayName}
 🏖️ ประเภท: {type}
 
-ขอให้มีความสุขกับวันหยุด! 😊', 'Template ข้อความวันหยุด (วันนี้)')
+ขอให้มีความสุขกับวันหยุด! 😊', 'Template ข้อความวันหยุด (วันนี้)'),
+  ('line_msg_checkin', '✅ เช็คอินเข้างาน
+
+👤 พนักงาน: {employeeName}
+⏰ เวลา: {time}
+📍 สถานที่: {location}
+{lateStatus}', 'Template ข้อความเช็คอิน'),
+  ('line_msg_checkout', '✅ เช็คเอาท์ออกงาน
+
+👤 พนักงาน: {employeeName}
+⏰ เวลา: {time}
+⏱️ ทำงาน: {totalHours} ชั่วโมง
+📍 สถานที่: {location}', 'Template ข้อความเช็คเอาท์')
 ON CONFLICT (setting_key) DO NOTHING;
 
 -- Holiday Notification Settings
@@ -113,6 +125,12 @@ INSERT INTO system_settings (setting_key, setting_value, description) VALUES
   ('enable_holiday_notifications', 'true', 'เปิดการแจ้งเตือนวันหยุด'),
   ('holiday_notification_days_before', '1', 'แจ้งเตือนล่วงหน้ากี่วัน'),
   ('holiday_notification_time', '09:00', 'เวลาที่ส่งแจ้งเตือน')
+ON CONFLICT (setting_key) DO NOTHING;
+
+-- Check-in/Check-out Notification Settings
+INSERT INTO system_settings (setting_key, setting_value, description) VALUES
+  ('enable_checkin_notifications', 'false', 'เปิดการแจ้งเตือนเมื่อพนักงานเช็คอิน'),
+  ('enable_checkout_notifications', 'false', 'เปิดการแจ้งเตือนเมื่อพนักงานเช็คเอาท์')
 ON CONFLICT (setting_key) DO NOTHING;
 
 -- Auto Check-out Settings
