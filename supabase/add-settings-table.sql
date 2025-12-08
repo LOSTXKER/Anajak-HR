@@ -92,7 +92,27 @@ INSERT INTO system_settings (setting_key, setting_value, description) VALUES
 📅 วันที่: {date}
 ❌ สถานะ: ปฏิเสธ
 
-กรุณาติดต่อหัวหน้างานเพื่อสอบถามเหตุผล', 'ข้อความ WFH ปฏิเสธ')
+กรุณาติดต่อหัวหน้างานเพื่อสอบถามเหตุผล', 'ข้อความ WFH ปฏิเสธ'),
+  ('line_msg_holiday_reminder', '🎉 แจ้งเตือนวันหยุด
+
+📅 {holidayName}
+📆 วันที่: {date}
+🏖️ ประเภท: {type}
+
+{message}', 'Template ข้อความแจ้งเตือนวันหยุด'),
+  ('line_msg_holiday_today', '🎊 วันนี้เป็นวันหยุด!
+
+📅 {holidayName}
+🏖️ ประเภท: {type}
+
+ขอให้มีความสุขกับวันหยุด! 😊', 'Template ข้อความวันหยุด (วันนี้)')
+ON CONFLICT (setting_key) DO NOTHING;
+
+-- Holiday Notification Settings
+INSERT INTO system_settings (setting_key, setting_value, description) VALUES
+  ('enable_holiday_notifications', 'true', 'เปิดการแจ้งเตือนวันหยุด'),
+  ('holiday_notification_days_before', '1', 'แจ้งเตือนล่วงหน้ากี่วัน'),
+  ('holiday_notification_time', '09:00', 'เวลาที่ส่งแจ้งเตือน')
 ON CONFLICT (setting_key) DO NOTHING;
 
 -- Auto Check-out Settings

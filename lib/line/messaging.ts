@@ -353,3 +353,95 @@ export function formatForgotCheckOutReminder(employeeName: string) {
 กรุณาเช็คเอาท์เพื่อบันทึกเวลาทำงาน`;
 }
 
+/**
+ * Format holiday reminder notification
+ */
+export async function formatHolidayReminder(
+  holidayName: string,
+  date: string,
+  type: string,
+  daysBefore: number
+): Promise<string> {
+  const templateKey = "line_msg_holiday_reminder";
+  
+  const typeLabels: Record<string, string> = {
+    public: "วันหยุดราชการ",
+    company: "วันหยุดบริษัท",
+    branch: "วันหยุดสาขา",
+  };
+
+  const typeLabel = typeLabels[type] || type;
+  const message = daysBefore === 0 
+    ? "วันนี้เป็นวันหยุด" 
+    : `อีก ${daysBefore} วัน จะเป็นวันหยุด`;
+
+  try {
+    const { data } = await supabaseServer
+      .from("system_settings")
+      .select("setting_value")
+      .eq("setting_key", templateKey)
+      .single();
+
+    if (data?.setting_value) {
+      return data.setting_value
+        .replace(/{holidayName}/g, holidayName)
+        .replace(/{date}/g, date)
+        .replace(/{type}/g, typeLabel)
+        .replace(/{message}/g, message);
+    }
+  } catch (error) {
+    console.error("Error fetching message template:", error);
+  }
+
+  // Fallback to default message
+  return `🎉 แจ้งเตือนวันหยุด
+
+📅 ${holidayName}
+📆 วันที่: ${date}
+🏖️ ประเภท: ${typeLabel}
+
+${message}`;
+}
+
+/**
+ * Format holiday notification for today
+ */
+export async function formatHolidayToday(
+  holidayName: string,
+  type: string
+): Promise<string> {
+  const templateKey = "line_msg_holiday_today";
+  
+  const typeLabels: Record<string, string> = {
+    public: "วันหยุดราชการ",
+    company: "วันหยุดบริษัท",
+    branch: "วันหยุดสาขา",
+  };
+
+  const typeLabel = typeLabels[type] || type;
+
+  try {
+    const { data } = await supabaseServer
+      .from("system_settings")
+      .select("setting_value")
+      .eq("setting_key", templateKey)
+      .single();
+
+    if (data?.setting_value) {
+      return data.setting_value
+        .replace(/{holidayName}/g, holidayName)
+        .replace(/{type}/g, typeLabel);
+    }
+  } catch (error) {
+    console.error("Error fetching message template:", error);
+  }
+
+  // Fallback to default message
+  return `🎊 วันนี้เป็นวันหยุด!
+
+📅 ${holidayName}
+🏖️ ประเภท: ${typeLabel}
+
+ขอให้มีความสุขกับวันหยุด! 😊`;
+}
+

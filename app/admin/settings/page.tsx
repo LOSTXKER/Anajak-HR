@@ -33,6 +33,8 @@ function SettingsContent() {
     requirePhoto: true,
     requireGPS: true,
     requireAccountApproval: true,
+    enableHolidayNotifications: true,
+    holidayNotificationDaysBefore: "1",
     lineChannelToken: "",
     lineRecipientId: "",
     lineRecipientType: "group",
@@ -65,6 +67,8 @@ function SettingsContent() {
           requireGPS: settingsMap.require_gps === "true",
           requireAccountApproval: settingsMap.require_account_approval !== "false", // Default to true
           enableNotifications: settingsMap.enable_notifications === "true",
+          enableHolidayNotifications: settingsMap.enable_holiday_notifications !== "false",
+          holidayNotificationDaysBefore: settingsMap.holiday_notification_days_before || "1",
           lineChannelToken: settingsMap.line_channel_access_token || "",
           lineRecipientId: settingsMap.line_recipient_id || "",
           lineRecipientType: settingsMap.line_recipient_type || "group",
@@ -89,6 +93,8 @@ function SettingsContent() {
         { key: "require_gps", value: settings.requireGPS.toString() },
         { key: "require_account_approval", value: settings.requireAccountApproval.toString() },
         { key: "enable_notifications", value: settings.enableNotifications.toString() },
+        { key: "enable_holiday_notifications", value: settings.enableHolidayNotifications.toString() },
+        { key: "holiday_notification_days_before", value: settings.holidayNotificationDaysBefore },
         { key: "line_channel_access_token", value: settings.lineChannelToken },
         { key: "line_recipient_id", value: settings.lineRecipientId },
         { key: "line_recipient_type", value: settings.lineRecipientType },
@@ -306,6 +312,81 @@ function SettingsContent() {
                 />
               </button>
             </label>
+          </div>
+        </Card>
+
+        {/* Holiday Notification Settings */}
+        <Card elevated>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-[#ff9500]/10 rounded-xl flex items-center justify-center">
+              <Bell className="w-5 h-5 text-[#ff9500]" />
+            </div>
+            <div>
+              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
+                แจ้งเตือนวันหยุด
+              </h3>
+              <p className="text-[13px] text-[#86868b]">แจ้งเตือนล่วงหน้าและวันหยุด</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <label className="flex items-center justify-between p-4 bg-[#f5f5f7] rounded-xl cursor-pointer hover:bg-[#e8e8ed] transition-colors">
+              <div>
+                <span className="text-[15px] text-[#1d1d1f] block">
+                  เปิดแจ้งเตือนวันหยุด
+                </span>
+                <span className="text-[13px] text-[#86868b]">
+                  ส่งแจ้งเตือนผ่าน LINE เมื่อใกล้วันหยุด
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setSettings({ ...settings, enableHolidayNotifications: !settings.enableHolidayNotifications })
+                }
+                className={`
+                  relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ml-4
+                  ${settings.enableHolidayNotifications ? "bg-[#34c759]" : "bg-[#d2d2d7]"}
+                `}
+              >
+                <span
+                  className={`
+                    absolute top-1 w-5 h-5 bg-white rounded-full transition-transform shadow-sm
+                    ${settings.enableHolidayNotifications ? "right-1" : "left-1"}
+                  `}
+                />
+              </button>
+            </label>
+
+            {settings.enableHolidayNotifications && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
+                    แจ้งเตือนล่วงหน้า (วัน)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="7"
+                    value={settings.holidayNotificationDaysBefore}
+                    onChange={(e) =>
+                      setSettings({ ...settings, holidayNotificationDaysBefore: e.target.value })
+                    }
+                    className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#ff9500]/20 transition-all border border-transparent focus:border-[#ff9500]"
+                  />
+                  <p className="text-[13px] text-[#86868b] mt-1">
+                    ส่งแจ้งเตือนกี่วันก่อนวันหยุด (0 = แจ้งเฉพาะวันหยุดเท่านั้น)
+                  </p>
+                </div>
+
+                <div className="bg-[#ff9500]/10 rounded-xl p-4">
+                  <p className="text-[13px] text-[#ff9500] leading-relaxed">
+                    💡 ระบบจะส่งแจ้งเตือนไปยัง LINE Group/User ที่ตั้งค่าไว้ 
+                    เมื่อถึงเวลา 09:00 น. ของทุกวัน (ต้องตั้งค่า Cron Job)
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </Card>
 
