@@ -1,163 +1,207 @@
-# Anajak HR - ระบบบันทึกเข้างาน + OT
+# 🏢 Anajak HR - ระบบบันทึกเข้างาน + OT
 
-ระบบบันทึกเวลาเข้างาน-เลิกงาน และจัดการ OT ผ่านมือถือ พัฒนาด้วย Next.js + Supabase
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-Database-3ECF8E?logo=supabase)](https://supabase.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 🚀 คุณสมบัติหลัก (MVP - Phase 1)
+ระบบบันทึกเวลาเข้างาน-เลิกงาน และจัดการ OT ผ่านมือถือ พัฒนาด้วย **Next.js 15** + **Supabase**
 
-- ✅ ระบบเช็กอิน/เช็กเอาท์พร้อมถ่ายรูปและตรวจสอบ GPS
+![Dashboard Preview](https://via.placeholder.com/800x400?text=Anajak+HR+Dashboard)
+
+## ✨ คุณสมบัติหลัก
+
+### 📱 MVP (Phase 1) - ✅ เสร็จแล้ว
+- ✅ ระบบเช็คอิน/เช็คเอาท์พร้อมถ่ายรูปและตรวจสอบ GPS
 - ✅ ระบบขอ OT และอนุมัติ OT
 - ✅ Dashboard สำหรับหัวหน้าและแอดมิน
 - ✅ ประวัติการเข้างานและ OT
 - ✅ Export รายงานเป็น Excel/CSV
 
-## 📋 ข้อกำหนดเบื้องต้น
+### 🚀 Phase 2 - ✅ เสร็จแล้ว
+- ✅ ระบบลางาน (Leave Management)
+- ✅ ระบบ WFH (Work From Home)
+- ✅ การจัดการวันหยุด + OT Rate วันหยุด
+- ✅ การจัดการสาขา + GPS Radius
+- ✅ LINE Messaging API Integration
+- ✅ ตั้งค่าข้อความ LINE แบบ Custom
+- ✅ Auto Check-out System
+- ✅ Reminder System (เตือนเช็คเอาท์)
+- ✅ Anomaly Detection (ตรวจสอบความผิดปกติ)
+- ✅ Attendance Edit (แก้ไขเวลาเข้า-ออก)
 
-- Node.js 18+ 
-- npm หรือ yarn
-- บัญชี Supabase (ฟรี)
+---
 
-## 🛠️ การติดตั้ง
-
-### 1. Clone โปรเจค
+## 🚀 Quick Start
 
 ```bash
-git clone <repository-url>
-cd anajak-hr
-```
+# Clone repository
+git clone https://github.com/LOSTXKER/Anajak-HR.git
+cd Anajak-HR
 
-### 2. ติดตั้ง Dependencies
-
-```bash
+# Install dependencies
 npm install
-```
 
-### 3. ตั้งค่า Supabase
+# Setup environment
+cp env.local.example .env.local
+# แก้ไขไฟล์ .env.local ใส่ Supabase credentials
 
-1. สร้างโปรเจคใหม่ที่ [https://supabase.com](https://supabase.com)
-2. คัดลอก URL และ API keys
-3. รัน SQL Schema จากไฟล์ `supabase/schema.sql` ใน SQL Editor ของ Supabase
-
-### 4. ตั้งค่า Environment Variables
-
-สร้างไฟล์ `.env.local` และกรอกข้อมูล:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=your-project-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-NEXT_PUBLIC_GPS_RADIUS_METERS=100
-```
-
-### 5. รันโปรเจค
-
-```bash
+# Run development server
 npm run dev
 ```
 
 เปิดเบราว์เซอร์ที่ [http://localhost:3000](http://localhost:3000)
 
+> 📚 ดูรายละเอียดการติดตั้งเพิ่มเติมได้ที่ [docs/QUICK_START.md](docs/QUICK_START.md)
+
+---
+
+## 📋 ข้อกำหนดเบื้องต้น
+
+- **Node.js** 18+
+- **npm** หรือ **yarn**
+- **บัญชี Supabase** (ฟรี)
+
+---
+
 ## 📁 โครงสร้างโปรเจค
 
 ```
 anajak-hr/
-├── app/                    # Next.js App Router
-│   ├── (auth)/            # Authentication routes
-│   ├── admin/             # Admin dashboard
-│   ├── checkin/           # Check-in page
-│   ├── checkout/          # Check-out page
-│   ├── ot/                # OT management
-│   ├── history/           # History page
-│   └── api/               # API routes
-├── components/            # Reusable components
-├── lib/                   # Utility functions
-│   ├── supabase/         # Supabase clients
-│   └── utils/            # Helper functions
-├── types/                 # TypeScript types
-└── supabase/             # Database schema
+├── app/                      # Next.js App Router
+│   ├── admin/               # Admin Dashboard
+│   │   ├── anomalies/      # ตรวจสอบความผิดปกติ
+│   │   ├── attendance/     # จัดการการเข้างาน
+│   │   ├── branches/       # จัดการสาขา
+│   │   ├── employees/      # จัดการพนักงาน
+│   │   ├── holidays/       # จัดการวันหยุด
+│   │   ├── leave/          # อนุมัติลา
+│   │   ├── ot/             # อนุมัติ OT
+│   │   ├── reports/        # รายงาน
+│   │   ├── settings/       # ตั้งค่าระบบ
+│   │   └── wfh/            # อนุมัติ WFH
+│   ├── api/                 # API Routes
+│   ├── checkin/             # หน้าเช็คอิน
+│   ├── checkout/            # หน้าเช็คเอาท์
+│   ├── history/             # ประวัติการเข้างาน
+│   ├── leave/               # ขอลา
+│   ├── ot/                  # ขอ OT
+│   └── wfh/                 # ขอ WFH
+├── components/              # UI Components
+│   ├── admin/              # Admin Components
+│   └── ui/                 # Reusable UI
+├── docs/                    # 📚 Documentation
+├── lib/                     # Utilities
+│   ├── auth/               # Authentication
+│   ├── line/               # LINE Integration
+│   ├── supabase/           # Supabase Clients
+│   └── utils/              # Helper Functions
+├── public/                  # Static Assets
+├── supabase/                # Database Schema
+└── types/                   # TypeScript Types
 ```
-
-## 🗃️ โครงสร้างฐานข้อมูล
-
-### ตารางหลัก
-
-- **employees** - ข้อมูลพนักงาน
-- **branches** - ข้อมูลสาขา
-- **attendance_logs** - บันทึกการเข้างาน-เลิกงาน
-- **ot_requests** - คำขอ OT
-- **holidays** - วันหยุด
-- **leave_requests** - คำขอลา (Phase 2)
-- **wfh_requests** - คำขอ WFH (Phase 2)
-
-## 🔐 Authentication
-
-ระบบใช้ Supabase Auth พร้อม Row Level Security (RLS) เพื่อความปลอดภัย
-
-### Role-based Access:
-- **staff** - พนักงานทั่วไป (เช็กอิน/เอาท์, ขอ OT, ดูประวัติตัวเอง)
-- **supervisor** - หัวหน้างาน (อนุมัติ OT, ดูทีม, รายงาน)
-- **admin** - ผู้ดูแลระบบ (เข้าถึงทุกอย่าง)
-
-## 📱 ฟีเจอร์การใช้งาน
-
-### การเช็กอิน/เช็กเอาท์
-1. เปิดกล้องถ่ายรูปหน้า (Face Selfie)
-2. ระบบตรวจสอบ GPS (ต้องอยู่ในรัศมีที่กำหนด)
-3. บันทึกเวลาและข้อมูล
-
-### การขอ OT
-1. กรอกวันที่และเวลาที่ต้องการทำ OT
-2. ระบุเหตุผล
-3. ถ่ายรูปหน้างาน (Before OT)
-4. รอหัวหน้าอนุมัติ
-5. เมื่อทำ OT เสร็จ กด "จบ OT" + ถ่ายรูป (After OT)
-
-### Dashboard หัวหน้า
-- ดูรายชื่อพนักงานที่เข้างาน/ยังไม่เข้างาน
-- อนุมัติ/ไม่อนุมัติคำขอ OT
-- ดูรายงานการเข้างานและ OT
-
-## 🚀 Roadmap
-
-### Phase 1 - MVP (Current) ✅
-- ✅ เช็กอิน/เช็กเอาท์ + GPS + Camera
-- ✅ ระบบ OT พื้นฐาน
-- ✅ Dashboard หัวหน้า
-- ✅ Export Excel
-
-### Phase 2 - OT Advanced & Leave
-- ⏳ ระบบลางาน
-- ⏳ ระบบ WFH
-- ⏳ OT วันหยุด
-- ⏳ แจ้งเตือนผ่าน LINE
-
-### Phase 3 - Payroll
-- ⏳ คำนวณเงินเดือน
-- ⏳ ใบสลิปเงินเดือน
-- ⏳ รายงานประกันสังคม
-
-### Phase 4 - Advanced
-- ⏳ Face Recognition API
-- ⏳ ระบบกะ (Shift)
-- ⏳ LINE Integration
-- ⏳ Multi-branch
-
-## 🛡️ Security Features
-
-- Row Level Security (RLS) ใน Supabase
-- GPS Fence (ตรวจสอบตำแหน่ง)
-- Face Selfie (ยืนยันตัวตน)
-- Device Binding (ผูกอุปกรณ์)
-
-## 📄 License
-
-MIT License
-
-## 👥 Support
-
-สำหรับคำถามและการสนับสนุน กรุณาติดต่อ: support@anajak.com
 
 ---
 
-Made with ❤️ by Anajak HR Team
+## 🗃️ Database Schema
 
+| Table | Description |
+|-------|-------------|
+| `employees` | ข้อมูลพนักงาน |
+| `branches` | ข้อมูลสาขา + GPS |
+| `attendance_logs` | บันทึกการเข้า-ออกงาน |
+| `ot_requests` | คำขอ OT |
+| `leave_requests` | คำขอลา |
+| `wfh_requests` | คำขอ WFH |
+| `holidays` | วันหยุด |
+| `system_settings` | ตั้งค่าระบบ |
+| `attendance_anomalies` | ความผิดปกติ |
+
+---
+
+## 🔐 Authentication & Roles
+
+| Role | Description | Permissions |
+|------|-------------|-------------|
+| `employee` | พนักงานทั่วไป | เช็คอิน/เอาท์, ขอ OT/ลา/WFH |
+| `supervisor` | หัวหน้างาน | อนุมัติ OT/ลา/WFH, ดูรายงานทีม |
+| `admin` | ผู้ดูแลระบบ | เข้าถึงทุกอย่าง |
+
+---
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [QUICK_START.md](docs/QUICK_START.md) | คู่มือเริ่มต้นใช้งาน |
+| [SETUP.md](docs/SETUP.md) | การติดตั้งแบบละเอียด |
+| [FEATURES.md](docs/FEATURES.md) | รายละเอียดฟีเจอร์ |
+| [ENV_SETUP.md](docs/ENV_SETUP.md) | การตั้งค่า Environment |
+| [LINE_MESSAGING_SETUP.md](docs/LINE_MESSAGING_SETUP.md) | การตั้งค่า LINE API |
+| [SYSTEM_PLAN.md](docs/SYSTEM_PLAN.md) | แผนพัฒนาระบบ (ภาษาไทย) |
+| [CHANGELOG.md](docs/CHANGELOG.md) | ประวัติการเปลี่ยนแปลง |
+
+---
+
+## 🗺️ Roadmap
+
+### ✅ Phase 1 - MVP (เสร็จแล้ว)
+- เช็คอิน/เช็คเอาท์ + GPS + Camera
+- ระบบ OT พื้นฐาน
+- Dashboard หัวหน้า
+- Export Excel
+
+### ✅ Phase 2 - Enhanced (เสร็จแล้ว)
+- ระบบลางาน + WFH
+- การจัดการวันหยุด/สาขา
+- LINE Messaging API
+- Auto Check-out
+- Anomaly Detection
+
+### ⏳ Phase 3 - Payroll (กำลังพัฒนา)
+- คำนวณเงินเดือน
+- ใบสลิปเงินเดือน (PDF)
+- รายงานประกันสังคม
+
+### 🔮 Phase 4 - Advanced
+- Face Recognition API
+- LINE Rich Menu + LIFF
+- Mobile App (React Native)
+- PWA Support
+
+---
+
+## 🛡️ Security Features
+
+- 🔒 Row Level Security (RLS) ใน Supabase
+- 📍 GPS Fence (ตรวจสอบตำแหน่ง)
+- 📸 Face Selfie (ยืนยันตัวตน)
+- 🔑 Service Role Key (Server-side only)
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 👥 Support
+
+สำหรับคำถามและการสนับสนุน กรุณาสร้าง [Issue](https://github.com/LOSTXKER/Anajak-HR/issues) ใหม่
+
+---
+
+<p align="center">
+  Made with ❤️ by <strong>Anajak HR Team</strong>
+</p>
