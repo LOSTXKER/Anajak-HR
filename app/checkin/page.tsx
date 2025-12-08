@@ -94,7 +94,7 @@ function CheckinContent() {
 
       // Check late (after 9:00 AM)
       const now = new Date();
-      const isLate = now.getHours() >= 9 && now.getMinutes() > 0;
+      const isLate = now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() > 0);
 
       const { error: insertError } = await supabase
         .from("attendance_logs")

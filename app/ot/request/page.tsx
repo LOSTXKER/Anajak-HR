@@ -58,11 +58,35 @@ function OTRequestContent() {
 
     try {
       const requestDate = new Date(formData.date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // ตรวจสอบว่าไม่ใช่วันในอดีต
+      if (requestDate < today) {
+        setError("ไม่สามารถขอ OT ย้อนหลังได้");
+        setLoading(false);
+        return;
+      }
+
       const startDateTime = new Date(`${formData.date}T${formData.startTime}:00`);
       const endDateTime = new Date(`${formData.date}T${formData.endTime}:00`);
 
       if (endDateTime <= startDateTime) {
         setError("เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น");
+        setLoading(false);
+        return;
+      }
+      
+      // ตรวจสอบ OT ที่ซ้ำซ้อน (pending หรือ approved)
+      const { data: existingOT } = await supabase
+        .from("ot_requests")
+        .select("id")
+        .eq("employee_id", employee.id)
+        .eq("request_date", formData.date)
+        .in("status", ["pending", "approved"]);
+        
+      if (existingOT && existingOT.length > 0) {
+        setError("คุณมีคำขอ OT ในวันนี้แล้ว");
         setLoading(false);
         return;
       }

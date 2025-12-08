@@ -27,10 +27,34 @@ function WFHRequestContent() {
     e.preventDefault();
     if (!employee) return;
 
+    // ตรวจสอบว่าไม่ใช่วันในอดีต
+    const requestDate = new Date(formData.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (requestDate < today) {
+      setError("ไม่สามารถขอ WFH ย้อนหลังได้");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
+      // ตรวจสอบว่ามีคำขอ WFH ในวันเดียวกันหรือไม่
+      const { data: existingWFH } = await supabase
+        .from("wfh_requests")
+        .select("id")
+        .eq("employee_id", employee.id)
+        .eq("date", formData.date)
+        .in("status", ["pending", "approved"]);
+        
+      if (existingWFH && existingWFH.length > 0) {
+        setError("คุณมีคำขอ WFH ในวันนี้แล้ว");
+        setLoading(false);
+        return;
+      }
+      
       const { error: insertError } = await supabase.from("wfh_requests").insert({
         employee_id: employee.id,
         date: formData.date,

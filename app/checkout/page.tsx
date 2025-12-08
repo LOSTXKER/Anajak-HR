@@ -156,6 +156,34 @@ function CheckoutContent() {
     );
   }
 
+  // ตรวจสอบว่าเช็คเอาท์แล้วหรือยัง
+  if (todayLog.clock_out_time) {
+    return (
+      <div className="min-h-screen bg-[#fbfbfd] flex items-center justify-center p-6">
+        <div className="text-center">
+          <div className="w-20 h-20 bg-[#34c759]/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="w-10 h-10 text-[#34c759]" />
+          </div>
+          <h2 className="text-[28px] font-semibold text-[#1d1d1f] mb-2">
+            เช็กเอาท์แล้ววันนี้
+          </h2>
+          <p className="text-[17px] text-[#86868b] mb-2">
+            เช็กเอาท์เมื่อ {new Date(todayLog.clock_out_time).toLocaleTimeString("th-TH", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })} น.
+          </p>
+          <p className="text-[15px] text-[#86868b] mb-8">
+            ทำงานรวม {todayLog.total_hours?.toFixed(1) || 0} ชั่วโมง
+          </p>
+          <Button onClick={() => router.push("/")}>
+            กลับหน้าหลัก
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#fbfbfd]">
       {/* Header */}

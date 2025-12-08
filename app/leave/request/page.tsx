@@ -124,11 +124,33 @@ function LeaveRequestContent() {
       setError("วันสิ้นสุดต้องมากกว่าหรือเท่ากับวันเริ่มต้น");
       return;
     }
+    
+    // ตรวจสอบว่าไม่ใช่วันในอดีต
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (new Date(formData.startDate) < today) {
+      setError("ไม่สามารถขอลาย้อนหลังได้");
+      return;
+    }
 
     setLoading(true);
     setError("");
 
     try {
+      // ตรวจสอบว่ามีคำขอลาในช่วงวันเดียวกันหรือไม่
+      const { data: existingLeave } = await supabase
+        .from("leave_requests")
+        .select("id")
+        .eq("employee_id", employee.id)
+        .in("status", ["pending", "approved"])
+        .or(`start_date.lte.${formData.endDate},end_date.gte.${formData.startDate}`);
+        
+      if (existingLeave && existingLeave.length > 0) {
+        setError("คุณมีคำขอลาในช่วงวันนี้แล้ว");
+        setLoading(false);
+        return;
+      }
+      
       let attachmentUrl = null;
 
       // Upload attachment if exists
