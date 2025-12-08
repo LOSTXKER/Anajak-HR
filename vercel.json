@@ -1,0 +1,9 @@
+{
+  "crons": [
+    {
+      "path": "/api/holiday-notifications",
+      "schedule": "0 2 * * *"
+    }
+  ]
+}
+
