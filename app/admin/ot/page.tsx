@@ -82,7 +82,15 @@ function OTManagementContent() {
 
       // Send LINE notification
       try {
-        await fetch("/api/notifications", {
+        console.log("[OT Page] Sending LINE notification...", {
+          employeeName: ot?.employee?.name,
+          date: ot?.request_date,
+          startTime: ot?.requested_start_time,
+          endTime: ot?.requested_end_time,
+          approved,
+        });
+
+        const notifyResponse = await fetch("/api/notifications", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -96,8 +104,15 @@ function OTManagementContent() {
             },
           }),
         });
+
+        const notifyResult = await notifyResponse.json();
+        console.log("[OT Page] Notification result:", notifyResult);
+
+        if (!notifyResponse.ok) {
+          console.error("[OT Page] Notification API error:", notifyResult);
+        }
       } catch (notifyError) {
-        console.error("Failed to send LINE notification:", notifyError);
+        console.error("[OT Page] Failed to send LINE notification:", notifyError);
       }
 
       toast.success(

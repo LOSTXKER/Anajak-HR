@@ -88,7 +88,8 @@ function WFHManagementContent() {
 
       // Send LINE notification
       try {
-        await fetch("/api/notifications", {
+        console.log("[WFH Page] Sending LINE notification...");
+        const notifyResponse = await fetch("/api/notifications", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -100,8 +101,10 @@ function WFHManagementContent() {
             },
           }),
         });
+        const notifyResult = await notifyResponse.json();
+        console.log("[WFH Page] Notification result:", notifyResult);
       } catch (notifyError) {
-        console.error("Failed to send LINE notification:", notifyError);
+        console.error("[WFH Page] Failed to send LINE notification:", notifyError);
       }
 
       setWfhRequests(

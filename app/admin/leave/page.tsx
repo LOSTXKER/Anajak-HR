@@ -100,7 +100,8 @@ function LeaveManagementContent() {
 
       // Send LINE notification
       try {
-        await fetch("/api/notifications", {
+        console.log("[Leave Page] Sending LINE notification...");
+        const notifyResponse = await fetch("/api/notifications", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -114,8 +115,10 @@ function LeaveManagementContent() {
             },
           }),
         });
+        const notifyResult = await notifyResponse.json();
+        console.log("[Leave Page] Notification result:", notifyResult);
       } catch (notifyError) {
-        console.error("Failed to send LINE notification:", notifyError);
+        console.error("[Leave Page] Failed to send LINE notification:", notifyError);
       }
 
       setLeaveRequests(

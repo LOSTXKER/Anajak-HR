@@ -13,19 +13,33 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { type, data } = body;
 
+    console.log("[Notifications API] Received request:", { type, data });
+
     let message = "";
     let success = false;
 
     switch (type) {
       case "ot_approval":
-        message = await formatOTApprovalMessage(
-          data.employeeName,
-          format(new Date(data.date), "d MMMM yyyy", { locale: th }),
-          format(new Date(data.startTime), "HH:mm"),
-          format(new Date(data.endTime), "HH:mm"),
-          data.approved
-        );
+        console.log("[Notifications API] Processing OT approval...");
+        try {
+          const dateStr = data.date ? format(new Date(data.date), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
+          const startTimeStr = data.startTime ? format(new Date(data.startTime), "HH:mm") : "ไม่ระบุ";
+          const endTimeStr = data.endTime ? format(new Date(data.endTime), "HH:mm") : "ไม่ระบุ";
+          
+          message = await formatOTApprovalMessage(
+            data.employeeName || "ไม่ระบุชื่อ",
+            dateStr,
+            startTimeStr,
+            endTimeStr,
+            data.approved
+          );
+          console.log("[Notifications API] Message formatted:", message);
+        } catch (formatError: any) {
+          console.error("[Notifications API] Error formatting OT message:", formatError);
+          message = `🔔 แจ้งเตือน OT: ${data.employeeName} - ${data.approved ? "อนุมัติแล้ว" : "ปฏิเสธ"}`;
+        }
         success = await sendLineMessage(message);
+        console.log("[Notifications API] LINE send result:", success);
         break;
 
       case "leave_approval":
