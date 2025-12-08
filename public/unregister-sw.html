@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unregister Service Worker</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f7;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #1d1d1f;
+      margin-bottom: 20px;
+    }
+    button {
+      background: #0071e3;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover {
+      background: #0077ED;
+    }
+    .status {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 8px;
+      background: #f5f5f7;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .info {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 ล้างข้อมูล Service Worker</h1>
+    <p>คลิกปุ่มด้านล่างเพื่อลบ Service Worker ที่ cache ไว้</p>
+    <button onclick="unregisterServiceWorkers()">ลบ Service Worker</button>
+    <div id="status" class="status"></div>
+  </div>
+
+  <script>
+    async function unregisterServiceWorkers() {
+      const statusDiv = document.getElementById('status');
+      
+      if ('serviceWorker' in navigator) {
+        try {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          
+          if (registrations.length === 0) {
+            statusDiv.className = 'status info';
+            statusDiv.innerHTML = '✓ ไม่พบ Service Worker ที่ต้องลบ';
+            return;
+          }
+
+          for (let registration of registrations) {
+            await registration.unregister();
+          }
+          
+          // Clear all caches
+          const cacheNames = await caches.keys();
+          await Promise.all(
+            cacheNames.map(cacheName => caches.delete(cacheName))
+          );
+          
+          statusDiv.className = 'status success';
+          statusDiv.innerHTML = `✓ ลบ Service Worker สำเร็จ (${registrations.length} รายการ)<br>กรุณา Refresh หน้าเว็บอีกครั้ง`;
+          
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 2000);
+        } catch (error) {
+          statusDiv.className = 'status';
+          statusDiv.innerHTML = `❌ เกิดข้อผิดพลาด: ${error.message}`;
+        }
+      } else {
+        statusDiv.className = 'status info';
+        statusDiv.innerHTML = '⚠️ เบราว์เซอร์นี้ไม่รองรับ Service Worker';
+      }
+    }
+
+    // Auto-run on page load
+    window.addEventListener('load', () => {
+      const statusDiv = document.getElementById('status');
+      statusDiv.className = 'status info';
+      statusDiv.innerHTML = 'พร้อมลบ Service Worker แล้ว';
+    });
+  </script>
+</body>
+</html>
+
