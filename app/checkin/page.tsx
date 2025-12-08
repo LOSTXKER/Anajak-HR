@@ -405,7 +405,7 @@ function CheckinContent() {
                 fullWidth
                 onClick={handleCheckin}
                 loading={loading}
-                disabled={!location || (requireRadius && radiusCheck && !radiusCheck.inRadius)}
+                disabled={!location || (requireRadius && radiusCheck !== null && !radiusCheck.inRadius)}
                 size="lg"
               >
                 <CheckCircle className="w-5 h-5" />
