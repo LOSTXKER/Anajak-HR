@@ -102,8 +102,8 @@ function CheckinContent() {
           employee_id: employee.id,
           work_date: today,
           clock_in_time: now.toISOString(),
-          clock_in_latitude: location.lat,
-          clock_in_longitude: location.lng,
+          clock_in_gps_lat: location.lat,
+          clock_in_gps_lng: location.lng,
           clock_in_photo_url: photo,
           is_late: isLate,
         });

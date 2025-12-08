@@ -98,8 +98,8 @@ function CheckoutContent() {
         .from("attendance_logs")
         .update({
           clock_out_time: now.toISOString(),
-          clock_out_latitude: location.lat,
-          clock_out_longitude: location.lng,
+          clock_out_gps_lat: location.lat,
+          clock_out_gps_lng: location.lng,
           clock_out_photo_url: photo,
           total_hours: totalHours,
         })
