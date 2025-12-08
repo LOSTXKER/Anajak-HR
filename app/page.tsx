@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -15,20 +15,43 @@ import {
   Shield,
   FileText,
   Home,
+  LogOut,
+  User,
+  ChevronDown,
+  Settings,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { Avatar } from "@/components/ui/Avatar";
 
 export default function HomePage() {
-  const { user, employee, isConfigured, loading } = useAuth();
+  const { user, employee, isConfigured, loading, signOut } = useAuth();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push("/login");
+  };
 
   if (!mounted || loading) {
     return (
@@ -197,6 +220,68 @@ export default function HomePage() {
             >
               ประวัติ
             </Link>
+            
+            {/* User Menu */}
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-[#f5f5f7] transition-colors"
+              >
+                <Avatar name={employee?.name || "User"} size="sm" />
+                <ChevronDown className={`w-4 h-4 text-[#86868b] transition-transform ${showUserMenu ? "rotate-180" : ""}`} />
+              </button>
+              
+              {showUserMenu && (
+                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-[#e8e8ed] py-2 animate-scale-in">
+                  {/* User Info */}
+                  <div className="px-4 py-3 border-b border-[#e8e8ed]">
+                    <p className="text-[15px] font-semibold text-[#1d1d1f] truncate">
+                      {employee?.name}
+                    </p>
+                    <p className="text-[13px] text-[#86868b] truncate">
+                      {employee?.email}
+                    </p>
+                    <Badge variant="info" className="mt-2">
+                      {employee?.role === "admin" ? "ผู้ดูแลระบบ" : 
+                       employee?.role === "supervisor" ? "หัวหน้างาน" : "พนักงาน"}
+                    </Badge>
+                  </div>
+                  
+                  {/* Menu Items */}
+                  <div className="py-1">
+                    <Link
+                      href="/history"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-3 px-4 py-2 text-[15px] text-[#1d1d1f] hover:bg-[#f5f5f7] transition-colors"
+                    >
+                      <ChartBar className="w-4 h-4 text-[#86868b]" />
+                      ประวัติการทำงาน
+                    </Link>
+                    {(employee?.role === "admin" || employee?.role === "supervisor") && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-3 px-4 py-2 text-[15px] text-[#1d1d1f] hover:bg-[#f5f5f7] transition-colors"
+                      >
+                        <Settings className="w-4 h-4 text-[#86868b]" />
+                        จัดการระบบ
+                      </Link>
+                    )}
+                  </div>
+                  
+                  {/* Logout */}
+                  <div className="border-t border-[#e8e8ed] pt-1">
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-[15px] text-[#ff3b30] hover:bg-[#ff3b30]/10 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      ออกจากระบบ
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>

@@ -68,16 +68,20 @@ export default function RegisterPage() {
   if (success) {
     return (
       <div className="min-h-screen bg-[#fbfbfd] flex items-center justify-center px-6">
-        <div className="text-center animate-scale-in">
-          <div className="w-20 h-20 bg-[#34c759] rounded-full flex items-center justify-center mx-auto mb-6">
+        <div className="max-w-[480px] text-center animate-scale-in">
+          <div className="w-20 h-20 bg-[#ff9500] rounded-full flex items-center justify-center mx-auto mb-6">
             <Check className="w-10 h-10 text-white" strokeWidth={3} />
           </div>
-          <h2 className="text-[28px] font-semibold text-[#1d1d1f] mb-2">
-            สมัครสมาชิกสำเร็จ
+          <h2 className="text-[28px] font-semibold text-[#1d1d1f] mb-3">
+            ส่งคำขอสมัครสมาชิกแล้ว
           </h2>
-          <p className="text-[17px] text-[#86868b]">
-            กำลังพาคุณไปหน้าเข้าสู่ระบบ...
+          <p className="text-[17px] text-[#86868b] mb-8">
+            บัญชีของคุณอยู่ในระหว่างการตรวจสอบ<br />
+            กรุณารอผู้ดูแลระบบอนุมัติก่อนเข้าใช้งาน
           </p>
+          <Button onClick={() => router.push("/login")} variant="secondary">
+            กลับสู่หน้าเข้าสู่ระบบ
+          </Button>
         </div>
       </div>
     );

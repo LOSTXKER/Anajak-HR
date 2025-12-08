@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
+import { supabase } from "@/lib/supabase/client";
 import {
   LayoutGrid,
   Users,
@@ -20,27 +21,120 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+interface MenuSection {
+  title: string;
+  items: MenuItem[];
+}
+
+interface MenuItem {
+  title: string;
+  href: string;
+  icon: any;
+  badge?: number;
+}
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { employee, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [pendingCounts, setPendingCounts] = useState({
+    approvals: 0,
+    ot: 0,
+    leave: 0,
+    wfh: 0,
+    anomalies: 0,
+  });
 
-  const menuItems = [
-    { title: "Dashboard", href: "/admin", icon: LayoutGrid },
-    { title: "พนักงาน", href: "/admin/employees", icon: Users },
-    { title: "สาขา", href: "/admin/branches", icon: Building2 },
-    { title: "วันหยุด", href: "/admin/holidays", icon: PartyPopper },
-    { title: "การเข้างาน", href: "/admin/attendance", icon: Clock },
-    { title: "ตรวจสอบความผิดปกติ", href: "/admin/anomalies", icon: AlertTriangle },
-    { title: "คำขอ OT", href: "/admin/ot", icon: Calendar },
-    { title: "คำขอลา", href: "/admin/leave", icon: FileText },
-    { title: "คำขอ WFH", href: "/admin/wfh", icon: Home },
-    { title: "รายงาน", href: "/admin/reports", icon: BarChart3 },
-    { title: "ตั้งค่า", href: "/admin/settings", icon: Settings },
+  // ดึงจำนวนคำขอที่รออนุมัติ
+  useEffect(() => {
+    fetchPendingCounts();
+    
+    // อัพเดททุก 30 วินาที
+    const interval = setInterval(fetchPendingCounts, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchPendingCounts = async () => {
+    try {
+      const [approvalsResult, otResult, leaveResult, wfhResult, anomaliesResult] = await Promise.all([
+        supabase
+          .from("employees")
+          .select("id", { count: "exact", head: true })
+          .eq("account_status", "pending"),
+        supabase
+          .from("ot_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending"),
+        supabase
+          .from("leave_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending"),
+        supabase
+          .from("wfh_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending"),
+        supabase
+          .from("attendance_anomalies")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending"),
+      ]);
+
+      setPendingCounts({
+        approvals: approvalsResult.count || 0,
+        ot: otResult.count || 0,
+        leave: leaveResult.count || 0,
+        wfh: wfhResult.count || 0,
+        anomalies: anomaliesResult.count || 0,
+      });
+    } catch (error) {
+      console.error("Error fetching pending counts:", error);
+    }
+  };
+
+  const menuSections: MenuSection[] = [
+    {
+      title: "หลัก",
+      items: [
+        { title: "Dashboard", href: "/admin", icon: LayoutGrid },
+      ],
+    },
+    {
+      title: "การเข้างาน",
+      items: [
+        { title: "บันทึกการเข้างาน", href: "/admin/attendance", icon: Clock },
+        { title: "ตรวจสอบความผิดปกติ", href: "/admin/anomalies", icon: AlertTriangle, badge: pendingCounts.anomalies },
+      ],
+    },
+    {
+      title: "คำขออนุมัติ",
+      items: [
+        { title: "อนุมัติบัญชี", href: "/admin/approvals", icon: Users, badge: pendingCounts.approvals },
+        { title: "คำขอ OT", href: "/admin/ot", icon: Calendar, badge: pendingCounts.ot },
+        { title: "คำขอลา", href: "/admin/leave", icon: FileText, badge: pendingCounts.leave },
+        { title: "คำขอ WFH", href: "/admin/wfh", icon: Home, badge: pendingCounts.wfh },
+      ],
+    },
+    {
+      title: "จัดการข้อมูล",
+      items: [
+        { title: "พนักงาน", href: "/admin/employees", icon: Users },
+        { title: "สาขา", href: "/admin/branches", icon: Building2 },
+        { title: "วันหยุด", href: "/admin/holidays", icon: PartyPopper },
+      ],
+    },
+    {
+      title: "รายงาน & ตั้งค่า",
+      items: [
+        { title: "รายงาน", href: "/admin/reports", icon: BarChart3 },
+        { title: "ตั้งค่าระบบ", href: "/admin/settings", icon: Settings },
+      ],
+    },
   ];
+
+  const totalPending = pendingCounts.approvals + pendingCounts.ot + pendingCounts.leave + pendingCounts.wfh;
 
   const handleSignOut = async () => {
     await signOut();
@@ -50,38 +144,63 @@ export function Sidebar() {
   const SidebarContent = () => (
     <>
       {/* Logo */}
-      <div className="h-12 flex items-center px-6 border-b border-[#e8e8ed]">
+      <div className="h-14 flex items-center justify-between px-6 border-b border-[#e8e8ed]">
         <Link href="/admin" className="text-[#1d1d1f] font-semibold text-lg">
           Anajak HR
         </Link>
+        {totalPending > 0 && (
+          <span className="px-2 py-0.5 bg-[#ff3b30] text-white text-[11px] font-bold rounded-full animate-pulse">
+            {totalPending}
+          </span>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 px-3 overflow-y-auto">
-        <div className="space-y-1">
-          {menuItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-xl
-                  text-[15px] font-medium transition-all duration-200
-                  ${
-                    isActive
-                      ? "bg-[#0071e3] text-white"
-                      : "text-[#6e6e73] hover:bg-[#f5f5f7] hover:text-[#1d1d1f]"
-                  }
-                `}
-              >
-                <item.icon className="w-5 h-5" />
-                {item.title}
-              </Link>
-            );
-          })}
-        </div>
+      <nav className="flex-1 py-3 px-3 overflow-y-auto">
+        {menuSections.map((section) => (
+          <div key={section.title} className="mb-4">
+            {/* Section Header */}
+            <div className="px-3 py-1.5 text-[11px] font-semibold text-[#86868b] uppercase tracking-wider">
+              {section.title}
+            </div>
+            
+            {/* Section Items */}
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={`
+                      flex items-center gap-3 px-3 py-2 rounded-xl
+                      text-[14px] font-medium transition-all duration-200 relative
+                      ${
+                        isActive
+                          ? "bg-[#0071e3] text-white"
+                          : "text-[#6e6e73] hover:bg-[#f5f5f7] hover:text-[#1d1d1f]"
+                      }
+                    `}
+                  >
+                    <item.icon className="w-[18px] h-[18px]" />
+                    <span className="flex-1">{item.title}</span>
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <span
+                        className={`
+                          px-1.5 py-0.5 text-[10px] font-bold rounded-full min-w-[20px] text-center
+                          ${isActive ? "bg-white/20 text-white" : "bg-[#ff3b30] text-white"}
+                        `}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* User Profile */}
@@ -116,6 +235,11 @@ export function Sidebar() {
         className="fixed top-3 left-4 z-50 p-2 bg-white rounded-xl shadow-lg lg:hidden"
       >
         {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        {totalPending > 0 && !mobileOpen && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#ff3b30] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+            {totalPending}
+          </span>
+        )}
       </button>
 
       {/* Mobile Overlay */}

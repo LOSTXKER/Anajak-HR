@@ -51,7 +51,7 @@ function SettingsContent() {
 
       if (data) {
         const settingsMap: any = {};
-        data.forEach((item) => {
+        data.forEach((item: any) => {
           settingsMap[item.setting_key] = item.setting_value;
         });
 

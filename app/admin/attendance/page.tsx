@@ -31,10 +31,9 @@ function AttendanceContent() {
       // ดึงข้อมูลเฉพาะพนักงานที่ไม่ใช่ admin
       const { data } = await supabase
         .from("attendance_logs")
-        .select(`*, employees!inner (name, email, role)`)
+        .select(`*, employee:employees!employee_id (name, email, role)`)
         .gte("work_date", startDate)
         .lte("work_date", endDate)
-        .neq("employees.role", "admin")
         .order("work_date", { ascending: false });
 
       setAttendance(data || []);
@@ -50,7 +49,7 @@ function AttendanceContent() {
     const headers = ["วันที่", "ชื่อ", "เข้างาน", "ออกงาน", "ชั่วโมง", "สถานะ"];
     const rows = attendance.map((a) => [
       format(new Date(a.work_date), "dd/MM/yyyy"),
-      a.employees?.name || "-",
+      a.employee?.name || "-",
       a.clock_in_time ? format(new Date(a.clock_in_time), "HH:mm") : "-",
       a.clock_out_time ? format(new Date(a.clock_out_time), "HH:mm") : "-",
       a.total_hours?.toFixed(1) || "0",
@@ -162,9 +161,9 @@ function AttendanceContent() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <Avatar name={log.employees?.name || "?"} size="sm" />
+                        <Avatar name={log.employee?.name || "?"} size="sm" />
                         <span className="text-[14px] text-[#1d1d1f]">
-                          {log.employees?.name}
+                          {log.employee?.name}
                         </span>
                       </div>
                     </td>

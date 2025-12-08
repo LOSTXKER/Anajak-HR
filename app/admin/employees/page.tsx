@@ -7,10 +7,12 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { ConfirmDialog } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { Search, Mail, Phone, Trash2, Users, ShieldCheck, UserCog } from "lucide-react";
+import { Search, Mail, Phone, Trash2, Users, ShieldCheck, UserCog, Plus, X } from "lucide-react";
 import { format } from "date-fns";
 
 interface Employee {
@@ -48,6 +50,15 @@ function EmployeesContent() {
     name: "",
   });
   const [deleting, setDeleting] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [newEmployee, setNewEmployee] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    role: "staff",
+  });
 
   useEffect(() => {
     fetchEmployees();
@@ -96,6 +107,35 @@ function EmployeesContent() {
     }
   };
 
+  const handleAddEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdding(true);
+
+    try {
+      // Call API to create employee
+      const response = await fetch("/api/employees/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newEmployee),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "ไม่สามารถเพิ่มพนักงานได้");
+      }
+
+      toast.success("สำเร็จ", "เพิ่มพนักงานใหม่เรียบร้อยแล้ว");
+      setShowAddModal(false);
+      setNewEmployee({ name: "", email: "", phone: "", password: "", role: "staff" });
+      fetchEmployees();
+    } catch (error: any) {
+      toast.error("เกิดข้อผิดพลาด", error.message || "ไม่สามารถเพิ่มพนักงานได้");
+    } finally {
+      setAdding(false);
+    }
+  };
+
   const filteredEmployees = employees.filter((emp) => {
     const matchSearch =
       emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -126,6 +166,9 @@ function EmployeesContent() {
             placeholder="ตำแหน่ง"
           />
         </div>
+        <Button onClick={() => setShowAddModal(true)} icon={<Plus className="w-5 h-5" />}>
+          เพิ่มพนักงาน
+        </Button>
       </div>
 
       {/* Stats */}
@@ -230,6 +273,89 @@ function EmployeesContent() {
           </div>
         )}
       </Card>
+
+      {/* Add Employee Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6">
+          <Card className="max-w-[500px] w-full">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-[21px] font-semibold text-[#1d1d1f]">
+                เพิ่มพนักงานใหม่
+              </h3>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddEmployee} className="space-y-4">
+              <Input
+                label="ชื่อ-นามสกุล"
+                type="text"
+                value={newEmployee.name}
+                onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })}
+                placeholder="กรุณากรอกชื่อ-นามสกุล"
+                required
+              />
+
+              <Input
+                label="อีเมล"
+                type="email"
+                value={newEmployee.email}
+                onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })}
+                placeholder="กรุณากรอกอีเมล"
+                required
+              />
+
+              <Input
+                label="เบอร์โทรศัพท์"
+                type="tel"
+                value={newEmployee.phone}
+                onChange={(e) => setNewEmployee({ ...newEmployee, phone: e.target.value })}
+                placeholder="กรุณากรอกเบอร์โทรศัพท์"
+                required
+              />
+
+              <Input
+                label="รหัสผ่าน"
+                type="password"
+                value={newEmployee.password}
+                onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })}
+                placeholder="กรุณากรอกรหัสผ่าน (อย่างน้อย 6 ตัวอักษร)"
+                required
+                minLength={6}
+              />
+
+              <div>
+                <label className="block text-[15px] font-medium text-[#1d1d1f] mb-2">
+                  ตำแหน่ง
+                </label>
+                <Select
+                  value={newEmployee.role}
+                  onChange={(value) => setNewEmployee({ ...newEmployee, role: value })}
+                  options={roleOptions}
+                />
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setShowAddModal(false)}
+                  fullWidth
+                >
+                  ยกเลิก
+                </Button>
+                <Button type="submit" loading={adding} fullWidth>
+                  เพิ่มพนักงาน
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
 
       {/* Delete Confirmation */}
       <ConfirmDialog

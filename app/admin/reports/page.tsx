@@ -41,7 +41,7 @@ function ReportsContent() {
 
       if (!employees) return;
 
-      const reportPromises = employees.map(async (emp) => {
+      const reportPromises = employees.map(async (emp: any) => {
         const { data: attendance } = await supabase
           .from("attendance_logs")
           .select("*")
@@ -60,9 +60,9 @@ function ReportsContent() {
         return {
           ...emp,
           totalWorkDays: attendance?.length || 0,
-          totalWorkHours: attendance?.reduce((sum, a) => sum + (a.total_hours || 0), 0) || 0,
-          totalLateDays: attendance?.filter((a) => a.is_late).length || 0,
-          totalOTHours: otLogs?.reduce((sum, ot) => sum + (ot.actual_ot_hours || 0), 0) || 0,
+          totalWorkHours: attendance?.reduce((sum: number, a: any) => sum + (a.total_hours || 0), 0) || 0,
+          totalLateDays: attendance?.filter((a: any) => a.is_late).length || 0,
+          totalOTHours: otLogs?.reduce((sum: number, ot: any) => sum + (ot.actual_ot_hours || 0), 0) || 0,
         };
       });
 
@@ -71,9 +71,9 @@ function ReportsContent() {
 
       setSummary({
         totalEmployees: employees.length,
-        totalWorkHours: reports.reduce((sum, r) => sum + r.totalWorkHours, 0),
-        totalOTHours: reports.reduce((sum, r) => sum + r.totalOTHours, 0),
-        totalLateDays: reports.reduce((sum, r) => sum + r.totalLateDays, 0),
+        totalWorkHours: reports.reduce((sum: number, r: any) => sum + r.totalWorkHours, 0),
+        totalOTHours: reports.reduce((sum: number, r: any) => sum + r.totalOTHours, 0),
+        totalLateDays: reports.reduce((sum: number, r: any) => sum + r.totalLateDays, 0),
       });
     } catch (error) {
       console.error("Error:", error);

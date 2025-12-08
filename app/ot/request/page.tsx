@@ -37,14 +37,14 @@ function OTRequestContent() {
   const checkHoliday = async () => {
     if (!formData.date) return;
 
-    const holiday = await isHoliday(formData.date, employee?.branch_id);
+    const holiday = await isHoliday(formData.date, employee?.branch_id || undefined);
     setHolidayInfo(holiday);
 
     // Get estimated OT rate
-    const rateInfo = await getOTRate("normal", formData.date, employee?.branch_id, {
-      ot_rate_1x: employee?.ot_rate_1x,
-      ot_rate_1_5x: employee?.ot_rate_1_5x,
-      ot_rate_2x: employee?.ot_rate_2x,
+    const rateInfo = await getOTRate("normal", formData.date, employee?.branch_id || undefined, {
+      ot_rate_1x: employee?.ot_rate_1x ?? undefined,
+      ot_rate_1_5x: employee?.ot_rate_1_5x ?? undefined,
+      ot_rate_2x: employee?.ot_rate_2x ?? undefined,
     });
     setEstimatedRate(rateInfo.rate);
   };

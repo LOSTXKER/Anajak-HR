@@ -45,17 +45,21 @@ export async function POST(request: NextRequest) {
     const workEndTime = settings.work_end_time || "18:00";
     const [endHour, endMinute] = workEndTime.split(":").map(Number);
 
-    // หาพนักงานที่ยังไม่ได้เช็คเอาท์วันนี้ (ไม่รวม admin)
-    const { data: pendingCheckouts, error } = await supabaseServer
+    // หาพนักงานที่ยังไม่ได้เช็คเอาท์วันนี้
+    const { data: pendingCheckoutsRaw, error } = await supabaseServer
       .from("attendance_logs")
       .select(`
         *,
-        employee:employees!inner!employee_id(id, name, email, line_user_id, role)
+        employee:employees!employee_id(id, name, email, line_user_id, role)
       `)
       .gte("clock_in_time", `${today}T00:00:00`)
       .lt("clock_in_time", `${today}T23:59:59`)
-      .is("clock_out_time", null)
-      .neq("employee.role", "admin");
+      .is("clock_out_time", null);
+
+    // Filter เฉพาะที่ไม่ใช่ admin
+    const pendingCheckouts = (pendingCheckoutsRaw || []).filter(
+      (a: any) => a.employee?.role !== "admin"
+    );
 
     if (error) {
       console.error("Error fetching pending checkouts:", error);

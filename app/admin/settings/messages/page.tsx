@@ -145,7 +145,7 @@ function MessagesContent() {
 
       if (data) {
         const messagesMap: Record<string, string> = {};
-        data.forEach((item) => {
+        data.forEach((item: any) => {
           messagesMap[item.setting_key] = item.setting_value || "";
         });
         setMessages(messagesMap);

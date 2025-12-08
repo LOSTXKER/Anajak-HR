@@ -189,7 +189,7 @@ export async function formatOTApprovalMessage(
   const templateKey = approved ? "line_msg_ot_approved" : "line_msg_ot_rejected";
   
   try {
-    const { data } = await supabase
+    const { data } = await supabaseServer
       .from("system_settings")
       .select("setting_value")
       .eq("setting_key", templateKey)
@@ -243,7 +243,7 @@ export async function formatLeaveApprovalMessage(
   const dateRange = startDate !== endDate ? `${startDate} ถึง ${endDate}` : startDate;
 
   try {
-    const { data } = await supabase
+    const { data } = await supabaseServer
       .from("system_settings")
       .select("setting_value")
       .eq("setting_key", templateKey)
@@ -282,7 +282,7 @@ export async function formatWFHApprovalMessage(
   const templateKey = approved ? "line_msg_wfh_approved" : "line_msg_wfh_rejected";
 
   try {
-    const { data } = await supabase
+    const { data } = await supabaseServer
       .from("system_settings")
       .select("setting_value")
       .eq("setting_key", templateKey)

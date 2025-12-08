@@ -5,7 +5,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 // Check if Supabase is configured
-export const isSupabaseConfigured = supabaseUrl && supabaseAnonKey;
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
 // Create client only if configured, otherwise create a dummy client
 export const supabase = isSupabaseConfigured 

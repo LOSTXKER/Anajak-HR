@@ -3,9 +3,10 @@ import { ReactNode } from "react";
 interface BadgeProps {
   children: ReactNode;
   variant?: "default" | "success" | "warning" | "danger" | "info";
+  className?: string;
 }
 
-export function Badge({ children, variant = "default" }: BadgeProps) {
+export function Badge({ children, variant = "default", className = "" }: BadgeProps) {
   const variants = {
     default: "bg-[#f5f5f7] text-[#6e6e73]",
     success: "bg-[#34c759]/10 text-[#248a3d]",
@@ -20,6 +21,7 @@ export function Badge({ children, variant = "default" }: BadgeProps) {
         inline-flex items-center px-3 py-1
         text-sm font-medium rounded-full
         ${variants[variant]}
+        ${className}
       `}
     >
       {children}

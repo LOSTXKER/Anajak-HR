@@ -103,7 +103,7 @@ function AutoCheckoutContent() {
 
       if (data) {
         const newSettings = { ...settings };
-        data.forEach((item) => {
+        data.forEach((item: any) => {
           const key = item.setting_key as keyof Settings;
           if (key in newSettings) {
             if (typeof newSettings[key] === "boolean") {

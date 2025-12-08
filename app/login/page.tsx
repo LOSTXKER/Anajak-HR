@@ -38,9 +38,22 @@ export default function LoginPage() {
       if (data.user) {
         const { data: employee } = await supabase
           .from("employees")
-          .select("role")
+          .select("role, account_status")
           .eq("id", data.user.id)
           .single();
+
+        // Check account status
+        if (employee?.account_status === "pending") {
+          await supabase.auth.signOut();
+          setError("บัญชีของคุณกำลังรอการอนุมัติจากผู้ดูแลระบบ");
+          return;
+        }
+
+        if (employee?.account_status === "rejected") {
+          await supabase.auth.signOut();
+          setError("บัญชีของคุณถูกปฏิเสธ กรุณาติดต่อผู้ดูแลระบบ");
+          return;
+        }
 
         if (employee?.role === "admin" || employee?.role === "supervisor") {
           router.push("/admin");

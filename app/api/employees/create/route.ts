@@ -4,10 +4,10 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, email, phone, password } = body;
+    const { name, email, phone, password, role } = body;
 
     // Validate input
-    if (!name || !email || !phone || !password) {
+    if (!name || !email || !phone || !password || !role) {
       return NextResponse.json(
         { error: "กรุณากรอกข้อมูลให้ครบถ้วน" },
         { status: 400 }
@@ -63,11 +63,11 @@ export async function POST(request: NextRequest) {
         name,
         email,
         phone,
-        role: "staff",
+        role,
         base_salary_rate: 20000,
         ot_rate_1_5x: 1.5,
         ot_rate_2x: 2.0,
-        account_status: "pending", // รอการอนุมัติ
+        account_status: "approved", // Admin สร้างเอง ไม่ต้องรออนุมัติ
       });
 
     if (employeeError) {
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: "สมัครสมาชิกสำเร็จ",
+        message: "เพิ่มพนักงานสำเร็จ",
         user: {
           id: authData.user.id,
           email: authData.user.email,
@@ -94,9 +94,9 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error: any) {
-    console.error("Register API error:", error);
+    console.error("Create employee API error:", error);
     return NextResponse.json(
-      { error: error.message || "เกิดข้อผิดพลาดในการสมัครสมาชิก" },
+      { error: error.message || "เกิดข้อผิดพลาดในการเพิ่มพนักงาน" },
       { status: 500 }
     );
   }

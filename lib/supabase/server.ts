@@ -22,3 +22,6 @@ export const supabaseServer = createClient(supabaseUrl, supabaseServiceKey, {
     persistSession: false,
   },
 });
+
+// Alias for compatibility
+export const supabaseAdmin = supabaseServer;
