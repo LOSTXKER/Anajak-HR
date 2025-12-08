@@ -21,6 +21,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // เช็คว่าต้องอนุมัติบัญชีหรือไม่
+    let requireApproval = true; // Default to true
+    try {
+      const { data: settingData } = await supabaseAdmin
+        .from("system_settings")
+        .select("setting_value")
+        .eq("setting_key", "require_account_approval")
+        .single();
+      
+      if (settingData) {
+        requireApproval = settingData.setting_value !== "false";
+      }
+    } catch (e) {
+      console.log("Could not fetch approval setting, defaulting to true");
+    }
+
     // 1. สร้าง user ใน Auth (ใช้ Admin Client)
     const { data: authData, error: authError } =
       await supabaseAdmin.auth.admin.createUser({
@@ -67,7 +83,7 @@ export async function POST(request: NextRequest) {
         base_salary_rate: 20000,
         ot_rate_1_5x: 1.5,
         ot_rate_2x: 2.0,
-        account_status: "pending", // รอการอนุมัติ
+        account_status: requireApproval ? "pending" : "approved", // ตามการตั้งค่า
       });
 
     if (employeeError) {
@@ -85,7 +101,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: "สมัครสมาชิกสำเร็จ",
+        message: requireApproval 
+          ? "สมัครสมาชิกสำเร็จ รอการอนุมัติจาก Admin" 
+          : "สมัครสมาชิกสำเร็จ",
+        requireApproval,
         user: {
           id: authData.user.id,
           email: authData.user.email,

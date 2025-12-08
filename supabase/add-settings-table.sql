@@ -42,6 +42,7 @@ INSERT INTO system_settings (setting_key, setting_value, description) VALUES
   ('late_threshold_minutes', '15', 'เกณฑ์มาสาย (นาที)'),
   ('require_photo', 'true', 'บังคับถ่ายรูปเมื่อเช็คอิน'),
   ('require_gps', 'true', 'บังคับเปิด GPS'),
+  ('require_account_approval', 'true', 'บังคับอนุมัติบัญชีพนักงานก่อนใช้งาน'),
   ('enable_notifications', 'true', 'เปิดการแจ้งเตือน'),
   ('line_channel_access_token', '', 'LINE Channel Access Token'),
   ('line_recipient_id', '', 'LINE User ID หรือ Group ID'),

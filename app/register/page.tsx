@@ -12,6 +12,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [requireApproval, setRequireApproval] = useState(true);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -56,8 +57,13 @@ export default function RegisterPage() {
         throw new Error(data.error || "เกิดข้อผิดพลาด");
       }
 
+      setRequireApproval(data.requireApproval !== false);
       setSuccess(true);
-      setTimeout(() => router.push("/login"), 2000);
+      
+      // ถ้าไม่ต้องรอการอนุมัติ ให้ redirect ไปหน้า login ทันที
+      if (data.requireApproval === false) {
+        setTimeout(() => router.push("/login"), 1500);
+      }
     } catch (err: any) {
       setError(err.message || "เกิดข้อผิดพลาดในการสมัครสมาชิก");
     } finally {
@@ -69,18 +75,21 @@ export default function RegisterPage() {
     return (
       <div className="min-h-screen bg-[#fbfbfd] flex items-center justify-center px-6">
         <div className="max-w-[480px] text-center animate-scale-in">
-          <div className="w-20 h-20 bg-[#ff9500] rounded-full flex items-center justify-center mx-auto mb-6">
+          <div className={`w-20 h-20 ${requireApproval ? 'bg-[#ff9500]' : 'bg-[#34c759]'} rounded-full flex items-center justify-center mx-auto mb-6`}>
             <Check className="w-10 h-10 text-white" strokeWidth={3} />
           </div>
           <h2 className="text-[28px] font-semibold text-[#1d1d1f] mb-3">
-            ส่งคำขอสมัครสมาชิกแล้ว
+            {requireApproval ? 'ส่งคำขอสมัครสมาชิกแล้ว' : 'สมัครสมาชิกสำเร็จ'}
           </h2>
           <p className="text-[17px] text-[#86868b] mb-8">
-            บัญชีของคุณอยู่ในระหว่างการตรวจสอบ<br />
-            กรุณารอผู้ดูแลระบบอนุมัติก่อนเข้าใช้งาน
+            {requireApproval ? (
+              <>บัญชีของคุณอยู่ในระหว่างการตรวจสอบ<br />กรุณารอผู้ดูแลระบบอนุมัติก่อนเข้าใช้งาน</>
+            ) : (
+              <>บัญชีของคุณพร้อมใช้งานแล้ว<br />กำลังนำคุณไปยังหน้าเข้าสู่ระบบ...</>
+            )}
           </p>
           <Button onClick={() => router.push("/login")} variant="secondary">
-            กลับสู่หน้าเข้าสู่ระบบ
+            {requireApproval ? 'กลับสู่หน้าเข้าสู่ระบบ' : 'เข้าสู่ระบบเลย'}
           </Button>
         </div>
       </div>

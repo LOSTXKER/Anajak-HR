@@ -16,6 +16,7 @@ import {
   MessageCircle,
   ChevronRight,
   Bell,
+  UserCheck,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -31,6 +32,7 @@ function SettingsContent() {
     enableNotifications: true,
     requirePhoto: true,
     requireGPS: true,
+    requireAccountApproval: true,
     lineChannelToken: "",
     lineRecipientId: "",
     lineRecipientType: "group",
@@ -61,6 +63,7 @@ function SettingsContent() {
           lateThreshold: settingsMap.late_threshold_minutes || "15",
           requirePhoto: settingsMap.require_photo === "true",
           requireGPS: settingsMap.require_gps === "true",
+          requireAccountApproval: settingsMap.require_account_approval !== "false", // Default to true
           enableNotifications: settingsMap.enable_notifications === "true",
           lineChannelToken: settingsMap.line_channel_access_token || "",
           lineRecipientId: settingsMap.line_recipient_id || "",
@@ -84,6 +87,7 @@ function SettingsContent() {
         { key: "late_threshold_minutes", value: settings.lateThreshold },
         { key: "require_photo", value: settings.requirePhoto.toString() },
         { key: "require_gps", value: settings.requireGPS.toString() },
+        { key: "require_account_approval", value: settings.requireAccountApproval.toString() },
         { key: "enable_notifications", value: settings.enableNotifications.toString() },
         { key: "line_channel_access_token", value: settings.lineChannelToken },
         { key: "line_recipient_id", value: settings.lineRecipientId },
@@ -302,6 +306,62 @@ function SettingsContent() {
                 />
               </button>
             </label>
+          </div>
+        </Card>
+
+        {/* Account Approval Settings */}
+        <Card elevated>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-[#af52de]/10 rounded-xl flex items-center justify-center">
+              <UserCheck className="w-5 h-5 text-[#af52de]" />
+            </div>
+            <div>
+              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
+                การอนุมัติบัญชี
+              </h3>
+              <p className="text-[13px] text-[#86868b]">จัดการการลงทะเบียนพนักงานใหม่</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <label className="flex items-center justify-between p-4 bg-[#f5f5f7] rounded-xl cursor-pointer hover:bg-[#e8e8ed] transition-colors">
+              <div>
+                <span className="text-[15px] text-[#1d1d1f] block">
+                  บังคับอนุมัติบัญชีก่อนใช้งาน
+                </span>
+                <span className="text-[13px] text-[#86868b]">
+                  {settings.requireAccountApproval 
+                    ? "พนักงานใหม่ต้องรอ Admin อนุมัติก่อนเข้าใช้งาน" 
+                    : "พนักงานใหม่สามารถใช้งานได้ทันทีหลังสมัคร"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setSettings({ ...settings, requireAccountApproval: !settings.requireAccountApproval })
+                }
+                className={`
+                  relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ml-4
+                  ${settings.requireAccountApproval ? "bg-[#34c759]" : "bg-[#d2d2d7]"}
+                `}
+              >
+                <span
+                  className={`
+                    absolute top-1 w-5 h-5 bg-white rounded-full transition-transform shadow-sm
+                    ${settings.requireAccountApproval ? "right-1" : "left-1"}
+                  `}
+                />
+              </button>
+            </label>
+
+            {settings.requireAccountApproval && (
+              <div className="bg-[#af52de]/10 rounded-xl p-4">
+                <p className="text-[13px] text-[#af52de] leading-relaxed">
+                  💡 เมื่อเปิดใช้งาน พนักงานใหม่ที่สมัครสมาชิกจะมีสถานะ "รออนุมัติ" 
+                  และต้องให้ Admin อนุมัติที่หน้า "อนุมัติบัญชี" ก่อนจึงจะเข้าใช้งานได้
+                </p>
+              </div>
+            )}
           </div>
         </Card>
 
