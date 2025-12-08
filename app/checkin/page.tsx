@@ -35,7 +35,6 @@ function CheckinContent() {
   // ข้อมูลสาขาและการตรวจรัศมี
   const [branch, setBranch] = useState<Branch | null>(null);
   const [radiusCheck, setRadiusCheck] = useState<{ inRadius: boolean; distance: number } | null>(null);
-  const [requireRadius, setRequireRadius] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -76,17 +75,6 @@ function CheckinContent() {
 
     if (branchData) {
       setBranch(branchData);
-    }
-
-    // ดึงค่า settings ว่าบังคับรัศมีหรือไม่
-    const { data: settings } = await supabase
-      .from("system_settings")
-      .select("setting_value")
-      .eq("setting_key", "require_gps")
-      .single();
-
-    if (settings?.setting_value === "true") {
-      setRequireRadius(true);
     }
   };
 
@@ -129,9 +117,15 @@ function CheckinContent() {
   const handleCheckin = async () => {
     if (!photo || !location || !employee) return;
 
-    // ตรวจสอบรัศมี (ถ้าบังคับ)
-    if (requireRadius && radiusCheck && !radiusCheck.inRadius) {
-      setError(`คุณอยู่นอกรัศมีที่อนุญาต (ห่าง ${formatDistance(radiusCheck.distance)})`);
+    // ตรวจสอบว่ามีสาขาหรือไม่
+    if (!branch) {
+      setError("คุณยังไม่ได้กำหนดสาขา กรุณาติดต่อ Admin");
+      return;
+    }
+
+    // บังคับตรวจสอบรัศมี
+    if (radiusCheck && !radiusCheck.inRadius) {
+      setError(`คุณอยู่นอกรัศมีที่อนุญาต (ห่าง ${formatDistance(radiusCheck.distance)} จากสาขา ${branch.name})`);
       return;
     }
 
@@ -405,7 +399,7 @@ function CheckinContent() {
                 fullWidth
                 onClick={handleCheckin}
                 loading={loading}
-                disabled={!location || (requireRadius && radiusCheck !== null && !radiusCheck.inRadius)}
+                disabled={!location || !branch || (radiusCheck !== null && !radiusCheck.inRadius)}
                 size="lg"
               >
                 <CheckCircle className="w-5 h-5" />
@@ -423,12 +417,6 @@ function CheckinContent() {
           )}
         </div>
 
-        {/* Warning if outside radius but can still check in */}
-        {radiusCheck && !radiusCheck.inRadius && !requireRadius && (
-          <p className="text-center text-[13px] text-[#ff9500] mt-4">
-            ⚠️ คุณอยู่นอกรัศมีสาขา แต่ยังสามารถเช็คอินได้
-          </p>
-        )}
       </main>
     </div>
   );
