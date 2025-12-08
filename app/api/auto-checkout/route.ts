@@ -52,9 +52,9 @@ export async function POST(request: NextRequest) {
         *,
         employee:employees!inner!employee_id(id, name, email, line_user_id, role)
       `)
-      .gte("clock_in", `${today}T00:00:00`)
-      .lt("clock_in", `${today}T23:59:59`)
-      .is("clock_out", null)
+      .gte("clock_in_time", `${today}T00:00:00`)
+      .lt("clock_in_time", `${today}T23:59:59`)
+      .is("clock_out_time", null)
       .neq("employee.role", "admin");
 
     if (error) {
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     };
 
     for (const attendance of pendingCheckouts || []) {
-      const clockInDate = parseISO(attendance.clock_in);
+      const clockInDate = parseISO(attendance.clock_in_time);
       const workEndDate = new Date(clockInDate);
       workEndDate.setHours(endHour, endMinute, 0, 0);
 
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
           await supabaseServer
             .from("attendance_logs")
             .update({
-              clock_out: checkoutDate.toISOString(),
+              clock_out_time: checkoutDate.toISOString(),
               auto_checkout: true,
               auto_checkout_reason: `ไม่ได้เช็คเอาท์ภายใน ${delayHours} ชั่วโมงหลังเวลาเลิกงาน`,
             })

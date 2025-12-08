@@ -23,8 +23,9 @@ import {
 interface AttendanceLog {
   id: string;
   employee_id: string;
-  clock_in: string;
-  clock_out: string | null;
+  clock_in_time: string;
+  clock_out_time: string | null;
+  work_date: string;
   auto_checkout: boolean;
   edited_by: string | null;
   edited_at: string | null;
@@ -71,8 +72,8 @@ function EditAttendanceContent() {
 
       if (data) {
         setAttendance(data);
-        setClockIn(data.clock_in ? format(new Date(data.clock_in), "HH:mm") : "");
-        setClockOut(data.clock_out ? format(new Date(data.clock_out), "HH:mm") : "");
+        setClockIn(data.clock_in_time ? format(new Date(data.clock_in_time), "HH:mm") : "");
+        setClockOut(data.clock_out_time ? format(new Date(data.clock_out_time), "HH:mm") : "");
       }
     } catch (error) {
       console.error("Error fetching attendance:", error);
@@ -91,8 +92,8 @@ function EditAttendanceContent() {
 
     setSaving(true);
     try {
-      const clockInDate = new Date(attendance.clock_in);
-      const clockOutDate = attendance.clock_out ? new Date(attendance.clock_out) : new Date();
+      const clockInDate = new Date(attendance.clock_in_time);
+      const clockOutDate = attendance.clock_out_time ? new Date(attendance.clock_out_time) : new Date();
 
       // สร้างวันที่ใหม่จากเวลาที่แก้ไข
       const [inHours, inMinutes] = clockIn.split(":").map(Number);
@@ -101,15 +102,15 @@ function EditAttendanceContent() {
       const newClockIn = new Date(clockInDate);
       newClockIn.setHours(inHours, inMinutes, 0, 0);
 
-      const newClockOut = new Date(clockInDate); // ใช้วันเดียวกับ clock_in
+      const newClockOut = new Date(clockInDate); // ใช้วันเดียวกับ clock_in_time
       newClockOut.setHours(outHours, outMinutes, 0, 0);
 
       const { error } = await supabase
         .from("attendance_logs")
         .update({
-          clock_in: newClockIn.toISOString(),
-          clock_out: clockOut ? newClockOut.toISOString() : null,
-          original_clock_out: attendance.clock_out,
+          clock_in_time: newClockIn.toISOString(),
+          clock_out_time: clockOut ? newClockOut.toISOString() : null,
+          original_clock_out: attendance.clock_out_time,
           edited_at: new Date().toISOString(),
           edit_reason: editReason,
           // edited_by จะต้องใส่ user id ที่ login อยู่
@@ -170,7 +171,7 @@ function EditAttendanceContent() {
     );
   }
 
-  const clockInDate = new Date(attendance.clock_in);
+  const clockInDate = new Date(attendance.clock_in_time);
 
   return (
     <AdminLayout
@@ -233,14 +234,14 @@ function EditAttendanceContent() {
             <div>
               <p className="text-[13px] text-[#86868b] mb-1">เช็คอินเดิม</p>
               <p className="text-[17px] font-semibold text-[#1d1d1f]">
-                {format(new Date(attendance.clock_in), "HH:mm น.")}
+                {format(new Date(attendance.clock_in_time), "HH:mm น.")}
               </p>
             </div>
             <div>
               <p className="text-[13px] text-[#86868b] mb-1">เช็คเอาท์เดิม</p>
               <p className="text-[17px] font-semibold text-[#1d1d1f]">
-                {attendance.clock_out
-                  ? format(new Date(attendance.clock_out), "HH:mm น.")
+                {attendance.clock_out_time
+                  ? format(new Date(attendance.clock_out_time), "HH:mm น.")
                   : "-"}
                 {attendance.auto_checkout && (
                   <span className="ml-2 px-2 py-0.5 bg-[#0071e3]/10 text-[#0071e3] text-[11px] rounded-full">
