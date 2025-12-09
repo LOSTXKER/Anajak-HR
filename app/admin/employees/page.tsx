@@ -98,7 +98,6 @@ function EmployeesContent() {
   const [payrollForm, setPayrollForm] = useState({
     base_salary: 0,
     commission: 0,
-    is_system_account: false,
   });
   const [savingPayroll, setSavingPayroll] = useState(false);
 
@@ -171,7 +170,6 @@ function EmployeesContent() {
         .update({
           base_salary: payrollForm.base_salary,
           commission: payrollForm.commission,
-          is_system_account: payrollForm.is_system_account,
         })
         .eq("id", payrollModal.employee.id);
       
@@ -183,7 +181,6 @@ function EmployeesContent() {
               ...emp, 
               base_salary: payrollForm.base_salary,
               commission: payrollForm.commission,
-              is_system_account: payrollForm.is_system_account,
             } 
           : emp
       ));
@@ -440,7 +437,6 @@ function EmployeesContent() {
                           setPayrollForm({
                             base_salary: emp.base_salary || 0,
                             commission: emp.commission || 0,
-                            is_system_account: emp.is_system_account || false,
                           });
                         }}
                         className="flex flex-col items-start gap-0.5 px-3 py-2 text-left bg-[#f5f5f7] rounded-lg hover:bg-[#e8e8ed] transition-colors"
@@ -626,19 +622,6 @@ function EmployeesContent() {
             />
             <p className="text-[12px] text-[#86868b] mt-1">คอมมิชชั่นคงที่ต่อเดือน</p>
           </div>
-
-          <label className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-xl cursor-pointer">
-            <input
-              type="checkbox"
-              checked={payrollForm.is_system_account}
-              onChange={(e) => setPayrollForm({ ...payrollForm, is_system_account: e.target.checked })}
-              className="w-5 h-5 rounded"
-            />
-            <div>
-              <span className="text-[15px] text-[#1d1d1f]">บัญชีระบบ (ไม่ใช่พนักงาน)</span>
-              <p className="text-[12px] text-[#86868b]">ไม่แสดงในรายงาน, Payroll และการจัดการพนักงาน</p>
-            </div>
-          </label>
 
           <div className="flex gap-3 pt-4">
             <Button variant="secondary" onClick={() => setPayrollModal({ open: false, employee: null })} className="flex-1">
