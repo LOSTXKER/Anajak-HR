@@ -50,12 +50,26 @@ function EditAttendanceContent() {
   const [clockIn, setClockIn] = useState("");
   const [clockOut, setClockOut] = useState("");
   const [editReason, setEditReason] = useState("");
+  const [workStartTime, setWorkStartTime] = useState("09:00");
 
   useEffect(() => {
     if (params.id) {
       fetchAttendance(params.id as string);
+      fetchSettings();
     }
   }, [params.id]);
+
+  const fetchSettings = async () => {
+    const { data } = await supabase
+      .from("system_settings")
+      .select("setting_value")
+      .eq("setting_key", "work_start_time")
+      .single();
+    
+    if (data?.setting_value) {
+      setWorkStartTime(data.setting_value);
+    }
+  };
 
   const fetchAttendance = async (id: string) => {
     setLoading(true);
@@ -115,12 +129,22 @@ function EditAttendanceContent() {
         totalHours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100; // ปัดเศษ 2 ตำแหน่ง
       }
 
+      // คำนวณ is_late และ late_minutes ตามเวลาเริ่มงานจาก settings
+      const [workStartHour, workStartMinute] = workStartTime.split(":").map(Number);
+      const clockInTotalMinutes = inHours * 60 + inMinutes;
+      const workStartTotalMinutes = workStartHour * 60 + workStartMinute;
+      
+      const isLate = clockInTotalMinutes > workStartTotalMinutes;
+      const lateMinutes = isLate ? clockInTotalMinutes - workStartTotalMinutes : 0;
+
       const { error } = await supabase
         .from("attendance_logs")
         .update({
           clock_in_time: newClockIn.toISOString(),
           clock_out_time: clockOut ? newClockOut.toISOString() : null,
           total_hours: totalHours,
+          is_late: isLate,
+          late_minutes: lateMinutes,
           original_clock_out: attendance.clock_out_time || attendance.original_clock_out,
           edited_at: new Date().toISOString(),
           edit_reason: editReason,
