@@ -36,9 +36,15 @@ function AttendanceContent() {
   const toast = useToast();
   const [attendance, setAttendance] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
+
+  // Filters
+  const [filterEmployee, setFilterEmployee] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterBranch, setFilterBranch] = useState("");
 
   // Add attendance modal
   const [addModal, setAddModal] = useState(false);
@@ -54,20 +60,37 @@ function AttendanceContent() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetchAttendance();
     fetchEmployees();
-  }, [currentMonth]);
+    fetchBranches();
+  }, []);
+
+  useEffect(() => {
+    fetchAttendance();
+  }, [currentMonth, filterEmployee, filterStatus, filterBranch]);
 
   const fetchEmployees = async () => {
     try {
       const { data } = await supabase
         .from("employees")
-        .select("id, name, email")
+        .select("id, name, email, branch_id")
         .eq("account_status", "approved")
         .order("name");
       setEmployees(data || []);
     } catch (error) {
       console.error("Error fetching employees:", error);
+    }
+  };
+
+  const fetchBranches = async () => {
+    try {
+      const { data } = await supabase
+        .from("branches")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("name");
+      setBranches(data || []);
+    } catch (error) {
+      console.error("Error fetching branches:", error);
     }
   };
 
@@ -77,14 +100,38 @@ function AttendanceContent() {
       const startDate = format(startOfMonth(currentMonth), "yyyy-MM-dd");
       const endDate = format(endOfMonth(currentMonth), "yyyy-MM-dd");
 
-      const { data } = await supabase
+      let query = supabase
         .from("attendance_logs")
-        .select(`*, employee:employees!employee_id (name, email, role)`)
+        .select(`*, employee:employees!employee_id (id, name, email, role, branch_id)`)
         .gte("work_date", startDate)
         .lte("work_date", endDate)
         .order("work_date", { ascending: false });
 
-      setAttendance(data || []);
+      // Apply employee filter
+      if (filterEmployee) {
+        query = query.eq("employee_id", filterEmployee);
+      }
+
+      // Apply status filter
+      if (filterStatus === "late") {
+        query = query.eq("is_late", true);
+      } else if (filterStatus === "normal") {
+        query = query.eq("is_late", false).neq("status", "holiday");
+      } else if (filterStatus === "holiday") {
+        query = query.eq("status", "holiday");
+      } else if (filterStatus === "no_checkout") {
+        query = query.is("clock_out_time", null);
+      }
+
+      const { data } = await query;
+
+      // Filter by branch (client-side since it's a joined field)
+      let filteredData = data || [];
+      if (filterBranch) {
+        filteredData = filteredData.filter(a => a.employee?.branch_id === filterBranch);
+      }
+
+      setAttendance(filteredData);
     } catch (error) {
       console.error("Error:", error);
     } finally {
@@ -178,7 +225,7 @@ function AttendanceContent() {
   return (
     <AdminLayout title="ข้อมูลการเข้างาน">
       {/* Header Actions */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
@@ -207,6 +254,64 @@ function AttendanceContent() {
           </Button>
         </div>
       </div>
+
+      {/* Filters */}
+      <Card elevated className="mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-[13px] font-medium text-[#86868b] mb-1">พนักงาน</label>
+            <select
+              value={filterEmployee}
+              onChange={(e) => setFilterEmployee(e.target.value)}
+              className="w-full px-3 py-2 bg-[#f5f5f7] rounded-lg text-[14px] border-0 focus:ring-2 focus:ring-[#0071e3]"
+            >
+              <option value="">ทั้งหมด</option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>{emp.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[13px] font-medium text-[#86868b] mb-1">สถานะ</label>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="w-full px-3 py-2 bg-[#f5f5f7] rounded-lg text-[14px] border-0 focus:ring-2 focus:ring-[#0071e3]"
+            >
+              <option value="all">ทั้งหมด</option>
+              <option value="normal">ปกติ</option>
+              <option value="late">มาสาย</option>
+              <option value="holiday">วันหยุด</option>
+              <option value="no_checkout">ไม่ได้เช็คเอาท์</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[13px] font-medium text-[#86868b] mb-1">สาขา</label>
+            <select
+              value={filterBranch}
+              onChange={(e) => setFilterBranch(e.target.value)}
+              className="w-full px-3 py-2 bg-[#f5f5f7] rounded-lg text-[14px] border-0 focus:ring-2 focus:ring-[#0071e3]"
+            >
+              <option value="">ทั้งหมด</option>
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>{branch.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={() => {
+                setFilterEmployee("");
+                setFilterStatus("all");
+                setFilterBranch("");
+              }}
+              className="px-4 py-2 text-[14px] text-[#0071e3] hover:bg-[#0071e3]/10 rounded-lg transition-colors"
+            >
+              ล้าง Filter
+            </button>
+          </div>
+        </div>
+      </Card>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
