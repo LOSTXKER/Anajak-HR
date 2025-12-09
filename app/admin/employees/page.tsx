@@ -9,9 +9,23 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { ConfirmDialog } from "@/components/ui/Modal";
+import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { Search, Mail, Phone, Trash2, Users, ShieldCheck, UserCog, Plus, X, MapPin, Building2 } from "lucide-react";
+import { 
+  Search, 
+  Mail, 
+  Phone, 
+  Trash2, 
+  Users, 
+  ShieldCheck, 
+  UserCog, 
+  Plus, 
+  X, 
+  MapPin, 
+  Building2,
+  DollarSign,
+  Edit2,
+} from "lucide-react";
 import { format } from "date-fns";
 
 interface Employee {
@@ -21,7 +35,7 @@ interface Employee {
   phone: string;
   role: string;
   branch_id: string | null;
-  base_salary_rate: number;
+  base_salary: number;
   created_at: string;
 }
 
@@ -66,7 +80,16 @@ function EmployeesContent() {
     password: "",
     role: "staff",
     branch_id: "",
+    base_salary: 15000,
   });
+
+  // Edit Salary Modal
+  const [salaryModal, setSalaryModal] = useState<{ open: boolean; employee: Employee | null }>({
+    open: false,
+    employee: null,
+  });
+  const [newSalary, setNewSalary] = useState("");
+  const [savingSalary, setSavingSalary] = useState(false);
 
   useEffect(() => {
     fetchEmployees();
@@ -128,6 +151,37 @@ function EmployeesContent() {
     }
   };
 
+  const handleUpdateSalary = async () => {
+    if (!salaryModal.employee) return;
+    
+    const salary = parseFloat(newSalary);
+    if (isNaN(salary) || salary < 0) {
+      toast.error("ข้อมูลไม่ถูกต้อง", "กรุณากรอกเงินเดือนที่ถูกต้อง");
+      return;
+    }
+
+    setSavingSalary(true);
+    try {
+      const { error } = await supabase
+        .from("employees")
+        .update({ base_salary: salary })
+        .eq("id", salaryModal.employee.id);
+      
+      if (error) throw error;
+
+      setEmployees(employees.map((emp) => 
+        emp.id === salaryModal.employee!.id ? { ...emp, base_salary: salary } : emp
+      ));
+      
+      toast.success("อัพเดตสำเร็จ", "เปลี่ยนเงินเดือนเรียบร้อยแล้ว");
+      setSalaryModal({ open: false, employee: null });
+    } catch (error) {
+      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถอัพเดตเงินเดือนได้");
+    } finally {
+      setSavingSalary(false);
+    }
+  };
+
   const handleDelete = async () => {
     setDeleting(true);
     try {
@@ -164,7 +218,7 @@ function EmployeesContent() {
 
       toast.success("สำเร็จ", "เพิ่มพนักงานใหม่เรียบร้อยแล้ว");
       setShowAddModal(false);
-      setNewEmployee({ name: "", email: "", phone: "", password: "", role: "staff", branch_id: "" });
+      setNewEmployee({ name: "", email: "", phone: "", password: "", role: "staff", branch_id: "", base_salary: 15000 });
       fetchEmployees();
     } catch (error: any) {
       toast.error("เกิดข้อผิดพลาด", error.message || "ไม่สามารถเพิ่มพนักงานได้");
@@ -177,6 +231,10 @@ function EmployeesContent() {
     if (!branchId) return "ยังไม่กำหนด";
     const branch = branches.find((b) => b.id === branchId);
     return branch?.name || "ไม่พบสาขา";
+  };
+
+  const formatSalary = (salary: number) => {
+    return new Intl.NumberFormat("th-TH").format(salary || 0);
   };
 
   const branchOptions = [
@@ -209,6 +267,7 @@ function EmployeesContent() {
   // Stats
   const employeesWithBranch = employees.filter((e) => e.branch_id).length;
   const employeesWithoutBranch = employees.filter((e) => !e.branch_id).length;
+  const totalSalary = employees.reduce((sum, e) => sum + (e.base_salary || 0), 0);
 
   return (
     <AdminLayout title="จัดการพนักงาน" description={`${employees.length} คน`}>
@@ -246,18 +305,19 @@ function EmployeesContent() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
         {[
           { label: "ทั้งหมด", value: employees.length, color: "text-[#1d1d1f]" },
           { label: "ผู้ดูแล", value: employees.filter((e) => e.role === "admin").length, color: "text-[#af52de]" },
           { label: "หัวหน้า", value: employees.filter((e) => e.role === "supervisor").length, color: "text-[#0071e3]" },
           { label: "มีสาขา", value: employeesWithBranch, color: "text-[#34c759]" },
           { label: "ไม่มีสาขา", value: employeesWithoutBranch, color: "text-[#ff9500]" },
+          { label: "เงินเดือนรวม", value: `฿${formatSalary(totalSalary)}`, color: "text-[#0071e3]", small: true },
         ].map((stat, i) => (
           <Card key={i} elevated>
             <div className="text-center py-2">
-              <p className={`text-[28px] font-semibold ${stat.color}`}>{stat.value}</p>
-              <p className="text-[13px] text-[#86868b]">{stat.label}</p>
+              <p className={`${stat.small ? "text-[18px]" : "text-[24px]"} font-semibold ${stat.color}`}>{stat.value}</p>
+              <p className="text-[11px] text-[#86868b]">{stat.label}</p>
             </div>
           </Card>
         ))}
@@ -303,8 +363,8 @@ function EmployeesContent() {
                   <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase tracking-wide">
                     สาขา
                   </th>
-                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase tracking-wide hidden lg:table-cell">
-                    วันที่เข้าร่วม
+                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase tracking-wide">
+                    เงินเดือน
                   </th>
                   <th className="text-right px-6 py-4"></th>
                 </tr>
@@ -356,10 +416,18 @@ function EmployeesContent() {
                         />
                       </div>
                     </td>
-                    <td className="px-6 py-4 hidden lg:table-cell">
-                      <span className="text-[14px] text-[#6e6e73]">
-                        {format(new Date(emp.created_at), "dd/MM/yyyy")}
-                      </span>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => {
+                          setSalaryModal({ open: true, employee: emp });
+                          setNewSalary(String(emp.base_salary || 0));
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 text-[14px] font-medium text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/20 transition-colors"
+                      >
+                        <DollarSign className="w-4 h-4" />
+                        ฿{formatSalary(emp.base_salary)}
+                        <Edit2 className="w-3 h-3 ml-1" />
+                      </button>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
@@ -457,6 +525,15 @@ function EmployeesContent() {
                 </p>
               </div>
 
+              <Input
+                label="เงินเดือน (บาท)"
+                type="number"
+                value={String(newEmployee.base_salary)}
+                onChange={(e) => setNewEmployee({ ...newEmployee, base_salary: parseInt(e.target.value) || 0 })}
+                placeholder="15000"
+                min={0}
+              />
+
               <div className="flex gap-3 mt-6">
                 <Button
                   type="button"
@@ -474,6 +551,46 @@ function EmployeesContent() {
           </Card>
         </div>
       )}
+
+      {/* Edit Salary Modal */}
+      <Modal
+        isOpen={salaryModal.open}
+        onClose={() => setSalaryModal({ open: false, employee: null })}
+        title={`แก้ไขเงินเดือน - ${salaryModal.employee?.name}`}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
+              <DollarSign className="w-4 h-4 inline mr-1" />
+              เงินเดือน (บาท/เดือน)
+            </label>
+            <Input
+              type="number"
+              value={newSalary}
+              onChange={(e) => setNewSalary(e.target.value)}
+              placeholder="15000"
+              min={0}
+            />
+            <p className="text-[13px] text-[#86868b] mt-2">
+              เงินเดือนปัจจุบัน: ฿{formatSalary(salaryModal.employee?.base_salary || 0)}
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              variant="secondary"
+              onClick={() => setSalaryModal({ open: false, employee: null })}
+              className="flex-1"
+            >
+              ยกเลิก
+            </Button>
+            <Button onClick={handleUpdateSalary} loading={savingSalary} className="flex-1">
+              บันทึก
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Delete Confirmation */}
       <ConfirmDialog
