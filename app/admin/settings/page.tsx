@@ -414,7 +414,7 @@ function SettingsContent() {
                 description="เชื่อมต่อ LINE Messaging API"
               />
               <SettingLink
-                href="/admin/settings/messages"
+                href="/admin/settings/line-messages"
                 icon={MessageCircle}
                 color="text-[#06C755]"
                 title="ข้อความแจ้งเตือน"
