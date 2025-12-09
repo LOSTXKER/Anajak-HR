@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { NumberInput } from "@/components/ui/NumberInput";
 import { Select } from "@/components/ui/Select";
 import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
@@ -545,21 +546,21 @@ function EmployeesContent() {
                   placeholder="เลือกสาขา"
                 />
               </div>
-              <Input
+              <NumberInput
                 label="เงินเดือน (บาท)"
-                type="number"
-                value={String(newEmployee.base_salary)}
-                onChange={(e) => setNewEmployee({ ...newEmployee, base_salary: parseInt(e.target.value) || 0 })}
+                value={newEmployee.base_salary}
+                onChange={(val) => setNewEmployee({ ...newEmployee, base_salary: val })}
                 placeholder="15000"
                 min={0}
+                suffix="฿"
               />
-              <Input
+              <NumberInput
                 label="คอมมิชชั่น (บาท/เดือน)"
-                type="number"
-                value={String(newEmployee.commission)}
-                onChange={(e) => setNewEmployee({ ...newEmployee, commission: parseInt(e.target.value) || 0 })}
+                value={newEmployee.commission}
+                onChange={(val) => setNewEmployee({ ...newEmployee, commission: val })}
                 placeholder="0"
                 min={0}
+                suffix="฿"
               />
               <label className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-xl cursor-pointer">
                 <input
@@ -599,12 +600,12 @@ function EmployeesContent() {
               <DollarSign className="w-4 h-4 inline mr-1" />
               เงินเดือน (บาท/เดือน)
             </label>
-            <Input
-              type="number"
-              value={String(payrollForm.base_salary)}
-              onChange={(e) => setPayrollForm({ ...payrollForm, base_salary: parseInt(e.target.value) || 0 })}
+            <NumberInput
+              value={payrollForm.base_salary}
+              onChange={(val) => setPayrollForm({ ...payrollForm, base_salary: val })}
               placeholder="15000"
               min={0}
+              suffix="฿"
             />
           </div>
 
@@ -613,12 +614,12 @@ function EmployeesContent() {
               <Gift className="w-4 h-4 inline mr-1" />
               คอมมิชชั่น (บาท/เดือน)
             </label>
-            <Input
-              type="number"
-              value={String(payrollForm.commission)}
-              onChange={(e) => setPayrollForm({ ...payrollForm, commission: parseInt(e.target.value) || 0 })}
+            <NumberInput
+              value={payrollForm.commission}
+              onChange={(val) => setPayrollForm({ ...payrollForm, commission: val })}
               placeholder="0"
               min={0}
+              suffix="฿"
             />
             <p className="text-[12px] text-[#86868b] mt-1">คอมมิชชั่นคงที่ต่อเดือน</p>
           </div>
