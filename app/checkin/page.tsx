@@ -157,9 +157,15 @@ function CheckinContent() {
         return;
       }
 
-      // Check late (after 9:00 AM)
+      // Check late (after 9:00 AM) - TODO: ใช้ค่าจาก settings
       const now = new Date();
-      const isLate = now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() > 0);
+      const workStartHour = 9;
+      const workStartMinute = 0;
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const workStartMinutes = workStartHour * 60 + workStartMinute;
+      
+      const isLate = currentMinutes > workStartMinutes;
+      const lateMinutes = isLate ? currentMinutes - workStartMinutes : 0;
 
       const { error: insertError } = await supabase
         .from("attendance_logs")
@@ -171,6 +177,7 @@ function CheckinContent() {
           clock_in_gps_lng: location.lng,
           clock_in_photo_url: photoUrl,
           is_late: isLate,
+          late_minutes: lateMinutes,
         });
 
       if (insertError) throw insertError;

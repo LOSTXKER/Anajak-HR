@@ -126,13 +126,13 @@ function PayrollContent() {
   const fetchSettings = async () => {
     const { data } = await supabase
       .from("system_settings")
-      .select("key, value")
-      .in("key", ["hours_per_day", "late_deduction_per_minute", "days_per_month", "work_start_time"]);
+      .select("setting_key, setting_value")
+      .in("setting_key", ["hours_per_day", "late_deduction_per_minute", "days_per_month", "work_start_time"]);
 
     if (data) {
       const settingsObj: any = {};
       data.forEach((s: any) => {
-        settingsObj[s.key] = s.value;
+        settingsObj[s.setting_key] = s.setting_value;
       });
       setSettings({
         work_hours_per_day: parseFloat(settingsObj.hours_per_day) || 8,
@@ -197,21 +197,29 @@ function PayrollContent() {
         // คำนวณนาทีสาย
         let lateMinutes = 0;
         const [startHour, startMinute] = settings.work_start_time.split(":").map(Number);
+        const MAX_LATE_MINUTES = 120; // สูงสุด 2 ชั่วโมง ถ้าเกินถือว่าไม่ใช่การมาสาย
         
         attendance?.forEach((a: any) => {
           if (a.is_late && a.clock_in_time) {
-            const clockIn = new Date(a.clock_in_time);
-            // ดึงเฉพาะชั่วโมงและนาทีของเวลา clock in
-            const clockInHour = clockIn.getHours();
-            const clockInMinute = clockIn.getMinutes();
-            
-            // คำนวณนาทีจากเที่ยงคืน
-            const clockInTotalMinutes = clockInHour * 60 + clockInMinute;
-            const workStartTotalMinutes = startHour * 60 + startMinute;
-            
-            // ถ้ามาสายจริงๆ (clock in หลังเวลาเริ่มงาน)
-            if (clockInTotalMinutes > workStartTotalMinutes) {
-              lateMinutes += clockInTotalMinutes - workStartTotalMinutes;
+            // ถ้ามี late_minutes ในฐานข้อมูลให้ใช้เลย
+            if (a.late_minutes && a.late_minutes > 0) {
+              lateMinutes += Math.min(a.late_minutes, MAX_LATE_MINUTES);
+            } else {
+              // คำนวณเอง
+              const clockIn = new Date(a.clock_in_time);
+              const clockInHour = clockIn.getHours();
+              const clockInMinute = clockIn.getMinutes();
+              
+              const clockInTotalMinutes = clockInHour * 60 + clockInMinute;
+              const workStartTotalMinutes = startHour * 60 + startMinute;
+              
+              if (clockInTotalMinutes > workStartTotalMinutes) {
+                const mins = clockInTotalMinutes - workStartTotalMinutes;
+                // ถ้าเกิน threshold ไม่นับเป็นสาย (อาจเช็คอินช่วงบ่าย/เย็น)
+                if (mins <= MAX_LATE_MINUTES) {
+                  lateMinutes += mins;
+                }
+              }
             }
           }
         });
