@@ -180,8 +180,8 @@ function AutoCheckoutContent() {
       const { data: reminderData } = await supabase
         .from("checkout_reminders")
         .select("id")
-        .gte("sent_at", `${today}T00:00:00`)
-        .lte("sent_at", `${today}T23:59:59`);
+        .gte("sent_at", `${today}T00:00:00+07:00`)
+        .lte("sent_at", `${today}T23:59:59+07:00`);
 
       setDashboard({
         pendingCheckouts: pending.length,

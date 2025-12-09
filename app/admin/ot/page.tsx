@@ -260,16 +260,16 @@ function OTManagementContent() {
     try {
       const updateData: any = {
         request_date: editData.requestDate,
-        requested_start_time: `${editData.requestDate}T${editData.startTime}:00`,
-        requested_end_time: `${editData.requestDate}T${editData.endTime}:00`,
+        requested_start_time: `${editData.requestDate}T${editData.startTime}:00+07:00`,
+        requested_end_time: `${editData.requestDate}T${editData.endTime}:00+07:00`,
         status: editData.status,
       };
 
       if (editData.actualStartTime) {
-        updateData.actual_start_time = `${editData.requestDate}T${editData.actualStartTime}:00`;
+        updateData.actual_start_time = `${editData.requestDate}T${editData.actualStartTime}:00+07:00`;
       }
       if (editData.actualEndTime) {
-        updateData.actual_end_time = `${editData.requestDate}T${editData.actualEndTime}:00`;
+        updateData.actual_end_time = `${editData.requestDate}T${editData.actualEndTime}:00+07:00`;
       }
       if (editData.actualOtHours) {
         updateData.actual_ot_hours = parseFloat(editData.actualOtHours);
@@ -313,10 +313,10 @@ function OTManagementContent() {
         .insert({
           employee_id: addForm.employeeId,
           request_date: addForm.requestDate,
-          requested_start_time: `${addForm.requestDate}T${addForm.startTime}:00`,
-          requested_end_time: `${addForm.requestDate}T${addForm.endTime}:00`,
-          approved_start_time: addForm.status === "approved" ? `${addForm.requestDate}T${addForm.startTime}:00` : null,
-          approved_end_time: addForm.status === "approved" ? `${addForm.requestDate}T${addForm.endTime}:00` : null,
+          requested_start_time: `${addForm.requestDate}T${addForm.startTime}:00+07:00`,
+          requested_end_time: `${addForm.requestDate}T${addForm.endTime}:00+07:00`,
+          approved_start_time: addForm.status === "approved" ? `${addForm.requestDate}T${addForm.startTime}:00+07:00` : null,
+          approved_end_time: addForm.status === "approved" ? `${addForm.requestDate}T${addForm.endTime}:00+07:00` : null,
           reason: addForm.reason,
           status: addForm.status,
           ot_type: dayInfo.type,
