@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { format } from "date-fns";
+import { th } from "date-fns/locale";
 
 export default function HomePage() {
   const { user, employee, loading, signOut } = useAuth();
@@ -660,7 +661,7 @@ export default function HomePage() {
                         {holiday.name}
                       </p>
                       <p className="text-[13px] text-[#86868b]">
-                        {format(holidayDate, "d MMMM yyyy", { locale: require("date-fns/locale/th") })}
+                        {format(holidayDate, "d MMMM yyyy", { locale: th })}
                         {daysUntil > 0 && (
                           <span className="text-[#af52de]"> • อีก {daysUntil} วัน</span>
                         )}
