@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { TimeInput } from "@/components/ui/TimeInput";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { ArrowLeft, Calendar, Clock, FileText, CheckCircle, AlertCircle, PartyPopper } from "lucide-react";
@@ -197,32 +198,16 @@ function OTRequestContent() {
 
               {/* Time */}
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="flex items-center gap-2 text-[15px] font-medium text-[#1d1d1f] mb-2">
-                    <Clock className="w-4 h-4 text-[#86868b]" />
-                    เริ่ม
-                  </label>
-                  <input
-                    type="time"
-                    value={formData.startTime}
-                    onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                    className="w-full px-4 py-3.5 text-[17px] bg-[#f5f5f7] rounded-xl border-0 focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="flex items-center gap-2 text-[15px] font-medium text-[#1d1d1f] mb-2">
-                    <Clock className="w-4 h-4 text-[#86868b]" />
-                    สิ้นสุด
-                  </label>
-                  <input
-                    type="time"
-                    value={formData.endTime}
-                    onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                    className="w-full px-4 py-3.5 text-[17px] bg-[#f5f5f7] rounded-xl border-0 focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
-                    required
-                  />
-                </div>
+                <TimeInput
+                  label="เริ่ม"
+                  value={formData.startTime}
+                  onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                />
+                <TimeInput
+                  label="สิ้นสุด"
+                  value={formData.endTime}
+                  onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                />
               </div>
 
               {/* Reason */}

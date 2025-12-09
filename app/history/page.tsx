@@ -17,11 +17,13 @@ import {
   ExternalLink,
   Camera,
   X,
+  Trash2,
+  Sun,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { th } from "date-fns/locale";
 
-type TabType = "attendance" | "leave" | "ot";
+type TabType = "attendance" | "leave";
 
 const leaveTypeLabels: Record<string, { label: string; color: string }> = {
   sick: { label: "ลาป่วย", color: "text-[#ff3b30] bg-[#ff3b30]/10" },
@@ -37,10 +39,10 @@ function HistoryContent() {
   const [activeTab, setActiveTab] = useState<TabType>("attendance");
   const [attendance, setAttendance] = useState<any[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
-  const [otRequests, setOtRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [viewingPhoto, setViewingPhoto] = useState<{ url: string; type: string } | null>(null);
+  const [canceling, setCanceling] = useState<string | null>(null);
 
   useEffect(() => {
     if (employee) fetchHistory();
@@ -72,15 +74,6 @@ function HistoryContent() {
           .lte("end_date", endDate)
           .order("created_at", { ascending: false });
         setLeaveRequests(data || []);
-      } else if (activeTab === "ot") {
-        const { data } = await supabase
-          .from("ot_requests")
-          .select("*")
-          .eq("employee_id", employee.id)
-          .gte("request_date", startDate)
-          .lte("request_date", endDate)
-          .order("created_at", { ascending: false });
-        setOtRequests(data || []);
       }
     } catch (error) {
       console.error("Error:", error);
@@ -91,8 +84,9 @@ function HistoryContent() {
 
   const attendanceStats = {
     total: attendance.length,
-    normal: attendance.filter((a) => !a.is_late).length,
+    normal: attendance.filter((a) => !a.is_late && a.status !== "holiday").length,
     late: attendance.filter((a) => a.is_late).length,
+    holiday: attendance.filter((a) => a.status === "holiday").length,
     hours: attendance.reduce((sum, a) => sum + (a.total_hours || 0), 0),
   };
 
@@ -103,15 +97,6 @@ function HistoryContent() {
     rejected: leaveRequests.filter((l) => l.status === "rejected").length,
   };
 
-  const otStats = {
-    total: otRequests.length,
-    pending: otRequests.filter((o) => o.status === "pending").length,
-    approved: otRequests.filter((o) => o.status === "approved").length,
-    hours: otRequests
-      .filter((o) => o.status === "approved" || o.status === "completed")
-      .reduce((sum, o) => sum + (o.actual_ot_hours || o.approved_ot_hours || 0), 0),
-  };
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
@@ -120,8 +105,8 @@ function HistoryContent() {
         return <Badge variant="success">อนุมัติแล้ว</Badge>;
       case "rejected":
         return <Badge variant="danger">ปฏิเสธ</Badge>;
-      case "completed":
-        return <Badge variant="info">เสร็จสิ้น</Badge>;
+      case "cancelled":
+        return <Badge variant="default">ยกเลิก</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -133,6 +118,29 @@ function HistoryContent() {
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     return isHalfDay ? 0.5 : diffDays;
+  };
+
+  const handleCancelLeave = async (id: string) => {
+    if (!confirm("ต้องการยกเลิกคำขอลานี้ใช่หรือไม่?")) return;
+    if (!employee) return;
+    
+    setCanceling(id);
+    try {
+      const { error } = await supabase
+        .from("leave_requests")
+        .update({ status: "cancelled" })
+        .eq("id", id)
+        .eq("employee_id", employee.id)
+        .eq("status", "pending");
+      
+      if (error) throw error;
+      fetchHistory();
+    } catch (error: any) {
+      console.error("Error canceling leave:", error);
+      alert(error?.message || "ไม่สามารถยกเลิกคำขอได้");
+    } finally {
+      setCanceling(null);
+    }
   };
 
   return (
@@ -169,18 +177,17 @@ function HistoryContent() {
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        {/* Tabs - Only 2 tabs now */}
+        <div className="flex gap-2 mb-6">
           {[
             { key: "attendance" as TabType, label: "การเข้างาน", icon: Clock },
             { key: "leave" as TabType, label: "การลา", icon: FileText },
-            { key: "ot" as TabType, label: "OT", icon: Calendar },
           ].map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`
-                flex items-center gap-2 px-4 py-2 rounded-full text-[14px] font-medium whitespace-nowrap
+                flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[15px] font-medium
                 transition-colors
                 ${
                   activeTab === tab.key
@@ -189,7 +196,7 @@ function HistoryContent() {
                 }
               `}
             >
-              <tab.icon className="w-4 h-4" />
+              <tab.icon className="w-5 h-5" />
               {tab.label}
             </button>
           ))}
@@ -197,19 +204,20 @@ function HistoryContent() {
 
         {/* Stats */}
         {activeTab === "attendance" && (
-          <div className="grid grid-cols-4 gap-3 mb-6">
+          <div className="grid grid-cols-5 gap-2 mb-6">
             {[
               { label: "วัน", value: attendanceStats.total },
               { label: "ปกติ", value: attendanceStats.normal, color: "text-[#34c759]" },
               { label: "สาย", value: attendanceStats.late, color: "text-[#ff9500]" },
+              { label: "วันหยุด", value: attendanceStats.holiday, color: "text-[#af52de]" },
               { label: "ชม.", value: attendanceStats.hours.toFixed(0), color: "text-[#0071e3]" },
             ].map((stat, i) => (
               <Card key={i} elevated>
                 <div className="text-center py-2">
-                  <p className={`text-[24px] font-semibold ${stat.color || "text-[#1d1d1f]"}`}>
+                  <p className={`text-[20px] font-semibold ${stat.color || "text-[#1d1d1f]"}`}>
                     {stat.value}
                   </p>
-                  <p className="text-[12px] text-[#86868b]">{stat.label}</p>
+                  <p className="text-[10px] text-[#86868b]">{stat.label}</p>
                 </div>
               </Card>
             ))}
@@ -223,26 +231,6 @@ function HistoryContent() {
               { label: "รออนุมัติ", value: leaveStats.pending, color: "text-[#ff9500]" },
               { label: "อนุมัติ", value: leaveStats.approved, color: "text-[#34c759]" },
               { label: "ปฏิเสธ", value: leaveStats.rejected, color: "text-[#ff3b30]" },
-            ].map((stat, i) => (
-              <Card key={i} elevated>
-                <div className="text-center py-2">
-                  <p className={`text-[24px] font-semibold ${stat.color || "text-[#1d1d1f]"}`}>
-                    {stat.value}
-                  </p>
-                  <p className="text-[12px] text-[#86868b]">{stat.label}</p>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {activeTab === "ot" && (
-          <div className="grid grid-cols-4 gap-3 mb-6">
-            {[
-              { label: "ทั้งหมด", value: otStats.total },
-              { label: "รออนุมัติ", value: otStats.pending, color: "text-[#ff9500]" },
-              { label: "อนุมัติ", value: otStats.approved, color: "text-[#34c759]" },
-              { label: "ชม.", value: otStats.hours.toFixed(1), color: "text-[#0071e3]" },
             ].map((stat, i) => (
               <Card key={i} elevated>
                 <div className="text-center py-2">
@@ -275,8 +263,14 @@ function HistoryContent() {
                     <Card key={log.id} elevated>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-[#f5f5f7] rounded-xl flex flex-col items-center justify-center">
-                            <span className="text-[16px] font-semibold text-[#1d1d1f]">
+                          <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center ${
+                            log.status === "holiday" 
+                              ? "bg-[#af52de]/10" 
+                              : "bg-[#f5f5f7]"
+                          }`}>
+                            <span className={`text-[16px] font-semibold ${
+                              log.status === "holiday" ? "text-[#af52de]" : "text-[#1d1d1f]"
+                            }`}>
                               {format(new Date(log.work_date), "d")}
                             </span>
                             <span className="text-[10px] text-[#86868b] uppercase">
@@ -297,11 +291,25 @@ function HistoryContent() {
                             <p className="text-[13px] text-[#86868b]">
                               {log.total_hours ? `${log.total_hours.toFixed(1)} ชั่วโมง` : "กำลังทำงาน"}
                             </p>
+                            {log.note && (
+                              <p className="text-[12px] text-[#af52de] mt-1">
+                                📝 {log.note}
+                              </p>
+                            )}
                           </div>
                         </div>
-                        <Badge variant={log.is_late ? "warning" : "success"}>
-                          {log.is_late ? "สาย" : "ปกติ"}
-                        </Badge>
+                        <div className="flex flex-col items-end gap-1">
+                          {log.status === "holiday" ? (
+                            <Badge variant="info">
+                              <Sun className="w-3 h-3 mr-1" />
+                              วันหยุด
+                            </Badge>
+                          ) : (
+                            <Badge variant={log.is_late ? "warning" : "success"}>
+                              {log.is_late ? "สาย" : "ปกติ"}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                       {/* รูปภาพเช็คอิน/เช็คเอาท์ */}
                       {(log.clock_in_photo_url || log.clock_out_photo_url) && (
@@ -347,9 +355,9 @@ function HistoryContent() {
                     return (
                       <Card key={leave.id} elevated>
                         <div className="space-y-3">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
                                 <span
                                   className={`
                                     inline-flex items-center gap-1 px-3 py-1 rounded-full text-[13px] font-medium
@@ -369,6 +377,20 @@ function HistoryContent() {
                               </div>
                               <p className="text-[13px] text-[#86868b]">{days} วัน</p>
                             </div>
+                            {leave.status === "pending" && (
+                              <button
+                                onClick={() => handleCancelLeave(leave.id)}
+                                disabled={canceling === leave.id}
+                                className="flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium text-[#ff3b30] bg-[#ff3b30]/10 rounded-lg hover:bg-[#ff3b30]/20 transition-colors disabled:opacity-50 whitespace-nowrap"
+                              >
+                                {canceling === leave.id ? (
+                                  <div className="w-4 h-4 border-2 border-[#ff3b30] border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
+                                ยกเลิก
+                              </button>
+                            )}
                           </div>
                           <div className="bg-[#f5f5f7] rounded-xl p-3">
                             <p className="text-[13px] text-[#6e6e73]">{leave.reason}</p>
@@ -388,40 +410,6 @@ function HistoryContent() {
                       </Card>
                     );
                   })}
-                </div>
-              ))}
-
-            {/* OT List */}
-            {activeTab === "ot" &&
-              (otRequests.length === 0 ? (
-                <Card elevated>
-                  <div className="text-center py-16 text-[#86868b]">ไม่มีข้อมูลในเดือนนี้</div>
-                </Card>
-              ) : (
-                <div className="space-y-3">
-                  {otRequests.map((ot) => (
-                    <Card key={ot.id} elevated>
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            {getStatusBadge(ot.status)}
-                          </div>
-                          <div className="flex items-center gap-2 text-[14px] text-[#6e6e73] mb-1">
-                            <Calendar className="w-4 h-4" />
-                            {format(new Date(ot.request_date), "d MMMM yyyy", { locale: th })}
-                          </div>
-                          <div className="flex items-center gap-2 text-[14px] text-[#6e6e73] mb-2">
-                            <Clock className="w-4 h-4" />
-                            {format(new Date(ot.requested_start_time), "HH:mm")} -{" "}
-                            {format(new Date(ot.requested_end_time), "HH:mm")} น.
-                          </div>
-                          <div className="bg-[#f5f5f7] rounded-xl p-3">
-                            <p className="text-[13px] text-[#6e6e73]">{ot.reason}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
                 </div>
               ))}
           </>

@@ -50,21 +50,26 @@ export async function POST(request: NextRequest) {
       .from("attendance_logs")
       .select(`
         *,
-        employee:employees!employee_id(id, name, email, line_user_id, role)
+        employee:employees!employee_id(id, name, email, role)
       `)
       .gte("clock_in_time", `${today}T00:00:00`)
       .lt("clock_in_time", `${today}T23:59:59`)
       .is("clock_out_time", null);
 
+    // ตรวจสอบ error ก่อน
+    if (error) {
+      console.error("Error fetching pending checkouts:", error);
+      return Response.json({ 
+        error: "Failed to fetch pending checkouts", 
+        details: error.message,
+        hint: error.hint || "Check if SUPABASE_SERVICE_ROLE_KEY is set correctly"
+      }, { status: 500 });
+    }
+
     // Filter เฉพาะที่ไม่ใช่ admin
     const pendingCheckouts = (pendingCheckoutsRaw || []).filter(
       (a: any) => a.employee?.role !== "admin"
     );
-
-    if (error) {
-      console.error("Error fetching pending checkouts:", error);
-      return Response.json({ error: "Failed to fetch pending checkouts" }, { status: 500 });
-    }
 
     const results = {
       reminders_sent: 0,
@@ -89,7 +94,7 @@ export async function POST(request: NextRequest) {
           .from("ot_requests")
           .select("id")
           .eq("employee_id", attendance.employee_id)
-          .eq("date", today)
+          .eq("request_date", today)
           .eq("status", "approved")
           .single();
 
@@ -152,11 +157,16 @@ export async function POST(request: NextRequest) {
           const checkoutDate = new Date(clockInDate);
           checkoutDate.setHours(checkoutHour, checkoutMinute, 0, 0);
 
+          // คำนวณ total_hours
+          const diffMs = checkoutDate.getTime() - clockInDate.getTime();
+          const totalHours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100;
+
           // ทำ Auto Check-out
           await supabaseServer
             .from("attendance_logs")
             .update({
               clock_out_time: checkoutDate.toISOString(),
+              total_hours: totalHours,
               auto_checkout: true,
               auto_checkout_reason: `ไม่ได้เช็คเอาท์ภายใน ${delayHours} ชั่วโมงหลังเวลาเลิกงาน`,
             })
@@ -209,10 +219,57 @@ export async function POST(request: NextRequest) {
 
 // GET endpoint สำหรับตรวจสอบสถานะ
 export async function GET() {
-  return Response.json({
-    status: "ok",
-    message: "Auto checkout API is running",
-    timestamp: new Date().toISOString(),
-  });
+  try {
+    const today = format(new Date(), "yyyy-MM-dd");
+    
+    // ทดสอบการเชื่อมต่อ database
+    const { data: testData, error: testError } = await supabaseServer
+      .from("attendance_logs")
+      .select("id")
+      .limit(1);
+    
+    if (testError) {
+      return Response.json({
+        status: "error",
+        message: "Database connection failed",
+        error: testError.message,
+        hint: "Check SUPABASE_SERVICE_ROLE_KEY environment variable",
+        timestamp: new Date().toISOString(),
+      }, { status: 500 });
+    }
+
+    // ดึงข้อมูลสำหรับแสดงสถานะ
+    const { data: pendingData } = await supabaseServer
+      .from("attendance_logs")
+      .select("id")
+      .eq("work_date", today)
+      .is("clock_out_time", null);
+
+    const { data: settingsData } = await supabaseServer
+      .from("system_settings")
+      .select("setting_key, setting_value")
+      .in("setting_key", ["auto_checkout_enabled", "reminder_enabled"]);
+
+    const settings: Record<string, string> = {};
+    settingsData?.forEach((item) => {
+      settings[item.setting_key] = item.setting_value;
+    });
+
+    return Response.json({
+      status: "ok",
+      message: "Auto checkout API is running",
+      database: "connected",
+      auto_checkout_enabled: settings.auto_checkout_enabled === "true",
+      reminder_enabled: settings.reminder_enabled === "true",
+      pending_checkouts_today: pendingData?.length || 0,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    return Response.json({
+      status: "error",
+      message: error.message || "Unknown error",
+      timestamp: new Date().toISOString(),
+    }, { status: 500 });
+  }
 }
 

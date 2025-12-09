@@ -182,7 +182,7 @@ function CheckinContent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             employeeName: employee.name,
-            time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }),
+            time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false }),
             location: branch?.name || "สำนักงาน",
             isLate,
           }),
@@ -238,6 +238,7 @@ function CheckinContent() {
             {currentTime.toLocaleTimeString("th-TH", {
               hour: "2-digit",
               minute: "2-digit",
+              hour12: false,
             })}
           </p>
           <p className="text-[17px] text-[#86868b]">

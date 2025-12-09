@@ -124,7 +124,7 @@ ON CONFLICT (setting_key) DO NOTHING;
 INSERT INTO system_settings (setting_key, setting_value, description) VALUES
   ('enable_holiday_notifications', 'true', 'เปิดการแจ้งเตือนวันหยุด'),
   ('holiday_notification_days_before', '1', 'แจ้งเตือนล่วงหน้ากี่วัน'),
-  ('holiday_notification_time', '09:00', 'เวลาที่ส่งแจ้งเตือน')
+  ('holiday_notification_time', '09:00', 'เวลาที่ส่งแจ้งเตือน (รูปแบบ 24 ชม.)')
 ON CONFLICT (setting_key) DO NOTHING;
 
 -- Check-in/Check-out Notification Settings

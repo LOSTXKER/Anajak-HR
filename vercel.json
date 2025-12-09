@@ -3,6 +3,10 @@
     {
       "path": "/api/holiday-notifications",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/auto-checkout",
+      "schedule": "0 22 * * *"
     }
   ]
 }

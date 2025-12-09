@@ -17,8 +17,10 @@ import {
   ChevronRight,
   Bell,
   UserCheck,
+  DollarSign,
 } from "lucide-react";
 import Link from "next/link";
+import { TimeInput } from "@/components/ui/TimeInput";
 
 function SettingsContent() {
   const toast = useToast();
@@ -35,6 +37,7 @@ function SettingsContent() {
     requireAccountApproval: true,
     enableHolidayNotifications: true,
     holidayNotificationDaysBefore: "1",
+    holidayNotificationTime: "09:00",
     enableCheckinNotifications: false,
     enableCheckoutNotifications: false,
     lineChannelToken: "",
@@ -71,6 +74,7 @@ function SettingsContent() {
           enableNotifications: settingsMap.enable_notifications === "true",
           enableHolidayNotifications: settingsMap.enable_holiday_notifications !== "false",
           holidayNotificationDaysBefore: settingsMap.holiday_notification_days_before || "1",
+          holidayNotificationTime: settingsMap.holiday_notification_time || "09:00",
           enableCheckinNotifications: settingsMap.enable_checkin_notifications === "true",
           enableCheckoutNotifications: settingsMap.enable_checkout_notifications === "true",
           lineChannelToken: settingsMap.line_channel_access_token || "",
@@ -99,6 +103,7 @@ function SettingsContent() {
         { key: "enable_notifications", value: settings.enableNotifications.toString() },
         { key: "enable_holiday_notifications", value: settings.enableHolidayNotifications.toString() },
         { key: "holiday_notification_days_before", value: settings.holidayNotificationDaysBefore },
+        { key: "holiday_notification_time", value: settings.holidayNotificationTime },
         { key: "enable_checkin_notifications", value: settings.enableCheckinNotifications.toString() },
         { key: "enable_checkout_notifications", value: settings.enableCheckoutNotifications.toString() },
         { key: "line_channel_access_token", value: settings.lineChannelToken },
@@ -188,32 +193,20 @@ function SettingsContent() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
-                เวลาเข้างาน
-              </label>
-              <input
-                type="time"
-                value={settings.workStartTime}
-                onChange={(e) =>
-                  setSettings({ ...settings, workStartTime: e.target.value })
-                }
-                className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
-                เวลาเลิกงาน
-              </label>
-              <input
-                type="time"
-                value={settings.workEndTime}
-                onChange={(e) =>
-                  setSettings({ ...settings, workEndTime: e.target.value })
-                }
-                className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
-              />
-            </div>
+            <TimeInput
+              label="เวลาเข้างาน"
+              value={settings.workStartTime}
+              onChange={(e) =>
+                setSettings({ ...settings, workStartTime: e.target.value })
+              }
+            />
+            <TimeInput
+              label="เวลาเลิกงาน"
+              value={settings.workEndTime}
+              onChange={(e) =>
+                setSettings({ ...settings, workEndTime: e.target.value })
+              }
+            />
           </div>
 
           <div className="mt-4">
@@ -453,29 +446,40 @@ function SettingsContent() {
 
             {settings.enableHolidayNotifications && (
               <div className="space-y-3">
-                <div>
-                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
-                    แจ้งเตือนล่วงหน้า (วัน)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="7"
-                    value={settings.holidayNotificationDaysBefore}
-                    onChange={(e) =>
-                      setSettings({ ...settings, holidayNotificationDaysBefore: e.target.value })
-                    }
-                    className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#ff9500]/20 transition-all border border-transparent focus:border-[#ff9500]"
-                  />
-                  <p className="text-[13px] text-[#86868b] mt-1">
-                    ส่งแจ้งเตือนกี่วันก่อนวันหยุด (0 = แจ้งเฉพาะวันหยุดเท่านั้น)
-                  </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
+                      แจ้งเตือนล่วงหน้า (วัน)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="7"
+                      value={settings.holidayNotificationDaysBefore}
+                      onChange={(e) =>
+                        setSettings({ ...settings, holidayNotificationDaysBefore: e.target.value })
+                      }
+                      className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#ff9500]/20 transition-all border border-transparent focus:border-[#ff9500]"
+                    />
+                    <p className="text-[13px] text-[#86868b] mt-1">
+                      0 = แจ้งเฉพาะวันหยุด
+                    </p>
+                  </div>
+                  <div>
+                    <TimeInput
+                      label="เวลาส่งแจ้งเตือน"
+                      value={settings.holidayNotificationTime}
+                      onChange={(e) =>
+                        setSettings({ ...settings, holidayNotificationTime: e.target.value })
+                      }
+                    />
+                  </div>
                 </div>
 
                 <div className="bg-[#ff9500]/10 rounded-xl p-4">
                   <p className="text-[13px] text-[#ff9500] leading-relaxed">
-                    💡 ระบบจะส่งแจ้งเตือนไปยัง LINE Group/User ที่ตั้งค่าไว้ 
-                    เมื่อถึงเวลา 09:00 น. ของทุกวัน (ต้องตั้งค่า Cron Job)
+                    💡 <strong>Vercel Hobby Plan:</strong> ระบบส่งแจ้งเตือนวันละครั้งตามเวลาที่ตั้งค่าใน Cron Job
+                    (ปัจจุบัน: {settings.holidayNotificationTime} น.)
                   </p>
                 </div>
               </div>
@@ -575,6 +579,50 @@ function SettingsContent() {
                   </h3>
                   <p className="text-[13px] text-[#86868b]">
                     ตั้งค่าระบบเช็คเอาท์อัตโนมัติและการแจ้งเตือน
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-[#86868b]" />
+            </div>
+          </Card>
+        </Link>
+
+        {/* OT Settings Link */}
+        <Link href="/admin/settings/ot">
+          <Card elevated className="hover:shadow-xl transition-all cursor-pointer border-2 border-transparent hover:border-[#ff9500]/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#ff9500]/10 rounded-xl flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-[#ff9500]" />
+                </div>
+                <div>
+                  <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
+                    ตั้งค่า OT
+                  </h3>
+                  <p className="text-[13px] text-[#86868b]">
+                    กำหนดกฎ, อัตราค่าตอบแทน, และข้อจำกัดการทำ OT
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-[#86868b]" />
+            </div>
+          </Card>
+        </Link>
+
+        {/* Payroll Settings Link */}
+        <Link href="/admin/settings/payroll">
+          <Card elevated className="hover:shadow-xl transition-all cursor-pointer border-2 border-transparent hover:border-[#34c759]/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#34c759]/10 rounded-xl flex items-center justify-center">
+                  <DollarSign className="w-5 h-5 text-[#34c759]" />
+                </div>
+                <div>
+                  <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
+                    ตั้งค่าเงินเดือน (Payroll)
+                  </h3>
+                  <p className="text-[13px] text-[#86868b]">
+                    กำหนดอัตราหัก/เพิ่ม สำหรับคำนวณเงินเดือน
                   </p>
                 </div>
               </div>

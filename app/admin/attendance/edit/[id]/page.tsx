@@ -5,9 +5,11 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { useAuth } from "@/lib/auth/auth-context";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { TimeInput } from "@/components/ui/TimeInput";
 import { useToast } from "@/components/ui/Toast";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
@@ -41,6 +43,7 @@ function EditAttendanceContent() {
   const params = useParams();
   const router = useRouter();
   const toast = useToast();
+  const { employee: currentAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [attendance, setAttendance] = useState<AttendanceLog | null>(null);
@@ -105,15 +108,23 @@ function EditAttendanceContent() {
       const newClockOut = new Date(clockInDate); // ใช้วันเดียวกับ clock_in_time
       newClockOut.setHours(outHours, outMinutes, 0, 0);
 
+      // คำนวณ total_hours
+      let totalHours = null;
+      if (clockOut) {
+        const diffMs = newClockOut.getTime() - newClockIn.getTime();
+        totalHours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100; // ปัดเศษ 2 ตำแหน่ง
+      }
+
       const { error } = await supabase
         .from("attendance_logs")
         .update({
           clock_in_time: newClockIn.toISOString(),
           clock_out_time: clockOut ? newClockOut.toISOString() : null,
-          original_clock_out: attendance.clock_out_time,
+          total_hours: totalHours,
+          original_clock_out: attendance.clock_out_time || attendance.original_clock_out,
           edited_at: new Date().toISOString(),
           edit_reason: editReason,
-          // edited_by จะต้องใส่ user id ที่ login อยู่
+          edited_by: currentAdmin?.id || null,
         })
         .eq("id", attendance.id);
 
@@ -125,9 +136,10 @@ function EditAttendanceContent() {
         employee_id: attendance.employee_id,
         date: format(clockInDate, "yyyy-MM-dd"),
         anomaly_type: "manual_edit",
-        description: `แก้ไขเวลาเช็คอิน/เช็คเอาท์: ${editReason}`,
+        description: `แก้ไขเวลาโดย ${currentAdmin?.name || "Admin"}: เช็คอิน ${clockIn} น., เช็คเอาท์ ${clockOut || "-"} น.`,
         status: "resolved",
         resolution_note: editReason,
+        resolved_by: currentAdmin?.id || null,
         resolved_at: new Date().toISOString(),
       });
 
@@ -272,28 +284,18 @@ function EditAttendanceContent() {
 
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-2">
-                  เวลาเช็คอิน
-                </label>
-                <Input
-                  type="time"
-                  value={clockIn}
-                  onChange={(e) => setClockIn(e.target.value)}
-                  className="text-center text-[17px] font-semibold"
-                />
-              </div>
-              <div>
-                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-2">
-                  เวลาเช็คเอาท์
-                </label>
-                <Input
-                  type="time"
-                  value={clockOut}
-                  onChange={(e) => setClockOut(e.target.value)}
-                  className="text-center text-[17px] font-semibold"
-                />
-              </div>
+              <TimeInput
+                label="เวลาเช็คอิน"
+                value={clockIn}
+                onChange={(e) => setClockIn(e.target.value)}
+                className="text-[17px] font-semibold"
+              />
+              <TimeInput
+                label="เวลาเช็คเอาท์"
+                value={clockOut}
+                onChange={(e) => setClockOut(e.target.value)}
+                className="text-[17px] font-semibold"
+              />
             </div>
 
             <div>

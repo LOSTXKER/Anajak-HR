@@ -8,7 +8,8 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
-import { ChevronLeft, ChevronRight, Download, Clock, X, Camera, Image } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Clock, X, Camera, Image, Edit, AlertCircle } from "lucide-react";
+import Link from "next/link";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { th } from "date-fns/locale";
 
@@ -152,6 +153,9 @@ function AttendanceContent() {
                   <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">
                     รูปภาพ
                   </th>
+                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">
+                    จัดการ
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e8e8ed]">
@@ -220,6 +224,34 @@ function AttendanceContent() {
                         )}
                         {!log.clock_in_photo_url && !log.clock_out_photo_url && (
                           <span className="text-[12px] text-[#86868b]">-</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/admin/attendance/edit/${log.id}`}
+                          className="flex items-center gap-1 px-3 py-1.5 text-[12px] text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/20 transition-colors"
+                          title="แก้ไขเวลา"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                          แก้ไข
+                        </Link>
+                        {!log.clock_out_time && (
+                          <span className="flex items-center gap-1 px-2 py-1 text-[11px] text-[#ff9500] bg-[#ff9500]/10 rounded-lg">
+                            <AlertCircle className="w-3 h-3" />
+                            ไม่มีเช็คเอาท์
+                          </span>
+                        )}
+                        {log.auto_checkout && (
+                          <span className="px-2 py-1 text-[11px] text-[#0071e3] bg-[#0071e3]/10 rounded-lg">
+                            Auto
+                          </span>
+                        )}
+                        {log.edited_at && (
+                          <span className="px-2 py-1 text-[11px] text-[#86868b] bg-[#f5f5f7] rounded-lg">
+                            แก้ไขแล้ว
+                          </span>
                         )}
                       </div>
                     </td>

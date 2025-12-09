@@ -16,26 +16,50 @@ import {
   FileText,
   Home,
   LogOut,
-  User,
   ChevronDown,
   Settings,
+  Timer,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
+import { supabase } from "@/lib/supabase/client";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
+import { format } from "date-fns";
 
 export default function HomePage() {
-  const { user, employee, isConfigured, loading, signOut } = useAuth();
+  const { user, employee, loading, signOut } = useAuth();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [todayAttendance, setTodayAttendance] = useState<any>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Fetch today's attendance
+  useEffect(() => {
+    if (employee) {
+      fetchTodayAttendance();
+    }
+  }, [employee]);
+
+  const fetchTodayAttendance = async () => {
+    if (!employee) return;
+    const today = new Date().toISOString().split("T")[0];
+    
+    const { data } = await supabase
+      .from("attendance_logs")
+      .select("*")
+      .eq("employee_id", employee.id)
+      .eq("work_date", today)
+      .single();
+
+    setTodayAttendance(data);
+  };
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -289,7 +313,7 @@ export default function HomePage() {
       {/* Main Content */}
       <main className="max-w-[980px] mx-auto px-6 py-12">
         {/* Welcome */}
-        <div className="mb-12">
+        <div className="mb-8">
           <h1 className="text-[32px] font-semibold text-[#1d1d1f] mb-2">
             สวัสดี, {employee?.name}
           </h1>
@@ -303,25 +327,77 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-12">
+        {/* Today's Status - Simple Card */}
+        <Card elevated className={`mb-8 ${todayAttendance ? "border-l-4 border-l-[#34c759]" : "border-l-4 border-l-[#ff9500]"}`}>
+          <div className="text-center py-4">
+            <p className="text-[13px] text-[#86868b] mb-2">สถานะวันนี้</p>
+            {todayAttendance ? (
+              <>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <div className="w-10 h-10 bg-[#34c759]/10 rounded-full flex items-center justify-center">
+                    <UserCheck className="w-5 h-5 text-[#34c759]" />
+                  </div>
+                  <p className="text-[20px] font-semibold text-[#34c759]">
+                    เช็คอินแล้ว
+                  </p>
+                </div>
+                <p className="text-[14px] text-[#6e6e73]">
+                  เข้า: {format(new Date(todayAttendance.clock_in_time), "HH:mm")} น.
+                  {todayAttendance.clock_out_time ? (
+                    <> • ออก: {format(new Date(todayAttendance.clock_out_time), "HH:mm")} น.</>
+                  ) : (
+                    <span className="text-[#ff9500]"> • ยังไม่ได้เช็คเอาท์</span>
+                  )}
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <div className="w-10 h-10 bg-[#ff9500]/10 rounded-full flex items-center justify-center">
+                    <UserCheck className="w-5 h-5 text-[#ff9500]" />
+                  </div>
+                  <p className="text-[20px] font-semibold text-[#ff9500]">
+                    ยังไม่ได้เช็คอิน
+                  </p>
+                </div>
+                <Link href="/checkin">
+                  <Button>
+                    <UserCheck className="w-4 h-4" />
+                    เช็คอินเลย
+                  </Button>
+                </Link>
+              </>
+            )}
+          </div>
+        </Card>
+
+        {/* Quick Actions - Main */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <Link href="/checkin">
+            <Card elevated className="h-full hover:scale-[1.02] transition-transform cursor-pointer bg-gradient-to-br from-[#34c759] to-[#30b350]">
+              <div className="text-center py-8">
+                <UserCheck className="w-10 h-10 text-white mx-auto mb-3" />
+                <h2 className="text-[19px] font-semibold text-white">เข้างาน</h2>
+              </div>
+            </Card>
+          </Link>
+          <Link href="/checkout">
+            <Card elevated className="h-full hover:scale-[1.02] transition-transform cursor-pointer bg-gradient-to-br from-[#ff3b30] to-[#e0352b]">
+              <div className="text-center py-8">
+                <Clock className="w-10 h-10 text-white mx-auto mb-3" />
+                <h2 className="text-[19px] font-semibold text-white">ออกงาน</h2>
+              </div>
+            </Card>
+          </Link>
+        </div>
+
+        {/* Quick Actions - Secondary */}
+        <div className="grid grid-cols-4 gap-3 mb-12">
           {[
             {
-              href: "/checkin",
-              icon: UserCheck,
-              title: "เข้างาน",
-              color: "bg-[#34c759]",
-            },
-            {
-              href: "/checkout",
-              icon: Clock,
-              title: "ออกงาน",
-              color: "bg-[#ff3b30]",
-            },
-            {
-              href: "/ot/request",
-              icon: Calendar,
-              title: "ขอ OT",
+              href: "/ot",
+              icon: Timer,
+              title: "OT",
               color: "bg-[#ff9500]",
             },
             {
@@ -333,7 +409,7 @@ export default function HomePage() {
             {
               href: "/wfh/request",
               icon: Home,
-              title: "ขอ WFH",
+              title: "WFH",
               color: "bg-[#0071e3]",
             },
             {
@@ -348,13 +424,13 @@ export default function HomePage() {
                 elevated
                 className="h-full hover:scale-[1.02] transition-transform cursor-pointer"
               >
-                <div className="text-center py-6">
+                <div className="text-center py-4">
                   <div
-                    className={`w-14 h-14 ${action.color} rounded-2xl flex items-center justify-center mx-auto mb-4`}
+                    className={`w-12 h-12 ${action.color} rounded-xl flex items-center justify-center mx-auto mb-2`}
                   >
-                    <action.icon className="w-7 h-7 text-white" />
+                    <action.icon className="w-6 h-6 text-white" />
                   </div>
-                  <h2 className="text-[17px] font-semibold text-[#1d1d1f]">
+                  <h2 className="text-[14px] font-medium text-[#1d1d1f]">
                     {action.title}
                   </h2>
                 </div>

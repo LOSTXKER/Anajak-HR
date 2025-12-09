@@ -173,7 +173,7 @@ function CheckoutContent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             employeeName: employee.name,
-            time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }),
+            time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false }),
             totalHours: totalHours,
             location: branch?.name || "สำนักงาน",
           }),
@@ -246,6 +246,7 @@ function CheckoutContent() {
             เช็กเอาท์เมื่อ {new Date(todayLog.clock_out_time).toLocaleTimeString("th-TH", {
               hour: "2-digit",
               minute: "2-digit",
+              hour12: false,
             })} น.
           </p>
           <p className="text-[15px] text-[#86868b] mb-8">
@@ -278,6 +279,7 @@ function CheckoutContent() {
             {currentTime.toLocaleTimeString("th-TH", {
               hour: "2-digit",
               minute: "2-digit",
+              hour12: false,
             })}
           </p>
           <p className="text-[17px] text-[#86868b]">
@@ -301,6 +303,7 @@ function CheckoutContent() {
                 {new Date(todayLog.clock_in_time).toLocaleTimeString("th-TH", {
                   hour: "2-digit",
                   minute: "2-digit",
+                  hour12: false,
                 })} น.
               </p>
             </div>

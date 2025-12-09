@@ -19,6 +19,8 @@ import {
   Building2,
   PartyPopper,
   AlertTriangle,
+  DollarSign,
+  Activity,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { useState, useEffect } from "react";
@@ -99,6 +101,7 @@ export function Sidebar() {
       title: "หลัก",
       items: [
         { title: "Dashboard", href: "/admin", icon: LayoutGrid },
+        { title: "Monitor", href: "/admin/monitor", icon: Activity },
       ],
     },
     {
@@ -126,9 +129,10 @@ export function Sidebar() {
       ],
     },
     {
-      title: "รายงาน & ตั้งค่า",
+      title: "รายงาน & การเงิน",
       items: [
         { title: "รายงาน", href: "/admin/reports", icon: BarChart3 },
+        { title: "เงินเดือน (Payroll)", href: "/admin/payroll", icon: DollarSign },
         { title: "ตั้งค่าระบบ", href: "/admin/settings", icon: Settings },
       ],
     },

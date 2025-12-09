@@ -7,6 +7,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { TimeInput } from "@/components/ui/TimeInput";
 import { useToast } from "@/components/ui/Toast";
 import {
   Clock,
@@ -18,7 +19,14 @@ import {
   ToggleLeft,
   ToggleRight,
   AlertTriangle,
+  Play,
+  CheckCircle,
+  Users,
+  Activity,
+  RefreshCw,
 } from "lucide-react";
+import { format } from "date-fns";
+import { th } from "date-fns/locale";
 
 interface Settings {
   auto_checkout_enabled: boolean;
@@ -59,10 +67,25 @@ function Toggle({
   );
 }
 
+interface DashboardData {
+  pendingCheckouts: number;
+  todayAutoCheckouts: number;
+  todayReminders: number;
+  pendingList: Array<{ name: string; clockIn: string }>;
+}
+
 function AutoCheckoutContent() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<any>(null);
+  const [dashboard, setDashboard] = useState<DashboardData>({
+    pendingCheckouts: 0,
+    todayAutoCheckouts: 0,
+    todayReminders: 0,
+    pendingList: [],
+  });
   const [settings, setSettings] = useState<Settings>({
     auto_checkout_enabled: true,
     auto_checkout_delay_hours: 4,
@@ -78,6 +101,7 @@ function AutoCheckoutContent() {
 
   useEffect(() => {
     fetchSettings();
+    fetchDashboard();
   }, []);
 
   const fetchSettings = async () => {
@@ -125,6 +149,85 @@ function AutoCheckoutContent() {
     }
   };
 
+  const fetchDashboard = async () => {
+    try {
+      const today = format(new Date(), "yyyy-MM-dd");
+
+      // หาพนักงานที่ยังไม่ได้เช็คเอาท์วันนี้
+      const { data: pendingData } = await supabase
+        .from("attendance_logs")
+        .select(`
+          id,
+          clock_in_time,
+          employee:employees!employee_id(name, role)
+        `)
+        .eq("work_date", today)
+        .is("clock_out_time", null);
+
+      // Filter เฉพาะที่ไม่ใช่ admin
+      const pending = (pendingData || []).filter(
+        (a: any) => a.employee?.role !== "admin"
+      );
+
+      // หา auto checkout วันนี้
+      const { data: autoData } = await supabase
+        .from("attendance_logs")
+        .select("id")
+        .eq("work_date", today)
+        .eq("auto_checkout", true);
+
+      // หา reminders ที่ส่งวันนี้
+      const { data: reminderData } = await supabase
+        .from("checkout_reminders")
+        .select("id")
+        .gte("sent_at", `${today}T00:00:00`)
+        .lte("sent_at", `${today}T23:59:59`);
+
+      setDashboard({
+        pendingCheckouts: pending.length,
+        todayAutoCheckouts: autoData?.length || 0,
+        todayReminders: reminderData?.length || 0,
+        pendingList: pending.map((p: any) => ({
+          name: p.employee?.name || "ไม่ระบุ",
+          clockIn: p.clock_in_time
+            ? format(new Date(p.clock_in_time), "HH:mm")
+            : "-",
+        })),
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard:", error);
+    }
+  };
+
+  const testAutoCheckout = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch("/api/auto-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      setTestResult(data);
+
+      if (data.success) {
+        toast.success(
+          "ทดสอบสำเร็จ",
+          `Reminders: ${data.results?.reminders_sent || 0}, Auto Checkouts: ${data.results?.auto_checkouts || 0}`
+        );
+        fetchDashboard(); // Refresh dashboard
+      } else {
+        toast.error("เกิดข้อผิดพลาด", data.error || data.message);
+      }
+    } catch (error: any) {
+      console.error("Error testing auto checkout:", error);
+      toast.error("เกิดข้อผิดพลาด", error.message || "ไม่สามารถทดสอบได้");
+      setTestResult({ error: error.message });
+    } finally {
+      setTesting(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -166,6 +269,109 @@ function AutoCheckoutContent() {
       description="กำหนดเงื่อนไขการเช็คเอาท์อัตโนมัติและการแจ้งเตือน"
     >
       <div className="max-w-3xl space-y-6">
+        {/* Dashboard Status */}
+        <Card elevated className="border-l-4 border-l-[#34c759]">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#34c759]/10 rounded-xl flex items-center justify-center">
+                <Activity className="w-5 h-5 text-[#34c759]" />
+              </div>
+              <div>
+                <h2 className="text-[17px] font-semibold text-[#1d1d1f]">
+                  สถานะระบบวันนี้
+                </h2>
+                <p className="text-[13px] text-[#86868b]">
+                  {format(new Date(), "d MMMM yyyy", { locale: th })}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={fetchDashboard}
+              icon={<RefreshCw className="w-4 h-4" />}
+            >
+              รีเฟรช
+            </Button>
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="p-4 bg-[#ff9500]/10 rounded-xl text-center">
+              <Users className="w-6 h-6 text-[#ff9500] mx-auto mb-2" />
+              <p className="text-[24px] font-bold text-[#ff9500]">
+                {dashboard.pendingCheckouts}
+              </p>
+              <p className="text-[12px] text-[#86868b]">รอเช็คเอาท์</p>
+            </div>
+            <div className="p-4 bg-[#0071e3]/10 rounded-xl text-center">
+              <Clock className="w-6 h-6 text-[#0071e3] mx-auto mb-2" />
+              <p className="text-[24px] font-bold text-[#0071e3]">
+                {dashboard.todayAutoCheckouts}
+              </p>
+              <p className="text-[12px] text-[#86868b]">Auto Checkout</p>
+            </div>
+            <div className="p-4 bg-[#34c759]/10 rounded-xl text-center">
+              <Bell className="w-6 h-6 text-[#34c759] mx-auto mb-2" />
+              <p className="text-[24px] font-bold text-[#34c759]">
+                {dashboard.todayReminders}
+              </p>
+              <p className="text-[12px] text-[#86868b]">Reminders</p>
+            </div>
+          </div>
+
+          {/* Pending List */}
+          {dashboard.pendingList.length > 0 && (
+            <div className="mb-4">
+              <p className="text-[13px] font-medium text-[#86868b] mb-2">
+                พนักงานที่ยังไม่ได้เช็คเอาท์:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {dashboard.pendingList.map((p, i) => (
+                  <span
+                    key={i}
+                    className="px-3 py-1 bg-[#f5f5f7] text-[13px] text-[#1d1d1f] rounded-full"
+                  >
+                    {p.name} ({p.clockIn})
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Test Button */}
+          <div className="flex items-center gap-3 pt-4 border-t border-[#e8e8ed]">
+            <Button
+              onClick={testAutoCheckout}
+              loading={testing}
+              variant={settings.auto_checkout_enabled ? "primary" : "secondary"}
+              icon={!testing ? <Play className="w-4 h-4" /> : undefined}
+            >
+              {testing ? "กำลังทดสอบ..." : "ทดสอบ Auto Checkout"}
+            </Button>
+            {testResult && (
+              <div className="flex items-center gap-2 text-[13px]">
+                {testResult.success ? (
+                  <>
+                    <CheckCircle className="w-4 h-4 text-[#34c759]" />
+                    <span className="text-[#34c759]">
+                      สำเร็จ - Reminders: {testResult.results?.reminders_sent || 0}, 
+                      Auto: {testResult.results?.auto_checkouts || 0}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="w-4 h-4 text-[#ff9500]" />
+                    <span className="text-[#ff9500]">
+                      {testResult.message || testResult.error || "ไม่มีการดำเนินการ"}
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </Card>
+
         {/* Info Card */}
         <Card elevated className="border-l-4 border-l-[#0071e3]">
           <div className="flex gap-3">
@@ -262,8 +468,7 @@ function AutoCheckoutContent() {
                   </p>
                 </div>
               </div>
-              <Input
-                type="time"
+              <TimeInput
                 value={settings.auto_checkout_time}
                 onChange={(e) =>
                   setSettings((prev) => ({
