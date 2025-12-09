@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       .from("attendance_logs")
       .select(`
         *,
-        employee:employees!employee_id(id, name, email, role)
+        employee:employees!employee_id(id, name, email, role, line_user_id)
       `)
       .gte("clock_in_time", `${today}T00:00:00`)
       .lt("clock_in_time", `${today}T23:59:59`)
