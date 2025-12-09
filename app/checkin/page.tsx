@@ -204,7 +204,7 @@ function CheckinContent() {
         .in("setting_key", ["work_start_time", "late_threshold_minutes"]);
 
       const settingsMap: Record<string, string> = {};
-      settingsData?.forEach((item) => {
+      settingsData?.forEach((item: any) => {
         settingsMap[item.setting_key] = item.setting_value;
       });
 

@@ -19,13 +19,13 @@ function dataURLtoBlob(dataURL: string): Blob {
  * อัปโหลดรูปถ่ายการเข้า-ออกงานไปที่ Supabase Storage
  * @param dataURL - base64 data URL ของรูปภาพ
  * @param employeeId - ID ของพนักงาน
- * @param type - ประเภท 'checkin' หรือ 'checkout'
+ * @param type - ประเภท 'checkin', 'checkout', 'ot-before', หรือ 'ot-after'
  * @returns URL ของรูปภาพที่อัปโหลดแล้ว หรือ null ถ้าล้มเหลว
  */
 export async function uploadAttendancePhoto(
   dataURL: string,
   employeeId: string,
-  type: "checkin" | "checkout"
+  type: "checkin" | "checkout" | "ot-before" | "ot-after"
 ): Promise<string | null> {
   try {
     if (!dataURL || !dataURL.startsWith("data:image")) {

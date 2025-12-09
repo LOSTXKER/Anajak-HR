@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       ]);
 
     const settings: Record<string, string> = {};
-    settingsData?.forEach((item) => {
+    settingsData?.forEach((item: any) => {
       settings[item.setting_key] = item.setting_value;
     });
 
@@ -251,7 +251,7 @@ export async function GET() {
       .in("setting_key", ["auto_checkout_enabled", "reminder_enabled"]);
 
     const settings: Record<string, string> = {};
-    settingsData?.forEach((item) => {
+    settingsData?.forEach((item: any) => {
       settings[item.setting_key] = item.setting_value;
     });
 

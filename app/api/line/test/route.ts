@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (data) {
-        data.forEach((item) => {
+        data.forEach((item: any) => {
           if (item.setting_key === "line_channel_access_token") {
             accessToken = item.setting_value;
           } else if (item.setting_key === "line_recipient_id") {

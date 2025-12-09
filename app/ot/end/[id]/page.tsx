@@ -38,6 +38,7 @@ interface OTRequest {
   before_photo_url: string | null;
   after_photo_url: string | null;
   ot_rate: number | null;
+  ot_type: string | null;
 }
 
 function OTEndContent({ id }: { id: string }) {
