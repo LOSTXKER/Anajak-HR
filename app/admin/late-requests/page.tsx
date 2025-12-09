@@ -129,10 +129,10 @@ function LateRequestsContent() {
 
       // Map employees to requests
       const employeeMap = new Map(
-        (employeesData || []).map(e => [e.id, { name: e.name, email: e.email }])
+        (employeesData || []).map((e: any) => [e.id, { name: e.name, email: e.email }])
       );
 
-      const requestsWithEmployees = lateData.map(req => ({
+      const requestsWithEmployees = lateData.map((req: any) => ({
         ...req,
         employees: employeeMap.get(req.employee_id) || { name: "Unknown", email: "" }
       }));
@@ -169,7 +169,7 @@ function LateRequestsContent() {
       }
 
       // Fetch employee info
-      const employeeIds = [...new Set(attendanceData.map(a => a.employee_id))];
+      const employeeIds = [...new Set(attendanceData.map((a: any) => a.employee_id))];
       const { data: employeesData } = await supabase
         .from("employees")
         .select("id, name, email")
@@ -184,14 +184,14 @@ function LateRequestsContent() {
         .lte("request_date", endDate);
 
       const approvedSet = new Set(
-        (approvedRequests || []).map(r => `${r.employee_id}_${r.request_date}`)
+        (approvedRequests || []).map((r: any) => `${r.employee_id}_${r.request_date}`)
       );
 
       const employeeMap = new Map(
-        (employeesData || []).map(e => [e.id, { name: e.name, email: e.email }])
+        (employeesData || []).map((e: any) => [e.id, { name: e.name, email: e.email }])
       );
 
-      let historyData = attendanceData.map(att => ({
+      let historyData = attendanceData.map((att: any) => ({
         id: att.id,
         employee_id: att.employee_id,
         work_date: att.work_date,
