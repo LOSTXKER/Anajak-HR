@@ -50,25 +50,24 @@ export async function isWeekend(date: string): Promise<boolean> {
  */
 export async function isHoliday(date: string, branchId?: string) {
   try {
-    let query = supabase
+    // Build OR condition for type
+    let typeCondition = "type.eq.public,type.eq.company";
+    if (branchId) {
+      typeCondition += `,and(type.eq.branch,branch_id.eq.${branchId})`;
+    }
+
+    const { data, error } = await supabase
       .from("holidays")
       .select("*")
       .eq("date", date)
-      .eq("is_active", true);
+      .eq("is_active", true)
+      .or(typeCondition)
+      .limit(1)
+      .maybeSingle();
 
-    // Get public holidays and company-wide holidays
-    query = query.or("type.eq.public,type.eq.company");
-
-    // If branch ID is provided, also get branch-specific holidays
-    if (branchId) {
-      query = query.or(`branch_id.eq.${branchId}`);
-    }
-
-    const { data, error } = await query.single();
-
-    if (error && error.code !== "PGRST116") {
-      // PGRST116 = no rows returned
-      throw error;
+    if (error) {
+      console.error("Error checking holiday:", error);
+      return null;
     }
 
     return data || null;
