@@ -45,7 +45,26 @@ export default function HomePage() {
   useEffect(() => {
     if (employee) {
       fetchTodayAttendance();
+      
+      // Auto-refresh every 30 seconds
+      const interval = setInterval(() => {
+        fetchTodayAttendance();
+      }, 30000);
+      
+      return () => clearInterval(interval);
     }
+  }, [employee]);
+
+  // Refresh when page becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && employee) {
+        fetchTodayAttendance();
+      }
+    };
+    
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [employee]);
 
   const fetchTodayAttendance = async () => {
