@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { TimeInput } from "@/components/ui/TimeInput";
+import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { 
   ChevronLeft, 
@@ -45,6 +46,7 @@ function AttendanceContent() {
   const [filterEmployee, setFilterEmployee] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterBranch, setFilterBranch] = useState("");
+  const [filterDate, setFilterDate] = useState("");
 
   // Add attendance modal
   const [addModal, setAddModal] = useState(false);
@@ -66,7 +68,7 @@ function AttendanceContent() {
 
   useEffect(() => {
     fetchAttendance();
-  }, [currentMonth, filterEmployee, filterStatus, filterBranch]);
+  }, [currentMonth, filterEmployee, filterStatus, filterBranch, filterDate]);
 
   const fetchEmployees = async () => {
     try {
@@ -110,6 +112,11 @@ function AttendanceContent() {
       // Apply employee filter
       if (filterEmployee) {
         query = query.eq("employee_id", filterEmployee);
+      }
+
+      // Apply date filter
+      if (filterDate) {
+        query = query.eq("work_date", filterDate);
       }
 
       // Apply status filter
@@ -257,46 +264,53 @@ function AttendanceContent() {
 
       {/* Filters */}
       <Card elevated className="mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div>
             <label className="block text-[13px] font-medium text-[#86868b] mb-1">พนักงาน</label>
-            <select
+            <Select
               value={filterEmployee}
-              onChange={(e) => setFilterEmployee(e.target.value)}
-              className="w-full px-3 py-2 bg-[#f5f5f7] rounded-lg text-[14px] border-0 focus:ring-2 focus:ring-[#0071e3]"
-            >
-              <option value="">ทั้งหมด</option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>{emp.name}</option>
-              ))}
-            </select>
+              onChange={setFilterEmployee}
+              options={[
+                { value: "", label: "ทั้งหมด" },
+                ...employees.map((emp) => ({ value: emp.id, label: emp.name })),
+              ]}
+              placeholder="เลือกพนักงาน"
+            />
           </div>
           <div>
             <label className="block text-[13px] font-medium text-[#86868b] mb-1">สถานะ</label>
-            <select
+            <Select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-3 py-2 bg-[#f5f5f7] rounded-lg text-[14px] border-0 focus:ring-2 focus:ring-[#0071e3]"
-            >
-              <option value="all">ทั้งหมด</option>
-              <option value="normal">ปกติ</option>
-              <option value="late">มาสาย</option>
-              <option value="holiday">วันหยุด</option>
-              <option value="no_checkout">ไม่ได้เช็คเอาท์</option>
-            </select>
+              onChange={setFilterStatus}
+              options={[
+                { value: "all", label: "ทั้งหมด" },
+                { value: "normal", label: "ปกติ" },
+                { value: "late", label: "มาสาย" },
+                { value: "holiday", label: "วันหยุด" },
+                { value: "no_checkout", label: "ไม่ได้เช็คเอาท์" },
+              ]}
+            />
           </div>
           <div>
             <label className="block text-[13px] font-medium text-[#86868b] mb-1">สาขา</label>
-            <select
+            <Select
               value={filterBranch}
-              onChange={(e) => setFilterBranch(e.target.value)}
+              onChange={setFilterBranch}
+              options={[
+                { value: "", label: "ทั้งหมด" },
+                ...branches.map((b) => ({ value: b.id, label: b.name })),
+              ]}
+              placeholder="เลือกสาขา"
+            />
+          </div>
+          <div>
+            <label className="block text-[13px] font-medium text-[#86868b] mb-1">วันที่</label>
+            <input
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
               className="w-full px-3 py-2 bg-[#f5f5f7] rounded-lg text-[14px] border-0 focus:ring-2 focus:ring-[#0071e3]"
-            >
-              <option value="">ทั้งหมด</option>
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>{branch.name}</option>
-              ))}
-            </select>
+            />
           </div>
           <div className="flex items-end">
             <button
@@ -304,6 +318,7 @@ function AttendanceContent() {
                 setFilterEmployee("");
                 setFilterStatus("all");
                 setFilterBranch("");
+                setFilterDate("");
               }}
               className="px-4 py-2 text-[14px] text-[#0071e3] hover:bg-[#0071e3]/10 rounded-lg transition-colors"
             >
@@ -459,18 +474,18 @@ function AttendanceContent() {
               <User className="w-4 h-4 inline mr-1" />
               พนักงาน *
             </label>
-            <select
+            <Select
               value={addForm.employeeId}
-              onChange={(e) => setAddForm({ ...addForm, employeeId: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
-            >
-              <option value="">เลือกพนักงาน</option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.name} ({emp.email})
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setAddForm({ ...addForm, employeeId: val })}
+              options={[
+                { value: "", label: "เลือกพนักงาน" },
+                ...employees.map((emp) => ({
+                  value: emp.id,
+                  label: `${emp.name} (${emp.email})`,
+                })),
+              ]}
+              placeholder="เลือกพนักงาน"
+            />
           </div>
 
           <div>
@@ -505,15 +520,15 @@ function AttendanceContent() {
 
           <div>
             <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">สถานะ</label>
-            <select
+            <Select
               value={addForm.status}
-              onChange={(e) => setAddForm({ ...addForm, status: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
-            >
-              <option value="present">ปกติ</option>
-              <option value="holiday">วันหยุด (OT)</option>
-              <option value="wfh">WFH</option>
-            </select>
+              onChange={(val) => setAddForm({ ...addForm, status: val })}
+              options={[
+                { value: "present", label: "ปกติ" },
+                { value: "holiday", label: "วันหยุด (OT)" },
+                { value: "wfh", label: "WFH" },
+              ]}
+            />
           </div>
 
           <label className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-xl cursor-pointer">
