@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Modal } from "@/components/ui/Modal";
+import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { TimeInput } from "@/components/ui/TimeInput";
 import { DateInput } from "@/components/ui/DateInput";
 import { Select } from "@/components/ui/Select";
@@ -28,6 +28,7 @@ import {
   User,
   Calendar,
   Sun,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
@@ -51,6 +52,10 @@ function AttendanceContent() {
 
   // Add attendance modal
   const [addModal, setAddModal] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; attendance: any | null }>({
+    open: false,
+    attendance: null,
+  });
   const [addForm, setAddForm] = useState({
     employeeId: "",
     workDate: format(new Date(), "yyyy-MM-dd"),
@@ -191,6 +196,29 @@ function AttendanceContent() {
     } catch (error: any) {
       console.error("Error adding attendance:", error);
       toast.error("เกิดข้อผิดพลาด", error?.message || "ไม่สามารถเพิ่มการเข้างานได้");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirm.attendance) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("attendance_logs")
+        .delete()
+        .eq("id", deleteConfirm.attendance.id);
+
+      if (error) throw error;
+
+      toast.success("ลบสำเร็จ", "ลบข้อมูลการเข้างานเรียบร้อยแล้ว");
+      setDeleteConfirm({ open: false, attendance: null });
+      fetchAttendance();
+    } catch (error: any) {
+      console.error("Error deleting attendance:", error);
+      toast.error("เกิดข้อผิดพลาด", error?.message || "ไม่สามารถลบข้อมูลได้");
     } finally {
       setSaving(false);
     }
@@ -439,6 +467,13 @@ function AttendanceContent() {
                           <Edit className="w-3.5 h-3.5" />
                           แก้ไข
                         </Link>
+                        <button
+                          onClick={() => setDeleteConfirm({ open: true, attendance: log })}
+                          className="flex items-center gap-1 px-3 py-1.5 text-[12px] text-[#ff3b30] bg-[#ff3b30]/10 rounded-lg hover:bg-[#ff3b30]/20"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          ลบ
+                        </button>
                         {!log.clock_out_time && (
                           <span className="flex items-center gap-1 px-2 py-1 text-[11px] text-[#ff9500] bg-[#ff9500]/10 rounded-lg">
                             <AlertCircle className="w-3 h-3" />
@@ -570,6 +605,18 @@ function AttendanceContent() {
           <img src={viewingPhoto} alt="" className="max-w-full max-h-[90vh] rounded-2xl" />
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onClose={() => setDeleteConfirm({ open: false, attendance: null })}
+        onConfirm={handleDelete}
+        title="ยืนยันการลบ"
+        message={`คุณต้องการลบข้อมูลการเข้างานของ ${deleteConfirm.attendance?.employee?.name} วันที่ ${deleteConfirm.attendance ? format(new Date(deleteConfirm.attendance.work_date), "d MMMM yyyy", { locale: th }) : ""} ใช่หรือไม่?`}
+        confirmText="ลบ"
+        confirmVariant="danger"
+        loading={saving}
+      />
     </AdminLayout>
   );
 }
