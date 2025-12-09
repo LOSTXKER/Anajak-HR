@@ -14,6 +14,7 @@ import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { TimeInput } from "@/components/ui/TimeInput";
 import { DateInput } from "@/components/ui/DateInput";
+import { Select } from "@/components/ui/Select";
 import { 
   Clock, 
   CheckCircle, 
@@ -682,20 +683,18 @@ function OTManagementContent() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-1">สถานะ</label>
-            <select
-              value={editData.status}
-              onChange={(e) => setEditData({ ...editData, status: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
-            >
-              <option value="pending">รออนุมัติ</option>
-              <option value="approved">อนุมัติแล้ว</option>
-              <option value="rejected">ปฏิเสธ</option>
-              <option value="completed">เสร็จสิ้น</option>
-              <option value="cancelled">ยกเลิก</option>
-            </select>
-          </div>
+          <Select
+            label="สถานะ"
+            value={editData.status}
+            onChange={(val) => setEditData({ ...editData, status: val })}
+            options={[
+              { value: "pending", label: "รออนุมัติ" },
+              { value: "approved", label: "อนุมัติแล้ว" },
+              { value: "rejected", label: "ปฏิเสธ" },
+              { value: "completed", label: "เสร็จสิ้น" },
+              { value: "cancelled", label: "ยกเลิก" },
+            ]}
+          />
 
           <div className="flex gap-3 pt-4">
             <Button
@@ -725,18 +724,17 @@ function OTManagementContent() {
               <User className="w-4 h-4 inline mr-1" />
               พนักงาน *
             </label>
-            <select
+            <Select
               value={addForm.employeeId}
-              onChange={(e) => setAddForm({ ...addForm, employeeId: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
-            >
-              <option value="">เลือกพนักงาน</option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.name} ({emp.email})
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setAddForm({ ...addForm, employeeId: val })}
+              options={[
+                { value: "", label: "เลือกพนักงาน" },
+                ...employees.map((emp) => ({
+                  value: emp.id,
+                  label: `${emp.name} (${emp.email})`,
+                })),
+              ]}
+            />
           </div>
 
           <div>
@@ -768,28 +766,24 @@ function OTManagementContent() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">ประเภท OT</label>
-              <select
-                value={addForm.otType}
-                onChange={(e) => setAddForm({ ...addForm, otType: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
-              >
-                <option value="normal">ปกติ (1.5x)</option>
-                <option value="holiday">วันหยุด (2x)</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">สถานะ</label>
-              <select
-                value={addForm.status}
-                onChange={(e) => setAddForm({ ...addForm, status: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
-              >
-                <option value="approved">อนุมัติทันที</option>
-                <option value="pending">รออนุมัติ</option>
-              </select>
-            </div>
+            <Select
+              label="ประเภท OT"
+              value={addForm.otType}
+              onChange={(val) => setAddForm({ ...addForm, otType: val })}
+              options={[
+                { value: "normal", label: "ปกติ (1.5x)" },
+                { value: "holiday", label: "วันหยุด (2x)" },
+              ]}
+            />
+            <Select
+              label="สถานะ"
+              value={addForm.status}
+              onChange={(val) => setAddForm({ ...addForm, status: val })}
+              options={[
+                { value: "approved", label: "อนุมัติทันที" },
+                { value: "pending", label: "รออนุมัติ" },
+              ]}
+            />
           </div>
 
           <div>
