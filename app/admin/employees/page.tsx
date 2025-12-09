@@ -197,6 +197,28 @@ function EmployeesContent() {
     }
   };
 
+  const handleToggleSystemAccount = async (id: string, isSystem: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("employees")
+        .update({ is_system_account: isSystem })
+        .eq("id", id);
+      
+      if (error) throw error;
+
+      setEmployees(employees.map((emp) => 
+        emp.id === id ? { ...emp, is_system_account: isSystem } : emp
+      ));
+      
+      toast.success(
+        "อัพเดตสำเร็จ", 
+        isSystem ? "ตั้งเป็นบัญชีระบบแล้ว" : "เปลี่ยนเป็นพนักงานแล้ว"
+      );
+    } catch (error) {
+      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถอัพเดตได้");
+    }
+  };
+
   const handleDelete = async () => {
     setDeleting(true);
     try {
@@ -437,12 +459,25 @@ function EmployeesContent() {
                       </button>
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <button
-                        onClick={() => setDeleteConfirm({ open: true, id: emp.id, name: emp.name })}
-                        className="p-2 text-[#86868b] hover:text-[#ff3b30] hover:bg-[#ff3b30]/10 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleToggleSystemAccount(emp.id, !emp.is_system_account)}
+                          className={`p-2 rounded-lg transition-colors ${
+                            emp.is_system_account 
+                              ? "text-[#ff9500] bg-[#ff9500]/10 hover:bg-[#ff9500]/20" 
+                              : "text-[#86868b] hover:text-[#ff9500] hover:bg-[#ff9500]/10"
+                          }`}
+                          title={emp.is_system_account ? "คลิกเพื่อเปลี่ยนเป็นพนักงาน" : "คลิกเพื่อตั้งเป็นบัญชีระบบ"}
+                        >
+                          <UserX className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm({ open: true, id: emp.id, name: emp.name })}
+                          className="p-2 text-[#86868b] hover:text-[#ff3b30] hover:bg-[#ff3b30]/10 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
