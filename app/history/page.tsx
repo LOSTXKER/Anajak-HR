@@ -19,11 +19,12 @@ import {
   X,
   Trash2,
   Sun,
+  Home,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { th } from "date-fns/locale";
 
-type TabType = "attendance" | "leave";
+type TabType = "attendance" | "leave" | "wfh";
 
 const leaveTypeLabels: Record<string, { label: string; color: string }> = {
   sick: { label: "ลาป่วย", color: "text-[#ff3b30] bg-[#ff3b30]/10" },
@@ -39,6 +40,7 @@ function HistoryContent() {
   const [activeTab, setActiveTab] = useState<TabType>("attendance");
   const [attendance, setAttendance] = useState<any[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
+  const [wfhRequests, setWfhRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [viewingPhoto, setViewingPhoto] = useState<{ url: string; type: string } | null>(null);
@@ -74,6 +76,15 @@ function HistoryContent() {
           .lte("end_date", endDate)
           .order("created_at", { ascending: false });
         setLeaveRequests(data || []);
+      } else if (activeTab === "wfh") {
+        const { data } = await supabase
+          .from("wfh_requests")
+          .select("*")
+          .eq("employee_id", employee.id)
+          .gte("date", startDate)
+          .lte("date", endDate)
+          .order("created_at", { ascending: false });
+        setWfhRequests(data || []);
       }
     } catch (error) {
       console.error("Error:", error);
@@ -95,6 +106,13 @@ function HistoryContent() {
     pending: leaveRequests.filter((l) => l.status === "pending").length,
     approved: leaveRequests.filter((l) => l.status === "approved").length,
     rejected: leaveRequests.filter((l) => l.status === "rejected").length,
+  };
+
+  const wfhStats = {
+    total: wfhRequests.length,
+    pending: wfhRequests.filter((w) => w.status === "pending").length,
+    approved: wfhRequests.filter((w) => w.status === "approved").length,
+    rejected: wfhRequests.filter((w) => w.status === "rejected").length,
   };
 
   const getStatusBadge = (status: string) => {
@@ -143,6 +161,29 @@ function HistoryContent() {
     }
   };
 
+  const handleCancelWFH = async (id: string) => {
+    if (!confirm("ต้องการยกเลิกคำขอ WFH นี้ใช่หรือไม่?")) return;
+    if (!employee) return;
+    
+    setCanceling(id);
+    try {
+      const { error } = await supabase
+        .from("wfh_requests")
+        .update({ status: "cancelled" })
+        .eq("id", id)
+        .eq("employee_id", employee.id)
+        .eq("status", "pending");
+      
+      if (error) throw error;
+      fetchHistory();
+    } catch (error: any) {
+      console.error("Error canceling WFH:", error);
+      alert(error?.message || "ไม่สามารถยกเลิกคำขอได้");
+    } finally {
+      setCanceling(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#fbfbfd]">
       {/* Header */}
@@ -177,17 +218,18 @@ function HistoryContent() {
           </button>
         </div>
 
-        {/* Tabs - Only 2 tabs now */}
+        {/* Tabs */}
         <div className="flex gap-2 mb-6">
           {[
-            { key: "attendance" as TabType, label: "การเข้างาน", icon: Clock },
+            { key: "attendance" as TabType, label: "เข้างาน", icon: Clock },
             { key: "leave" as TabType, label: "การลา", icon: FileText },
+            { key: "wfh" as TabType, label: "WFH", icon: Home },
           ].map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`
-                flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[15px] font-medium
+                flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-[14px] font-medium
                 transition-colors
                 ${
                   activeTab === tab.key
@@ -196,7 +238,7 @@ function HistoryContent() {
                 }
               `}
             >
-              <tab.icon className="w-5 h-5" />
+              <tab.icon className="w-4 h-4" />
               {tab.label}
             </button>
           ))}
@@ -209,8 +251,28 @@ function HistoryContent() {
               { label: "วัน", value: attendanceStats.total },
               { label: "ปกติ", value: attendanceStats.normal, color: "text-[#34c759]" },
               { label: "สาย", value: attendanceStats.late, color: "text-[#ff9500]" },
-              { label: "วันหยุด", value: attendanceStats.holiday, color: "text-[#af52de]" },
+              { label: "หยุด", value: attendanceStats.holiday, color: "text-[#af52de]" },
               { label: "ชม.", value: attendanceStats.hours.toFixed(0), color: "text-[#0071e3]" },
+            ].map((stat, i) => (
+              <Card key={i} elevated>
+                <div className="text-center py-2">
+                  <p className={`text-[18px] font-semibold ${stat.color || "text-[#1d1d1f]"}`}>
+                    {stat.value}
+                  </p>
+                  <p className="text-[10px] text-[#86868b]">{stat.label}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {activeTab === "leave" && (
+          <div className="grid grid-cols-4 gap-2 mb-6">
+            {[
+              { label: "ทั้งหมด", value: leaveStats.total },
+              { label: "รอ", value: leaveStats.pending, color: "text-[#ff9500]" },
+              { label: "อนุมัติ", value: leaveStats.approved, color: "text-[#34c759]" },
+              { label: "ปฏิเสธ", value: leaveStats.rejected, color: "text-[#ff3b30]" },
             ].map((stat, i) => (
               <Card key={i} elevated>
                 <div className="text-center py-2">
@@ -224,20 +286,20 @@ function HistoryContent() {
           </div>
         )}
 
-        {activeTab === "leave" && (
-          <div className="grid grid-cols-4 gap-3 mb-6">
+        {activeTab === "wfh" && (
+          <div className="grid grid-cols-4 gap-2 mb-6">
             {[
-              { label: "ทั้งหมด", value: leaveStats.total },
-              { label: "รออนุมัติ", value: leaveStats.pending, color: "text-[#ff9500]" },
-              { label: "อนุมัติ", value: leaveStats.approved, color: "text-[#34c759]" },
-              { label: "ปฏิเสธ", value: leaveStats.rejected, color: "text-[#ff3b30]" },
+              { label: "ทั้งหมด", value: wfhStats.total },
+              { label: "รอ", value: wfhStats.pending, color: "text-[#ff9500]" },
+              { label: "อนุมัติ", value: wfhStats.approved, color: "text-[#34c759]" },
+              { label: "ปฏิเสธ", value: wfhStats.rejected, color: "text-[#ff3b30]" },
             ].map((stat, i) => (
               <Card key={i} elevated>
                 <div className="text-center py-2">
-                  <p className={`text-[24px] font-semibold ${stat.color || "text-[#1d1d1f]"}`}>
+                  <p className={`text-[20px] font-semibold ${stat.color || "text-[#1d1d1f]"}`}>
                     {stat.value}
                   </p>
-                  <p className="text-[12px] text-[#86868b]">{stat.label}</p>
+                  <p className="text-[10px] text-[#86868b]">{stat.label}</p>
                 </div>
               </Card>
             ))}
@@ -410,6 +472,56 @@ function HistoryContent() {
                       </Card>
                     );
                   })}
+                </div>
+              ))}
+
+            {/* WFH List */}
+            {activeTab === "wfh" &&
+              (wfhRequests.length === 0 ? (
+                <Card elevated>
+                  <div className="text-center py-16 text-[#86868b]">ไม่มีข้อมูลในเดือนนี้</div>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {wfhRequests.map((wfh) => (
+                    <Card key={wfh.id} elevated>
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[13px] font-medium text-[#0071e3] bg-[#0071e3]/10">
+                                <Home className="w-3.5 h-3.5" />
+                                Work From Home
+                              </span>
+                              {getStatusBadge(wfh.status)}
+                            </div>
+                            <div className="flex items-center gap-2 text-[14px] text-[#6e6e73] mb-1">
+                              <Calendar className="w-4 h-4" />
+                              {format(new Date(wfh.date), "EEEE d MMM yyyy", { locale: th })}
+                              {wfh.is_half_day && " (ครึ่งวัน)"}
+                            </div>
+                          </div>
+                          {wfh.status === "pending" && (
+                            <button
+                              onClick={() => handleCancelWFH(wfh.id)}
+                              disabled={canceling === wfh.id}
+                              className="flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium text-[#ff3b30] bg-[#ff3b30]/10 rounded-lg hover:bg-[#ff3b30]/20 transition-colors disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {canceling === wfh.id ? (
+                                <div className="w-4 h-4 border-2 border-[#ff3b30] border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                              ยกเลิก
+                            </button>
+                          )}
+                        </div>
+                        <div className="bg-[#f5f5f7] rounded-xl p-3">
+                          <p className="text-[13px] text-[#6e6e73]">{wfh.reason}</p>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
               ))}
           </>
