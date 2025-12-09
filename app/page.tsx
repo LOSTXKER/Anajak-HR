@@ -27,7 +27,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
-import { format, differenceInCalendarDays, parseISO, startOfDay } from "date-fns";
+import { format, differenceInCalendarDays, parseISO, startOfDay, isSameDay } from "date-fns";
 import { th } from "date-fns/locale";
 
 export default function HomePage() {
@@ -208,13 +208,20 @@ export default function HomePage() {
     // Parse holidays
     if (holidaysRes.data) {
       const holidays = holidaysRes.data;
+      const todayDate = startOfDay(new Date());
       
       // Check if today is a holiday
-      const todayHol = holidays.find((h: any) => h.date === today);
+      const todayHol = holidays.find((h: any) => {
+        const holidayDate = parseISO(h.date);
+        return isSameDay(holidayDate, todayDate);
+      });
       setTodayHoliday(todayHol);
       
       // Get upcoming holidays (next 3, excluding today)
-      const upcoming = holidays.filter((h: any) => h.date > today).slice(0, 3);
+      const upcoming = holidays.filter((h: any) => {
+        const holidayDate = parseISO(h.date);
+        return holidayDate > todayDate;
+      }).slice(0, 3);
       setUpcomingHolidays(upcoming);
     }
   };
