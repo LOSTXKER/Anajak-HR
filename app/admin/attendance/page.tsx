@@ -136,7 +136,7 @@ function AttendanceContent() {
       // Filter by branch (client-side since it's a joined field)
       let filteredData = data || [];
       if (filterBranch) {
-        filteredData = filteredData.filter(a => a.employee?.branch_id === filterBranch);
+        filteredData = filteredData.filter((a: any) => a.employee?.branch_id === filterBranch);
       }
 
       setAttendance(filteredData);
