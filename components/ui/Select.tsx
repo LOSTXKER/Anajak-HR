@@ -43,6 +43,7 @@ export function Select({
   const [mounted, setMounted] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const selectId = useId();
 
   const selectedOption = options.find((opt) => opt.value === value);
@@ -71,7 +72,12 @@ export function Select({
     if (!isOpen) return;
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      // Check if click is outside both button and dropdown
+      if (
+        ref.current && !ref.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
         setIsOpen(false);
         if (currentOpenSelectId === selectId) {
           setGlobalOpenSelect(null);
@@ -135,6 +141,7 @@ export function Select({
 
   const dropdownContent = isOpen && mounted && (
     <div
+      ref={dropdownRef}
       className="
         fixed z-[9999]
         bg-white rounded-xl
