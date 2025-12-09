@@ -117,7 +117,7 @@ function LateRequestsContent() {
       }
 
       // Fetch employee info separately
-      const employeeIds = [...new Set(lateData.map(r => r.employee_id))];
+      const employeeIds = [...new Set(lateData.map((r: any) => r.employee_id))];
       const { data: employeesData, error: empError } = await supabase
         .from("employees")
         .select("id, name, email")
