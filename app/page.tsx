@@ -27,7 +27,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
-import { format } from "date-fns";
+import { format, differenceInCalendarDays, parseISO, startOfDay } from "date-fns";
 import { th } from "date-fns/locale";
 
 export default function HomePage() {
@@ -647,9 +647,9 @@ export default function HomePage() {
             
             <div className="space-y-3">
               {upcomingHolidays.map((holiday: any) => {
-                const holidayDate = new Date(holiday.date);
-                const today = new Date();
-                const daysUntil = Math.ceil((holidayDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                const holidayDate = parseISO(holiday.date);
+                const today = startOfDay(new Date());
+                const daysUntil = differenceInCalendarDays(holidayDate, today);
                 
                 return (
                   <div key={holiday.id} className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-xl">
