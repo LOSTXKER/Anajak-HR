@@ -312,13 +312,10 @@ export default function HomePage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-[980px] mx-auto px-6 py-12">
-        {/* Welcome */}
-        <div className="mb-8">
-          <h1 className="text-[32px] font-semibold text-[#1d1d1f] mb-2">
-            สวัสดี, {employee?.name}
-          </h1>
-          <p className="text-[17px] text-[#86868b]">
+      <main className="max-w-[480px] mx-auto px-4 py-6">
+        {/* Welcome & Date */}
+        <div className="mb-6">
+          <p className="text-[13px] text-[#86868b] mb-1">
             {new Date().toLocaleDateString("th-TH", {
               weekday: "long",
               day: "numeric",
@@ -326,145 +323,136 @@ export default function HomePage() {
               year: "numeric",
             })}
           </p>
+          <h1 className="text-[28px] font-bold text-[#1d1d1f]">
+            สวัสดี, {employee?.name?.split(" ")[0]}
+          </h1>
         </div>
 
-        {/* Today's Status - Simple Card */}
-        <Card elevated className={`mb-8 ${todayAttendance ? "border-l-4 border-l-[#34c759]" : "border-l-4 border-l-[#ff9500]"}`}>
-          <div className="text-center py-4">
-            <p className="text-[13px] text-[#86868b] mb-2">สถานะวันนี้</p>
-            {todayAttendance ? (
-              <>
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <div className="w-10 h-10 bg-[#34c759]/10 rounded-full flex items-center justify-center">
-                    <UserCheck className="w-5 h-5 text-[#34c759]" />
-                  </div>
-                  <p className="text-[20px] font-semibold text-[#34c759]">
-                    เช็คอินแล้ว
-                  </p>
-                </div>
-                <p className="text-[14px] text-[#6e6e73]">
-                  เข้า: {format(new Date(todayAttendance.clock_in_time), "HH:mm")} น.
-                  {todayAttendance.clock_out_time ? (
-                    <> • ออก: {format(new Date(todayAttendance.clock_out_time), "HH:mm")} น.</>
-                  ) : (
-                    <span className="text-[#ff9500]"> • ยังไม่ได้เช็คเอาท์</span>
-                  )}
-                </p>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center justify-center gap-2 mb-3">
-                  <div className="w-10 h-10 bg-[#ff9500]/10 rounded-full flex items-center justify-center">
-                    <UserCheck className="w-5 h-5 text-[#ff9500]" />
-                  </div>
-                  <p className="text-[20px] font-semibold text-[#ff9500]">
-                    ยังไม่ได้เช็คอิน
-                  </p>
-                </div>
-                <Link href="/checkin">
-                  <Button>
-                    <UserCheck className="w-4 h-4" />
-                    เช็คอินเลย
-                  </Button>
-                </Link>
-              </>
-            )}
+        {/* Today's Status Card */}
+        <div className={`rounded-2xl p-5 mb-6 ${
+          todayAttendance 
+            ? "bg-gradient-to-br from-[#34c759] to-[#248a3d]" 
+            : "bg-gradient-to-br from-[#1d1d1f] to-[#3d3d3d]"
+        }`}>
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-[13px] text-white/70 font-medium">สถานะวันนี้</span>
+            <div className={`w-2.5 h-2.5 rounded-full ${todayAttendance ? "bg-white" : "bg-[#ff9500]"} animate-pulse`} />
           </div>
-        </Card>
-
-        {/* Quick Actions - Main */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <Link href="/checkin">
-            <Card elevated className="h-full hover:scale-[1.02] transition-transform cursor-pointer bg-gradient-to-br from-[#34c759] to-[#30b350]">
-              <div className="text-center py-8">
-                <UserCheck className="w-10 h-10 text-white mx-auto mb-3" />
-                <h2 className="text-[19px] font-semibold text-white">เข้างาน</h2>
+          
+          {todayAttendance ? (
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                  <UserCheck className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-[22px] font-bold text-white">เช็คอินแล้ว</p>
+                  <p className="text-[14px] text-white/80">
+                    {format(new Date(todayAttendance.clock_in_time), "HH:mm")} น.
+                  </p>
+                </div>
               </div>
-            </Card>
+              {!todayAttendance.clock_out_time && (
+                <Link href="/checkout">
+                  <button className="w-full py-3 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-xl transition-all">
+                    เช็คเอาท์
+                  </button>
+                </Link>
+              )}
+              {todayAttendance.clock_out_time && (
+                <div className="flex items-center gap-2 py-2 px-3 bg-white/10 rounded-xl">
+                  <Clock className="w-4 h-4 text-white/70" />
+                  <span className="text-[14px] text-white/90">
+                    ออกเวลา {format(new Date(todayAttendance.clock_out_time), "HH:mm")} น.
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
+                  <Clock className="w-6 h-6 text-white/70" />
+                </div>
+                <div>
+                  <p className="text-[22px] font-bold text-white">ยังไม่ได้เช็คอิน</p>
+                  <p className="text-[14px] text-white/60">กดปุ่มด้านล่างเพื่อเริ่มงาน</p>
+                </div>
+              </div>
+              <Link href="/checkin">
+                <button className="w-full py-3.5 bg-[#0071e3] hover:bg-[#0077ed] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
+                  <UserCheck className="w-5 h-5" />
+                  เช็คอินเลย
+                </button>
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* Main Actions */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <Link href="/checkin">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#e8e8ed] hover:shadow-md hover:border-[#0071e3]/30 transition-all cursor-pointer group">
+              <div className="w-12 h-12 bg-[#0071e3]/10 rounded-xl flex items-center justify-center mb-3 group-hover:bg-[#0071e3]/20 transition-colors">
+                <UserCheck className="w-6 h-6 text-[#0071e3]" />
+              </div>
+              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">เข้างาน</h2>
+              <p className="text-[13px] text-[#86868b]">บันทึกเวลาเข้า</p>
+            </div>
           </Link>
           <Link href="/checkout">
-            <Card elevated className="h-full hover:scale-[1.02] transition-transform cursor-pointer bg-gradient-to-br from-[#ff3b30] to-[#e0352b]">
-              <div className="text-center py-8">
-                <Clock className="w-10 h-10 text-white mx-auto mb-3" />
-                <h2 className="text-[19px] font-semibold text-white">ออกงาน</h2>
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#e8e8ed] hover:shadow-md hover:border-[#ff3b30]/30 transition-all cursor-pointer group">
+              <div className="w-12 h-12 bg-[#ff3b30]/10 rounded-xl flex items-center justify-center mb-3 group-hover:bg-[#ff3b30]/20 transition-colors">
+                <LogOut className="w-6 h-6 text-[#ff3b30]" />
               </div>
-            </Card>
+              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">ออกงาน</h2>
+              <p className="text-[13px] text-[#86868b]">บันทึกเวลาออก</p>
+            </div>
           </Link>
         </div>
 
-        {/* Quick Actions - Secondary */}
-        <div className="grid grid-cols-5 gap-3 mb-12">
-          {[
-            {
-              href: "/ot",
-              icon: Timer,
-              title: "OT",
-              color: "bg-[#ff9500]",
-            },
-            {
-              href: "/leave/request",
-              icon: FileText,
-              title: "ขอลา",
-              color: "bg-[#af52de]",
-            },
-            {
-              href: "/wfh/request",
-              icon: Home,
-              title: "WFH",
-              color: "bg-[#0071e3]",
-            },
-            {
-              href: "/late-request",
-              icon: AlertCircle,
-              title: "ขอมาสาย",
-              color: "bg-[#ff3b30]",
-            },
-            {
-              href: "/history",
-              icon: ChartBar,
-              title: "ประวัติ",
-              color: "bg-[#5856d6]",
-            },
-          ].map((action, i) => (
-            <Link key={i} href={action.href}>
-              <Card
-                elevated
-                className="h-full hover:scale-[1.02] transition-transform cursor-pointer"
-              >
-                <div className="text-center py-4">
-                  <div
-                    className={`w-12 h-12 ${action.color} rounded-xl flex items-center justify-center mx-auto mb-2`}
-                  >
-                    <action.icon className="w-6 h-6 text-white" />
-                  </div>
-                  <h2 className="text-[14px] font-medium text-[#1d1d1f]">
-                    {action.title}
-                  </h2>
-                </div>
-              </Card>
-            </Link>
-          ))}
-        </div>
-
-        {/* Tips */}
-        <Card elevated padding="lg">
-          <h3 className="text-[21px] font-semibold text-[#1d1d1f] mb-4">
-            เคล็ดลับการใช้งาน
-          </h3>
-          <div className="space-y-3">
+        {/* Quick Actions Grid */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#e8e8ed] mb-6">
+          <h3 className="text-[15px] font-semibold text-[#1d1d1f] mb-4 px-1">เมนูด่วน</h3>
+          <div className="grid grid-cols-4 gap-2">
             {[
-              "เช็กอินและเช็กเอาท์ทุกวันเพื่อบันทึกเวลาทำงาน",
-              "ขออนุมัติ OT ล่วงหน้าก่อนทำงานนอกเวลา",
-              "ตรวจสอบประวัติการทำงานได้ตลอดเวลา",
-              "อนุญาตการใช้กล้องและ GPS เพื่อความถูกต้อง",
-            ].map((tip, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 text-[#34c759] flex-shrink-0" />
-                <span className="text-[15px] text-[#6e6e73]">{tip}</span>
-              </div>
+              { href: "/ot", icon: Timer, title: "OT", color: "#ff9500" },
+              { href: "/leave/request", icon: Calendar, title: "ลางาน", color: "#af52de" },
+              { href: "/wfh/request", icon: Home, title: "WFH", color: "#007aff" },
+              { href: "/late-request", icon: AlertCircle, title: "ขอสาย", color: "#ff3b30" },
+            ].map((action, i) => (
+              <Link key={i} href={action.href}>
+                <div className="flex flex-col items-center p-3 rounded-xl hover:bg-[#f5f5f7] transition-colors cursor-pointer">
+                  <div 
+                    className="w-11 h-11 rounded-xl flex items-center justify-center mb-2"
+                    style={{ backgroundColor: `${action.color}15` }}
+                  >
+                    <action.icon className="w-5 h-5" style={{ color: action.color }} />
+                  </div>
+                  <span className="text-[12px] font-medium text-[#1d1d1f]">{action.title}</span>
+                </div>
+              </Link>
             ))}
           </div>
-        </Card>
+        </div>
+
+        {/* History Link */}
+        <Link href="/history">
+          <div className="bg-gradient-to-r from-[#5856d6] to-[#7c7aff] rounded-2xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                  <ChartBar className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-[17px] font-semibold text-white">ดูประวัติการทำงาน</h3>
+                  <p className="text-[13px] text-white/70">เช็คสถิติและรายละเอียด</p>
+                </div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-white/70" />
+            </div>
+          </div>
+        </Link>
       </main>
     </div>
   );
