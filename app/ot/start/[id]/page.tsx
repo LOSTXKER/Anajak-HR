@@ -389,7 +389,7 @@ function OTStartContent({ id }: { id: string }) {
           before_photo_url: photoUrl,
           start_gps_lat: location.lat,
           start_gps_lng: location.lng,
-          ot_type: dayInfo?.type || otRequest.ot_type || "normal",
+          ot_type: dayInfo?.type || otRequest.ot_type || "workday",
           ot_rate: dayInfo?.rate || 1.5,
         })
         .eq("id", id);

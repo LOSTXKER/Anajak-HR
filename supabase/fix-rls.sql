@@ -86,3 +86,4 @@ USING (auth.jwt()->>'role' = 'service_role');
 SELECT 'RLS Policies updated successfully!' as message;
 
 
+

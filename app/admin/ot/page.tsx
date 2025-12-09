@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -15,6 +15,7 @@ import { useToast } from "@/components/ui/Toast";
 import { TimeInput } from "@/components/ui/TimeInput";
 import { DateInput } from "@/components/ui/DateInput";
 import { Select } from "@/components/ui/Select";
+import { getOTRateForDate } from "@/lib/utils/holiday";
 import { 
   Clock, 
   CheckCircle, 
@@ -30,6 +31,7 @@ import {
   Plus,
   User,
   MapPin,
+  Info,
 } from "lucide-react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
@@ -79,13 +81,43 @@ function OTManagementContent() {
     endTime: "21:00",
     reason: "",
     status: "approved",
-    otType: "normal",
   });
+  
+  // Day info for selected date in add form
+  const [dayInfo, setDayInfo] = useState<{
+    rate: number;
+    type: "holiday" | "weekend" | "workday";
+    typeName: string;
+    requireCheckin: boolean;
+    holidayName?: string;
+  } | null>(null);
+  const [loadingDayInfo, setLoadingDayInfo] = useState(false);
+
+  // Fetch day info when date changes
+  const fetchDayInfo = useCallback(async (date: string) => {
+    if (!date) return;
+    setLoadingDayInfo(true);
+    try {
+      const info = await getOTRateForDate(date);
+      setDayInfo(info);
+    } catch (error) {
+      console.error("Error fetching day info:", error);
+    } finally {
+      setLoadingDayInfo(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchOT();
     fetchEmployees();
   }, [filter, dateFilter]);
+
+  // Fetch day info when add form date changes
+  useEffect(() => {
+    if (addModal && addForm.requestDate) {
+      fetchDayInfo(addForm.requestDate);
+    }
+  }, [addModal, addForm.requestDate, fetchDayInfo]);
 
   const fetchEmployees = async () => {
     try {
@@ -269,6 +301,11 @@ function OTManagementContent() {
       return;
     }
 
+    if (!dayInfo) {
+      toast.error("กรุณารอ", "กำลังโหลดข้อมูลประเภทวัน");
+      return;
+    }
+
     setProcessing(true);
     try {
       const { error } = await supabase
@@ -282,7 +319,8 @@ function OTManagementContent() {
           approved_end_time: addForm.status === "approved" ? `${addForm.requestDate}T${addForm.endTime}:00` : null,
           reason: addForm.reason,
           status: addForm.status,
-          ot_type: addForm.otType,
+          ot_type: dayInfo.type,
+          ot_rate: dayInfo.rate,
           approved_by: addForm.status === "approved" ? employee?.id : null,
         });
 
@@ -297,7 +335,6 @@ function OTManagementContent() {
         endTime: "21:00",
         reason: "",
         status: "approved",
-        otType: "normal",
       });
       fetchOT();
     } catch (error: any) {
@@ -799,26 +836,54 @@ function OTManagementContent() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Select
-              label="ประเภท OT"
-              value={addForm.otType}
-              onChange={(val) => setAddForm({ ...addForm, otType: val })}
-              options={[
-                { value: "normal", label: "ปกติ (1.5x)" },
-                { value: "holiday", label: "วันหยุด (2x)" },
-              ]}
-            />
-            <Select
-              label="สถานะ"
-              value={addForm.status}
-              onChange={(val) => setAddForm({ ...addForm, status: val })}
-              options={[
-                { value: "approved", label: "อนุมัติทันที" },
-                { value: "pending", label: "รออนุมัติ" },
-              ]}
-            />
+          {/* Day Type Preview */}
+          <div className={`p-4 rounded-xl border-2 ${
+            loadingDayInfo ? "bg-[#f5f5f7] border-[#d2d2d7]" :
+            dayInfo?.type === "holiday" ? "bg-[#ff3b30]/10 border-[#ff3b30]/30" :
+            dayInfo?.type === "weekend" ? "bg-[#ff9500]/10 border-[#ff9500]/30" :
+            "bg-[#34c759]/10 border-[#34c759]/30"
+          }`}>
+            <div className="flex items-center gap-2 mb-2">
+              <Info className="w-4 h-4" />
+              <span className="text-[14px] font-medium">ประเภท OT (คำนวณจากวันที่)</span>
+            </div>
+            {loadingDayInfo ? (
+              <div className="flex items-center gap-2 text-[#86868b]">
+                <div className="w-4 h-4 border-2 border-[#86868b] border-t-transparent rounded-full animate-spin" />
+                กำลังตรวจสอบ...
+              </div>
+            ) : dayInfo ? (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Badge variant={
+                    dayInfo.type === "holiday" ? "danger" :
+                    dayInfo.type === "weekend" ? "warning" :
+                    "success"
+                  }>
+                    {dayInfo.typeName}
+                  </Badge>
+                  <span className="text-[16px] font-semibold">
+                    อัตรา {dayInfo.rate}x
+                  </span>
+                </div>
+                <p className="text-[13px] text-[#6e6e73]">
+                  {dayInfo.requireCheckin ? "⚠️ ต้องเช็คอินก่อนเริ่ม OT" : "✅ ไม่ต้องเช็คอิน"}
+                </p>
+              </div>
+            ) : (
+              <p className="text-[#86868b]">เลือกวันที่เพื่อดูประเภท OT</p>
+            )}
           </div>
+
+          <Select
+            label="สถานะ"
+            value={addForm.status}
+            onChange={(val) => setAddForm({ ...addForm, status: val })}
+            options={[
+              { value: "approved", label: "อนุมัติทันที" },
+              { value: "pending", label: "รออนุมัติ" },
+            ]}
+          />
 
           <div>
             <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เหตุผล *</label>

@@ -209,3 +209,4 @@ CREATE POLICY "Supervisors and admins can update OT requests"
 --   ('Staff User', 'staff@anajak.com', '0834567890', 'staff');
 
 
+

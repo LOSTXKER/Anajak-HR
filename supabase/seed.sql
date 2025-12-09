@@ -38,3 +38,4 @@ INSERT INTO holidays (date, name, type) VALUES
 --   ('user-uuid-3', '2024-12-02', '2024-12-02 08:30:00+07', '2024-12-02 17:15:00+07', 8.75, true, 'present', 'onsite');
 
 
+
