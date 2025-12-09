@@ -47,8 +47,14 @@ interface PayrollData {
   lateDays: number;
   lateMinutes: number;
   leaveDays: number;
-  otHours: number;
-  otAmount: number;
+  // OT แยกตามประเภท
+  ot1xHours: number;
+  ot1xAmount: number;
+  ot15xHours: number;
+  ot15xAmount: number;
+  ot2xHours: number;
+  ot2xAmount: number;
+  otTotalAmount: number;
   basePay: number;
   commission: number;
   latePenalty: number;
@@ -89,6 +95,9 @@ function PayrollContent() {
     totalEmployees: 0,
     totalBasePay: 0,
     totalCommission: 0,
+    totalOT1x: 0,
+    totalOT15x: 0,
+    totalOT2x: 0,
     totalOTPay: 0,
     totalLatePenalty: 0,
     totalPay: 0,
@@ -254,9 +263,36 @@ function PayrollContent() {
           leaveDays += l.is_half_day ? 0.5 : days;
         });
 
-        // คำนวณ OT
-        const otHours = otLogs?.reduce((sum: number, ot: any) => sum + (ot.actual_ot_hours || 0), 0) || 0;
-        const otAmount = otLogs?.reduce((sum: number, ot: any) => sum + (ot.ot_amount || 0), 0) || 0;
+        // คำนวณ OT แยกตามประเภท
+        let ot1xHours = 0, ot1xAmount = 0;
+        let ot15xHours = 0, ot15xAmount = 0;
+        let ot2xHours = 0, ot2xAmount = 0;
+        
+        otLogs?.forEach((ot: any) => {
+          const hours = ot.actual_ot_hours || 0;
+          const amount = ot.ot_amount || 0;
+          
+          switch (ot.ot_type) {
+            case "1x":
+              ot1xHours += hours;
+              ot1xAmount += amount;
+              break;
+            case "1.5x":
+              ot15xHours += hours;
+              ot15xAmount += amount;
+              break;
+            case "2x":
+              ot2xHours += hours;
+              ot2xAmount += amount;
+              break;
+            default:
+              // ถ้าไม่มี type ให้นับเป็น 1x
+              ot1xHours += hours;
+              ot1xAmount += amount;
+          }
+        });
+        
+        const otTotalAmount = ot1xAmount + ot15xAmount + ot2xAmount;
 
         // คำนวณเงินเดือน - ใช้ base_salary ที่ถูกต้อง
         const baseSalary = emp.base_salary || 0;
@@ -270,7 +306,7 @@ function PayrollContent() {
         const latePenalty = lateMinutes * settings.late_deduction_per_minute;
 
         // รวมทั้งหมด
-        const totalPay = basePay + commission + otAmount - latePenalty;
+        const totalPay = basePay + commission + otTotalAmount - latePenalty;
 
         return {
           employee: emp,
@@ -279,8 +315,13 @@ function PayrollContent() {
           lateDays,
           lateMinutes,
           leaveDays,
-          otHours,
-          otAmount,
+          ot1xHours,
+          ot1xAmount,
+          ot15xHours,
+          ot15xAmount,
+          ot2xHours,
+          ot2xAmount,
+          otTotalAmount,
           basePay,
           commission,
           latePenalty,
@@ -303,7 +344,10 @@ function PayrollContent() {
         totalEmployees: filteredResults.length,
         totalBasePay: filteredResults.reduce((sum, r) => sum + r.basePay, 0),
         totalCommission: filteredResults.reduce((sum, r) => sum + r.commission, 0),
-        totalOTPay: filteredResults.reduce((sum, r) => sum + r.otAmount, 0),
+        totalOT1x: filteredResults.reduce((sum, r) => sum + r.ot1xAmount, 0),
+        totalOT15x: filteredResults.reduce((sum, r) => sum + r.ot15xAmount, 0),
+        totalOT2x: filteredResults.reduce((sum, r) => sum + r.ot2xAmount, 0),
+        totalOTPay: filteredResults.reduce((sum, r) => sum + r.otTotalAmount, 0),
         totalLatePenalty: filteredResults.reduce((sum, r) => sum + r.latePenalty, 0),
         totalPay: filteredResults.reduce((sum, r) => sum + r.totalPay, 0),
       });
@@ -326,10 +370,15 @@ function PayrollContent() {
       "วันลา",
       "วันสาย",
       "นาทีสาย",
-      "ชั่วโมง OT",
+      "OT 1x (ชม.)",
+      "OT 1x (บาท)",
+      "OT 1.5x (ชม.)",
+      "OT 1.5x (บาท)",
+      "OT 2x (ชม.)",
+      "OT 2x (บาท)",
+      "OT รวม (บาท)",
       "เงินเดือนพื้นฐาน",
       "คอมมิชชั่น",
-      "เงิน OT",
       "หักสาย",
       "รวมเงิน",
     ];
@@ -343,10 +392,15 @@ function PayrollContent() {
       r.leaveDays,
       r.lateDays,
       r.lateMinutes,
-      r.otHours.toFixed(1),
+      r.ot1xHours.toFixed(1),
+      r.ot1xAmount.toFixed(2),
+      r.ot15xHours.toFixed(1),
+      r.ot15xAmount.toFixed(2),
+      r.ot2xHours.toFixed(1),
+      r.ot2xAmount.toFixed(2),
+      r.otTotalAmount.toFixed(2),
       r.basePay.toFixed(2),
       r.commission.toFixed(2),
-      r.otAmount.toFixed(2),
       r.latePenalty.toFixed(2),
       r.totalPay.toFixed(2),
     ]);
@@ -555,8 +609,18 @@ function PayrollContent() {
                     align="center" 
                   />
                   <ColumnHeader 
-                    label="OT" 
-                    tooltip="ชั่วโมงทำงานล่วงเวลาที่เสร็จสิ้นแล้ว" 
+                    label="OT 1x" 
+                    tooltip="OT วันธรรมดา (อัตรา 1 เท่า)" 
+                    align="center" 
+                  />
+                  <ColumnHeader 
+                    label="OT 1.5x" 
+                    tooltip="OT วันธรรมดาหลังเลิกงาน (อัตรา 1.5 เท่า)" 
+                    align="center" 
+                  />
+                  <ColumnHeader 
+                    label="OT 2x" 
+                    tooltip="OT วันหยุด (อัตรา 2 เท่า)" 
                     align="center" 
                   />
                   <ColumnHeader 
@@ -570,8 +634,8 @@ function PayrollContent() {
                     align="right" 
                   />
                   <ColumnHeader 
-                    label="เงิน OT" 
-                    tooltip="ค่าตอบแทนการทำงานล่วงเวลา (คำนวณตามอัตรา OT ที่ตั้งไว้)" 
+                    label="OT รวม" 
+                    tooltip="รวมค่า OT ทุกประเภท (1x + 1.5x + 2x)" 
                     align="right" 
                   />
                   <ColumnHeader 
@@ -618,9 +682,35 @@ function PayrollContent() {
                         <span className="text-[13px] text-[#86868b]">-</span>
                       )}
                     </td>
+                    {/* OT 1x */}
                     <td className="px-3 py-3 text-center">
-                      {row.otHours > 0 ? (
-                        <span className="text-[13px] text-[#ff9500]">{row.otHours.toFixed(1)}ชม.</span>
+                      {row.ot1xHours > 0 ? (
+                        <div>
+                          <span className="text-[13px] text-[#0071e3]">{row.ot1xHours.toFixed(1)}ชม.</span>
+                          <p className="text-[10px] text-[#86868b]">฿{formatCurrency(row.ot1xAmount)}</p>
+                        </div>
+                      ) : (
+                        <span className="text-[13px] text-[#86868b]">-</span>
+                      )}
+                    </td>
+                    {/* OT 1.5x */}
+                    <td className="px-3 py-3 text-center">
+                      {row.ot15xHours > 0 ? (
+                        <div>
+                          <span className="text-[13px] text-[#ff9500]">{row.ot15xHours.toFixed(1)}ชม.</span>
+                          <p className="text-[10px] text-[#86868b]">฿{formatCurrency(row.ot15xAmount)}</p>
+                        </div>
+                      ) : (
+                        <span className="text-[13px] text-[#86868b]">-</span>
+                      )}
+                    </td>
+                    {/* OT 2x */}
+                    <td className="px-3 py-3 text-center">
+                      {row.ot2xHours > 0 ? (
+                        <div>
+                          <span className="text-[13px] text-[#ff3b30]">{row.ot2xHours.toFixed(1)}ชม.</span>
+                          <p className="text-[10px] text-[#86868b]">฿{formatCurrency(row.ot2xAmount)}</p>
+                        </div>
                       ) : (
                         <span className="text-[13px] text-[#86868b]">-</span>
                       )}
@@ -636,8 +726,8 @@ function PayrollContent() {
                       )}
                     </td>
                     <td className="px-3 py-3 text-right">
-                      {row.otAmount > 0 ? (
-                        <span className="text-[13px] font-medium text-[#ff9500]">+฿{formatCurrency(row.otAmount)}</span>
+                      {row.otTotalAmount > 0 ? (
+                        <span className="text-[13px] font-medium text-[#ff9500]">+฿{formatCurrency(row.otTotalAmount)}</span>
                       ) : (
                         <span className="text-[13px] text-[#86868b]">-</span>
                       )}
@@ -657,8 +747,17 @@ function PayrollContent() {
               </tbody>
               <tfoot>
                 <tr className="bg-[#f5f5f7] border-t-2 border-[#d2d2d7]">
-                  <td colSpan={6} className="px-4 py-3 text-[13px] font-semibold text-[#1d1d1f]">
+                  <td colSpan={5} className="px-4 py-3 text-[13px] font-semibold text-[#1d1d1f]">
                     รวมทั้งหมด ({summary.totalEmployees} คน)
+                  </td>
+                  <td className="px-3 py-3 text-center text-[12px] font-semibold text-[#0071e3]">
+                    ฿{formatCurrency(summary.totalOT1x)}
+                  </td>
+                  <td className="px-3 py-3 text-center text-[12px] font-semibold text-[#ff9500]">
+                    ฿{formatCurrency(summary.totalOT15x)}
+                  </td>
+                  <td className="px-3 py-3 text-center text-[12px] font-semibold text-[#ff3b30]">
+                    ฿{formatCurrency(summary.totalOT2x)}
                   </td>
                   <td className="px-3 py-3 text-right text-[13px] font-semibold text-[#1d1d1f]">
                     ฿{formatCurrency(summary.totalBasePay)}
