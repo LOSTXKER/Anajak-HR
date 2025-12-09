@@ -394,13 +394,13 @@ function EditAttendanceContent() {
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
-        open={showDeleteConfirm}
+        isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDelete}
         title="ยืนยันการลบ"
         message={`คุณต้องการลบข้อมูลการเข้างานของ ${attendance?.employee?.name} วันที่ ${attendance ? format(new Date(attendance.work_date), "d MMMM yyyy", { locale: th }) : ""} ใช่หรือไม่?\n\nการลบนี้จะลบข้อมูลออกจากระบบถาวร ไม่สามารถกู้คืนได้`}
         confirmText="ลบ"
-        confirmVariant="danger"
+        type="danger"
         loading={saving}
       />
     </AdminLayout>
