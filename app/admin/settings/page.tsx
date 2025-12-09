@@ -386,8 +386,8 @@ function SettingsContent() {
                 href="/admin/settings/ot"
                 icon={Clock}
                 color="text-[#ff9500]"
-                title="ตั้งค่า OT เพิ่มเติม"
-                description="กำหนดกฎ, ข้อจำกัด, และรายละเอียดอื่นๆ"
+                title="กฎและข้อจำกัด OT"
+                description="กำหนดกฎการขอ OT, ถ่ายรูป, แจ้งเตือน, และจำกัดชั่วโมง"
               />
               <SettingLink
                 href="/admin/holidays"
