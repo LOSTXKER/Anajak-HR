@@ -90,12 +90,12 @@ function ReportsContent() {
       const startStr = format(startDate, "yyyy-MM-dd");
       const endStr = format(endDate, "yyyy-MM-dd");
 
-      // ดึงพนักงานที่ไม่ได้ exclude
+      // ดึงพนักงานจริง (ไม่รวมบัญชีระบบ)
       const { data: employees } = await supabase
         .from("employees")
         .select("id, name, email, role, branch_id")
         .eq("account_status", "approved")
-        .neq("exclude_from_payroll", true);
+        .neq("is_system_account", true);
 
       if (!employees) {
         setReportData([]);

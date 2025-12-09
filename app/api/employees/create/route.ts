@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, email, phone, password, role, branch_id, base_salary, commission, exclude_from_payroll } = body;
+    const { name, email, phone, password, role, branch_id, base_salary, commission, is_system_account } = body;
 
     // Validate input
     if (!name || !email || !phone || !password || !role) {
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         branch_id: branch_id || null,
         base_salary: base_salary || 15000,
         commission: commission || 0,
-        exclude_from_payroll: exclude_from_payroll || false,
+        is_system_account: is_system_account || false,
         account_status: "approved",
       });
 

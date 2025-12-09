@@ -34,7 +34,7 @@ interface Employee {
   branch_id: string | null;
   base_salary: number;
   commission: number;
-  exclude_from_payroll: boolean;
+  is_system_account: boolean;
 }
 
 interface PayrollData {
@@ -114,12 +114,12 @@ function PayrollContent() {
   const fetchEmployees = async () => {
     const { data } = await supabase
       .from("employees")
-      .select("id, name, email, role, branch_id, base_salary, commission, exclude_from_payroll")
+      .select("id, name, email, role, branch_id, base_salary, commission, is_system_account")
       .eq("account_status", "approved")
       .order("name");
     
-    // Filter out excluded employees
-    const includedEmployees = (data || []).filter(e => !e.exclude_from_payroll);
+    // Filter out system accounts (not real employees)
+    const includedEmployees = (data || []).filter(e => !e.is_system_account);
     setEmployees(includedEmployees);
   };
 

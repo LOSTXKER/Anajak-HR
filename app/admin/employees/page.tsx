@@ -40,7 +40,7 @@ interface Employee {
   branch_id: string | null;
   base_salary: number;
   commission: number;
-  exclude_from_payroll: boolean;
+  is_system_account: boolean;
   created_at: string;
 }
 
@@ -87,7 +87,7 @@ function EmployeesContent() {
     branch_id: "",
     base_salary: 15000,
     commission: 0,
-    exclude_from_payroll: false,
+    is_system_account: false,
   });
 
   // Edit Payroll Modal
@@ -98,7 +98,7 @@ function EmployeesContent() {
   const [payrollForm, setPayrollForm] = useState({
     base_salary: 0,
     commission: 0,
-    exclude_from_payroll: false,
+    is_system_account: false,
   });
   const [savingPayroll, setSavingPayroll] = useState(false);
 
@@ -171,7 +171,7 @@ function EmployeesContent() {
         .update({
           base_salary: payrollForm.base_salary,
           commission: payrollForm.commission,
-          exclude_from_payroll: payrollForm.exclude_from_payroll,
+          is_system_account: payrollForm.is_system_account,
         })
         .eq("id", payrollModal.employee.id);
       
@@ -183,7 +183,7 @@ function EmployeesContent() {
               ...emp, 
               base_salary: payrollForm.base_salary,
               commission: payrollForm.commission,
-              exclude_from_payroll: payrollForm.exclude_from_payroll,
+              is_system_account: payrollForm.is_system_account,
             } 
           : emp
       ));
@@ -241,7 +241,7 @@ function EmployeesContent() {
         branch_id: "", 
         base_salary: 15000,
         commission: 0,
-        exclude_from_payroll: false,
+        is_system_account: false,
       });
       fetchEmployees();
     } catch (error: any) {
@@ -283,9 +283,9 @@ function EmployeesContent() {
   });
 
   // Stats
-  const includedInPayroll = employees.filter((e) => !e.exclude_from_payroll).length;
-  const excludedFromPayroll = employees.filter((e) => e.exclude_from_payroll).length;
-  const totalSalary = employees.filter(e => !e.exclude_from_payroll).reduce((sum, e) => sum + (e.base_salary || 0), 0);
+  const realEmployees = employees.filter((e) => !e.is_system_account).length;
+  const systemAccounts = employees.filter((e) => e.is_system_account).length;
+  const totalSalary = employees.filter(e => !e.is_system_account).reduce((sum, e) => sum + (e.base_salary || 0), 0);
 
   return (
     <AdminLayout title="จัดการพนักงาน" description={`${employees.length} คน`}>
@@ -326,8 +326,8 @@ function EmployeesContent() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         {[
           { label: "ทั้งหมด", value: employees.length, color: "text-[#1d1d1f]" },
-          { label: "ใน Payroll", value: includedInPayroll, color: "text-[#34c759]" },
-          { label: "ไม่อยู่ Payroll", value: excludedFromPayroll, color: "text-[#ff9500]" },
+          { label: "พนักงานจริง", value: realEmployees, color: "text-[#34c759]" },
+          { label: "บัญชีระบบ", value: systemAccounts, color: "text-[#ff9500]" },
           { label: "มีสาขา", value: employees.filter((e) => e.branch_id).length, color: "text-[#0071e3]" },
           { label: "เงินเดือนรวม", value: `฿${formatSalary(totalSalary)}`, color: "text-[#af52de]", small: true },
         ].map((stat, i) => (
@@ -363,16 +363,16 @@ function EmployeesContent() {
               </thead>
               <tbody className="divide-y divide-[#e8e8ed]">
                 {filteredEmployees.map((emp) => (
-                  <tr key={emp.id} className={`hover:bg-[#f5f5f7] transition-colors ${emp.exclude_from_payroll ? "opacity-60" : ""}`}>
+                  <tr key={emp.id} className={`hover:bg-[#f5f5f7] transition-colors ${emp.is_system_account ? "opacity-60" : ""}`}>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
                         <Avatar name={emp.name} size="md" />
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="text-[14px] font-medium text-[#1d1d1f]">{emp.name}</p>
-                            {emp.exclude_from_payroll && (
+                            {emp.is_system_account && (
                               <span className="px-1.5 py-0.5 text-[10px] bg-[#ff9500]/10 text-[#ff9500] rounded-md">
-                                ไม่รวม Payroll
+                                บัญชีระบบ
                               </span>
                             )}
                           </div>
@@ -418,7 +418,7 @@ function EmployeesContent() {
                           setPayrollForm({
                             base_salary: emp.base_salary || 0,
                             commission: emp.commission || 0,
-                            exclude_from_payroll: emp.exclude_from_payroll || false,
+                            is_system_account: emp.is_system_account || false,
                           });
                         }}
                         className="flex flex-col items-start gap-0.5 px-3 py-2 text-left bg-[#f5f5f7] rounded-lg hover:bg-[#e8e8ed] transition-colors"
@@ -533,13 +533,13 @@ function EmployeesContent() {
               <label className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-xl cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={newEmployee.exclude_from_payroll}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, exclude_from_payroll: e.target.checked })}
+                  checked={newEmployee.is_system_account}
+                  onChange={(e) => setNewEmployee({ ...newEmployee, is_system_account: e.target.checked })}
                   className="w-5 h-5 rounded"
                 />
                 <div>
-                  <span className="text-[15px] text-[#1d1d1f]">ไม่รวมใน Payroll</span>
-                  <p className="text-[12px] text-[#86868b]">บัญชีนี้จะไม่ถูกคำนวณในระบบเงินเดือน</p>
+                  <span className="text-[15px] text-[#1d1d1f]">บัญชีระบบ (ไม่ใช่พนักงาน)</span>
+                  <p className="text-[12px] text-[#86868b]">ไม่แสดงในรายงาน, Payroll และการจัดการพนักงาน</p>
                 </div>
               </label>
               <div className="flex gap-3 mt-6">
@@ -595,13 +595,13 @@ function EmployeesContent() {
           <label className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-xl cursor-pointer">
             <input
               type="checkbox"
-              checked={payrollForm.exclude_from_payroll}
-              onChange={(e) => setPayrollForm({ ...payrollForm, exclude_from_payroll: e.target.checked })}
+              checked={payrollForm.is_system_account}
+              onChange={(e) => setPayrollForm({ ...payrollForm, is_system_account: e.target.checked })}
               className="w-5 h-5 rounded"
             />
             <div>
-              <span className="text-[15px] text-[#1d1d1f]">ไม่รวมใน Payroll</span>
-              <p className="text-[12px] text-[#86868b]">บัญชีนี้จะไม่ถูกคำนวณในระบบเงินเดือน</p>
+              <span className="text-[15px] text-[#1d1d1f]">บัญชีระบบ (ไม่ใช่พนักงาน)</span>
+              <p className="text-[12px] text-[#86868b]">ไม่แสดงในรายงาน, Payroll และการจัดการพนักงาน</p>
             </div>
           </label>
 
