@@ -67,13 +67,13 @@ function MonitorContent() {
 
   useEffect(() => {
     fetchAllData();
-    
+
     // Auto-refresh every 30 seconds
     const interval = setInterval(fetchAllData, 30000);
-    
+
     // Update clock every second
     const clockInterval = setInterval(() => setCurrentTime(new Date()), 1000);
-    
+
     return () => {
       clearInterval(interval);
       clearInterval(clockInterval);
@@ -98,7 +98,7 @@ function MonitorContent() {
   const fetchAllData = async () => {
     setRefreshing(true);
     try {
-      const today = new Date().toISOString().split("T")[0];
+      const today = format(new Date(), "yyyy-MM-dd");
 
       // Fetch all data in parallel
       const [
@@ -139,7 +139,7 @@ function MonitorContent() {
       ]);
 
       const totalEmployees = employeesResult.data?.length || 0;
-      
+
       // กรอง attendance เฉพาะพนักงานจริง (ไม่รวมบัญชีระบบ)
       const attendance = (attendanceResult.data || []).filter(
         (a: any) => !a.employee?.is_system_account
@@ -361,13 +361,12 @@ function MonitorContent() {
                     key={activity.id}
                     className="flex items-center gap-3 p-3 hover:bg-[#f5f5f7] rounded-xl transition-colors"
                   >
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      activity.clock_out_time 
-                        ? "bg-[#34c759]/10" 
-                        : activity.is_late 
-                          ? "bg-[#ff9500]/10" 
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${activity.clock_out_time
+                        ? "bg-[#34c759]/10"
+                        : activity.is_late
+                          ? "bg-[#ff9500]/10"
                           : "bg-[#0071e3]/10"
-                    }`}>
+                      }`}>
                       {activity.clock_out_time ? (
                         <XCircle className="w-5 h-5 text-[#34c759]" />
                       ) : (
@@ -379,7 +378,7 @@ function MonitorContent() {
                         {activity.employee?.name}
                       </p>
                       <p className="text-[13px] text-[#86868b]">
-                        {activity.clock_out_time 
+                        {activity.clock_out_time
                           ? `เช็คเอาท์ ${format(new Date(activity.clock_out_time), "HH:mm")} น.`
                           : `เช็คอิน ${format(new Date(activity.clock_in_time), "HH:mm")} น.`
                         }

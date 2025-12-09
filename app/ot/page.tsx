@@ -82,7 +82,7 @@ function OTPageContent() {
     setLoading(true);
 
     try {
-      const today = new Date().toISOString().split("T")[0];
+      const today = format(new Date(), "yyyy-MM-dd");
       const lastMonth = format(subMonths(new Date(), 1), "yyyy-MM-dd");
 
       // Fetch all OT requests
@@ -243,11 +243,11 @@ function OTPageContent() {
                 </h2>
                 <div className="space-y-3">
                   {approvedOT.map((ot) => {
-                    const today = new Date().toISOString().split("T")[0];
+                    const today = format(new Date(), "yyyy-MM-dd");
                     const isToday = ot.request_date === today;
                     const isPast = ot.request_date < today;
                     const canStart = isToday || isPast;
-                    
+
                     return (
                       <Card key={ot.id} elevated className={`border-l-4 ${canStart ? "border-l-[#34c759]" : "border-l-[#86868b]"}`}>
                         <div className="flex items-center justify-between">

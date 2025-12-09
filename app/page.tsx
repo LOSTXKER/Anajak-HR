@@ -20,6 +20,7 @@ import {
   Settings,
   Timer,
   AlertCircle,
+  Play,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { supabase } from "@/lib/supabase/client";
@@ -38,15 +39,16 @@ export default function HomePage() {
   const menuRef = useRef<HTMLDivElement>(null);
   const [todayAttendance, setTodayAttendance] = useState<any>(null);
   const [activeOT, setActiveOT] = useState<any>(null);
+  const [pendingOT, setPendingOT] = useState<any[]>([]);
   const [workSettings, setWorkSettings] = useState({ startTime: "09:00", endTime: "18:00", hoursPerDay: 8 });
-  
+
   // Timer states
   const [workDuration, setWorkDuration] = useState<string>("00:00:00");
   const [otDuration, setOtDuration] = useState<string>("00:00:00");
   const [timeRemaining, setTimeRemaining] = useState<string>("");
   const [workProgress, setWorkProgress] = useState(0);
   const [isOvertime, setIsOvertime] = useState(false);
-  
+
   // Holiday states
   const [todayHoliday, setTodayHoliday] = useState<any>(null);
   const [upcomingHolidays, setUpcomingHolidays] = useState<any[]>([]);
@@ -60,7 +62,7 @@ export default function HomePage() {
   useEffect(() => {
     if (employee) {
       fetchTodayData();
-      
+
       // Auto-refresh every 30 seconds
       const interval = setInterval(fetchTodayData, 30000);
       return () => clearInterval(interval);
@@ -82,27 +84,27 @@ export default function HomePage() {
   useEffect(() => {
     const updateTimers = () => {
       const now = new Date();
-      
+
       // Work Duration
       if (todayAttendance?.clock_in_time && !todayAttendance?.clock_out_time) {
         const clockInTime = new Date(todayAttendance.clock_in_time);
         const diffMs = now.getTime() - clockInTime.getTime();
-        
+
         const hours = Math.floor(diffMs / (1000 * 60 * 60));
         const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
-        
+
         setWorkDuration(`${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`);
-        
+
         // Progress (based on standard hours)
         const progressPercent = Math.min((diffMs / (workSettings.hoursPerDay * 60 * 60 * 1000)) * 100, 100);
         setWorkProgress(progressPercent);
-        
+
         // Time remaining until end of work
         const [endHour, endMinute] = workSettings.endTime.split(":").map(Number);
         const endOfWork = new Date(now);
         endOfWork.setHours(endHour, endMinute, 0, 0);
-        
+
         const remainingMs = endOfWork.getTime() - now.getTime();
         if (remainingMs > 0) {
           const remHours = Math.floor(remainingMs / (1000 * 60 * 60));
@@ -121,10 +123,10 @@ export default function HomePage() {
         const clockInTime = new Date(todayAttendance.clock_in_time);
         const clockOutTime = new Date(todayAttendance.clock_out_time);
         const diffMs = clockOutTime.getTime() - clockInTime.getTime();
-        
+
         const hours = Math.floor(diffMs / (1000 * 60 * 60));
         const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-        
+
         setWorkDuration(`${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:00`);
         setWorkProgress(Math.min((diffMs / (workSettings.hoursPerDay * 60 * 60 * 1000)) * 100, 100));
         setTimeRemaining("");
@@ -135,16 +137,16 @@ export default function HomePage() {
         setTimeRemaining("");
         setIsOvertime(false);
       }
-      
+
       // OT Duration
       if (activeOT?.actual_start_time && !activeOT?.actual_end_time) {
         const otStartTime = new Date(activeOT.actual_start_time);
         const diffMs = now.getTime() - otStartTime.getTime();
-        
+
         const hours = Math.floor(diffMs / (1000 * 60 * 60));
         const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
-        
+
         setOtDuration(`${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`);
       } else {
         setOtDuration("00:00:00");
@@ -158,16 +160,16 @@ export default function HomePage() {
 
   const fetchTodayData = async () => {
     if (!employee) return;
-    const today = new Date().toISOString().split("T")[0];
-    
-    // Fetch attendance, active OT, settings, and holidays in parallel
-    const [attendanceRes, otRes, settingsRes, holidaysRes] = await Promise.all([
+    const today = format(new Date(), "yyyy-MM-dd");
+
+    // Fetch attendance, active OT, pending OT, settings, and holidays in parallel
+    const [attendanceRes, otRes, pendingOTRes, settingsRes, holidaysRes] = await Promise.all([
       supabase
         .from("attendance_logs")
         .select("*")
         .eq("employee_id", employee.id)
         .eq("work_date", today)
-        .single(),
+        .maybeSingle(),
       supabase
         .from("ot_requests")
         .select("*")
@@ -176,7 +178,15 @@ export default function HomePage() {
         .eq("status", "approved")
         .not("actual_start_time", "is", null)
         .is("actual_end_time", null)
-        .single(),
+        .maybeSingle(),
+      supabase
+        .from("ot_requests")
+        .select("*")
+        .eq("employee_id", employee.id)
+        .eq("request_date", today)
+        .eq("status", "approved")
+        .is("actual_start_time", null)
+        .order("requested_start_time", { ascending: true }),
       supabase
         .from("system_settings")
         .select("setting_key, setting_value")
@@ -191,7 +201,8 @@ export default function HomePage() {
 
     setTodayAttendance(attendanceRes.data);
     setActiveOT(otRes.data);
-    
+    setPendingOT(pendingOTRes.data || []);
+
     // Parse settings
     if (settingsRes.data) {
       const settings: Record<string, string> = {};
@@ -204,19 +215,19 @@ export default function HomePage() {
         hoursPerDay: parseFloat(settings.work_hours_per_day || "8"),
       });
     }
-    
+
     // Parse holidays
     if (holidaysRes.data) {
       const holidays = holidaysRes.data;
       const todayDate = startOfDay(new Date());
-      
+
       // Check if today is a holiday
       const todayHol = holidays.find((h: any) => {
         const holidayDate = parseISO(h.date);
         return isSameDay(holidayDate, todayDate);
       });
       setTodayHoliday(todayHol);
-      
+
       // Get upcoming holidays (next 3, excluding today)
       const upcoming = holidays.filter((h: any) => {
         const holidayDate = parseISO(h.date);
@@ -409,7 +420,7 @@ export default function HomePage() {
             >
               ประวัติ
             </Link>
-            
+
             {/* User Menu */}
             <div className="relative" ref={menuRef}>
               <button
@@ -419,7 +430,7 @@ export default function HomePage() {
                 <Avatar name={employee?.name || "User"} size="sm" />
                 <ChevronDown className={`w-4 h-4 text-[#86868b] transition-transform ${showUserMenu ? "rotate-180" : ""}`} />
               </button>
-              
+
               {showUserMenu && (
                 <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-[#e8e8ed] py-2 animate-scale-in">
                   {/* User Info */}
@@ -431,11 +442,11 @@ export default function HomePage() {
                       {employee?.email}
                     </p>
                     <Badge variant="info" className="mt-2">
-                      {employee?.role === "admin" ? "ผู้ดูแลระบบ" : 
-                       employee?.role === "supervisor" ? "หัวหน้างาน" : "พนักงาน"}
+                      {employee?.role === "admin" ? "ผู้ดูแลระบบ" :
+                        employee?.role === "supervisor" ? "หัวหน้างาน" : "พนักงาน"}
                     </Badge>
                   </div>
-                  
+
                   {/* Menu Items */}
                   <div className="py-1">
                     <Link
@@ -457,7 +468,7 @@ export default function HomePage() {
                       </Link>
                     )}
                   </div>
-                  
+
                   {/* Logout */}
                   <div className="border-t border-[#e8e8ed] pt-1">
                     <button
@@ -493,18 +504,17 @@ export default function HomePage() {
         </div>
 
         {/* Today's Status Card */}
-        <div className={`rounded-2xl p-5 mb-4 ${
-          todayAttendance 
-            ? isOvertime
-              ? "bg-gradient-to-br from-[#ff9500] to-[#ff6b00]"
-              : "bg-gradient-to-br from-[#34c759] to-[#248a3d]" 
-            : "bg-gradient-to-br from-[#1d1d1f] to-[#3d3d3d]"
-        }`}>
+        <div className={`rounded-2xl p-5 mb-4 ${todayAttendance
+          ? isOvertime
+            ? "bg-gradient-to-br from-[#ff9500] to-[#ff6b00]"
+            : "bg-gradient-to-br from-[#34c759] to-[#248a3d]"
+          : "bg-gradient-to-br from-[#1d1d1f] to-[#3d3d3d]"
+          }`}>
           <div className="flex items-center justify-between mb-3">
             <span className="text-[13px] text-white/70 font-medium">สถานะวันนี้</span>
             <div className={`w-2.5 h-2.5 rounded-full ${todayAttendance ? "bg-white" : "bg-[#ff9500]"} animate-pulse`} />
           </div>
-          
+
           {todayAttendance ? (
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -523,7 +533,7 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Work Timer */}
               <div className="text-center mb-4">
                 <p className="text-[42px] font-bold text-white tracking-tight font-mono">
@@ -533,7 +543,7 @@ export default function HomePage() {
                   {todayAttendance.clock_out_time ? "ชั่วโมงทำงานวันนี้" : "เวลาทำงาน"}
                 </p>
               </div>
-              
+
               {/* Progress Bar */}
               <div className="mb-4">
                 <div className="flex justify-between text-[12px] text-white/70 mb-1.5">
@@ -541,18 +551,17 @@ export default function HomePage() {
                   <span>{Math.round(workProgress)}%</span>
                 </div>
                 <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-white rounded-full transition-all duration-500"
                     style={{ width: `${workProgress}%` }}
                   />
                 </div>
               </div>
-              
+
               {/* Time Remaining / Overtime Alert */}
               {!todayAttendance.clock_out_time && timeRemaining && (
-                <div className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl mb-3 ${
-                  isOvertime ? "bg-white/20" : "bg-white/10"
-                }`}>
+                <div className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl mb-3 ${isOvertime ? "bg-white/20" : "bg-white/10"
+                  }`}>
                   {isOvertime ? (
                     <AlertCircle className="w-4 h-4 text-white" />
                   ) : (
@@ -563,7 +572,7 @@ export default function HomePage() {
                   </span>
                 </div>
               )}
-              
+
               {!todayAttendance.clock_out_time && (
                 <Link href="/checkout">
                   <button className="w-full py-3 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-xl transition-all">
@@ -574,25 +583,62 @@ export default function HomePage() {
             </div>
           ) : (
             <div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
-                  <Clock className="w-6 h-6 text-white/70" />
-                </div>
-                <div>
-                  <p className="text-[22px] font-bold text-white">ยังไม่ได้เช็คอิน</p>
-                  <p className="text-[14px] text-white/60">กดปุ่มด้านล่างเพื่อเริ่มงาน</p>
-                </div>
-              </div>
-              <Link href="/checkin">
-                <button className="w-full py-3.5 bg-[#0071e3] hover:bg-[#0077ed] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
-                  <UserCheck className="w-5 h-5" />
-                  เช็คอินเลย
-                </button>
-              </Link>
+              {/* On holiday with pending OT - show different message */}
+              {todayHoliday && pendingOT.length > 0 ? (
+                <>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
+                      <Timer className="w-6 h-6 text-white/70" />
+                    </div>
+                    <div>
+                      <p className="text-[22px] font-bold text-white">วันหยุด - มี OT รอเริ่ม</p>
+                      <p className="text-[14px] text-white/60">กดเริ่ม OT ด้านล่างได้เลย</p>
+                    </div>
+                  </div>
+                </>
+              ) : todayHoliday ? (
+                <>
+                  {/* Holiday without OT - must request OT first */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
+                      <Calendar className="w-6 h-6 text-white/70" />
+                    </div>
+                    <div>
+                      <p className="text-[22px] font-bold text-white">วันหยุด</p>
+                      <p className="text-[14px] text-white/60">ต้องขอ OT ก่อนถึงจะเข้างานได้</p>
+                    </div>
+                  </div>
+                  <Link href="/ot/request">
+                    <button className="w-full py-3.5 bg-[#ff9500] hover:bg-[#ff8000] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
+                      <Timer className="w-5 h-5" />
+                      ขอทำ OT
+                    </button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  {/* Normal day - can check in */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
+                      <Clock className="w-6 h-6 text-white/70" />
+                    </div>
+                    <div>
+                      <p className="text-[22px] font-bold text-white">ยังไม่ได้เช็คอิน</p>
+                      <p className="text-[14px] text-white/60">กดปุ่มด้านล่างเพื่อเริ่มงาน</p>
+                    </div>
+                  </div>
+                  <Link href="/checkin">
+                    <button className="w-full py-3.5 bg-[#0071e3] hover:bg-[#0077ed] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
+                      <UserCheck className="w-5 h-5" />
+                      เช็คอินเลย
+                    </button>
+                  </Link>
+                </>
+              )}
             </div>
           )}
         </div>
-        
+
         {/* OT Timer Card */}
         {activeOT && (
           <div className="rounded-2xl p-5 mb-4 bg-gradient-to-br from-[#ff9500] to-[#ff6b00]">
@@ -605,7 +651,7 @@ export default function HomePage() {
                 {activeOT.ot_rate || 1.5}x
               </Badge>
             </div>
-            
+
             <div className="text-center mb-4">
               <p className="text-[42px] font-bold text-white tracking-tight font-mono">
                 {otDuration}
@@ -614,7 +660,7 @@ export default function HomePage() {
                 เริ่ม {format(new Date(activeOT.actual_start_time), "HH:mm")} น.
               </p>
             </div>
-            
+
             <Link href={`/ot/end/${activeOT.id}`}>
               <button className="w-full py-3 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
                 จบ OT
@@ -622,7 +668,45 @@ export default function HomePage() {
             </Link>
           </div>
         )}
-        
+
+        {/* Pending OT Ready to Start */}
+        {pendingOT.length > 0 && !activeOT && (
+          <div className="rounded-2xl p-5 mb-4 bg-[#f0fdf4] border border-[#bbf7d0]">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Timer className="w-4 h-4 text-[#22c55e]" />
+                <span className="text-[13px] text-[#15803d] font-medium">OT พร้อมเริ่มวันนี้</span>
+              </div>
+              <Badge className="bg-[#dcfce7] text-[#15803d] border-[#bbf7d0]">
+                {pendingOT.length} รายการ
+              </Badge>
+            </div>
+
+            <div className="space-y-3">
+              {pendingOT.map((ot: any) => (
+                <div key={ot.id} className="bg-white rounded-xl p-4 border border-[#e5e7eb]">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-[15px] font-semibold text-[#1d1d1f]">
+                        {format(new Date(ot.requested_start_time), "HH:mm")} - {format(new Date(ot.requested_end_time), "HH:mm")} น.
+                      </p>
+                      <p className="text-[13px] text-[#6e6e73] line-clamp-1">
+                        {ot.reason}
+                      </p>
+                    </div>
+                  </div>
+                  <Link href={`/ot/start/${ot.id}`}>
+                    <button className="w-full py-2.5 bg-[#22c55e] hover:bg-[#16a34a] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
+                      <Play className="w-4 h-4" />
+                      เริ่ม OT
+                    </button>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Today Holiday Banner */}
         {todayHoliday && (
           <div className="rounded-2xl p-5 mb-4 bg-gradient-to-br from-[#af52de] to-[#9b59b6]">
@@ -635,7 +719,7 @@ export default function HomePage() {
             </div>
           </div>
         )}
-        
+
         {/* Upcoming Holidays Card */}
         {upcomingHolidays.length > 0 && (
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#e8e8ed] mb-4">
@@ -651,13 +735,13 @@ export default function HomePage() {
                 {showAllHolidays ? "ซ่อน" : "ดูทั้งหมด"}
               </button>
             </div>
-            
+
             <div className="space-y-3">
               {upcomingHolidays.map((holiday: any) => {
                 const holidayDate = parseISO(holiday.date);
                 const today = startOfDay(new Date());
                 const daysUntil = differenceInCalendarDays(holidayDate, today);
-                
+
                 return (
                   <div key={holiday.id} className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-xl">
                     <div className="w-12 h-12 bg-[#af52de]/10 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -678,7 +762,7 @@ export default function HomePage() {
                 );
               })}
             </div>
-            
+
             {showAllHolidays && (
               <Link href="/holidays">
                 <button className="w-full mt-3 py-2.5 text-[14px] text-[#0071e3] font-medium hover:bg-[#0071e3]/10 rounded-xl transition-colors">
@@ -688,28 +772,6 @@ export default function HomePage() {
             )}
           </div>
         )}
-
-        {/* Main Actions */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <Link href="/checkin">
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#e8e8ed] hover:shadow-md hover:border-[#0071e3]/30 transition-all cursor-pointer group">
-              <div className="w-12 h-12 bg-[#0071e3]/10 rounded-xl flex items-center justify-center mb-3 group-hover:bg-[#0071e3]/20 transition-colors">
-                <UserCheck className="w-6 h-6 text-[#0071e3]" />
-              </div>
-              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">เข้างาน</h2>
-              <p className="text-[13px] text-[#86868b]">บันทึกเวลาเข้า</p>
-            </div>
-          </Link>
-          <Link href="/checkout">
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#e8e8ed] hover:shadow-md hover:border-[#ff3b30]/30 transition-all cursor-pointer group">
-              <div className="w-12 h-12 bg-[#ff3b30]/10 rounded-xl flex items-center justify-center mb-3 group-hover:bg-[#ff3b30]/20 transition-colors">
-                <LogOut className="w-6 h-6 text-[#ff3b30]" />
-              </div>
-              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">ออกงาน</h2>
-              <p className="text-[13px] text-[#86868b]">บันทึกเวลาออก</p>
-            </div>
-          </Link>
-        </div>
 
         {/* Quick Actions Grid */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#e8e8ed] mb-6">
@@ -723,7 +785,7 @@ export default function HomePage() {
             ].map((action, i) => (
               <Link key={i} href={action.href}>
                 <div className="flex flex-col items-center p-3 rounded-xl hover:bg-[#f5f5f7] transition-colors cursor-pointer">
-                  <div 
+                  <div
                     className="w-11 h-11 rounded-xl flex items-center justify-center mb-2"
                     style={{ backgroundColor: `${action.color}15` }}
                   >

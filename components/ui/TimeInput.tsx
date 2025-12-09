@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useState, useEffect } from "react";
+import { forwardRef } from "react";
 
 interface TimeInputProps {
   label?: string;
@@ -9,52 +9,14 @@ interface TimeInputProps {
   onChange?: (value: string) => void;
   className?: string;
   disabled?: boolean;
-  placeholder?: string;
+  min?: string;
+  max?: string;
 }
 
 export const TimeInput = forwardRef<HTMLInputElement, TimeInputProps>(
-  ({ label, error, value = "", onChange, className = "", disabled, placeholder = "HH:MM" }, ref) => {
-    const [displayValue, setDisplayValue] = useState(value || "");
-
-    useEffect(() => {
-      setDisplayValue(value || "");
-    }, [value]);
-
+  ({ label, error, value = "", onChange, className = "", disabled, min, max }, ref) => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      let newValue = e.target.value;
-      
-      // Remove non-numeric characters except colon
-      newValue = newValue.replace(/[^\d:]/g, '');
-      
-      // Auto-format as HH:MM
-      if (newValue.length === 2 && !newValue.includes(':')) {
-        newValue = newValue + ':';
-      }
-      
-      // Limit to HH:MM format
-      if (newValue.length > 5) {
-        newValue = newValue.slice(0, 5);
-      }
-
-      setDisplayValue(newValue);
-
-      // Validate and call onChange with valid time
-      if (/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(newValue)) {
-        // Normalize to HH:MM format
-        const [hours, minutes] = newValue.split(':');
-        const normalizedTime = `${hours.padStart(2, '0')}:${minutes}`;
-        onChange?.(normalizedTime);
-      }
-    };
-
-    const handleBlur = () => {
-      // On blur, try to normalize the value
-      if (displayValue && /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(displayValue)) {
-        const [hours, minutes] = displayValue.split(':');
-        const normalizedTime = `${hours.padStart(2, '0')}:${minutes}`;
-        setDisplayValue(normalizedTime);
-        onChange?.(normalizedTime);
-      }
+      onChange?.(e.target.value);
     };
 
     return (
@@ -67,19 +29,16 @@ export const TimeInput = forwardRef<HTMLInputElement, TimeInputProps>(
         <div className="relative">
           <input
             ref={ref}
-            type="text"
-            inputMode="numeric"
-            placeholder={placeholder}
-            maxLength={5}
-            value={displayValue}
+            type="time"
+            value={value}
             onChange={handleChange}
-            onBlur={handleBlur}
             disabled={disabled}
+            min={min}
+            max={max}
             className={`
               w-full px-4 py-3 text-[15px] text-center font-medium
               bg-[#f5f5f7] rounded-xl
               border-0
-              placeholder:text-[#86868b]
               focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20
               transition-all duration-200
               ${error ? "ring-2 ring-[#ff3b30]" : ""}
@@ -87,9 +46,6 @@ export const TimeInput = forwardRef<HTMLInputElement, TimeInputProps>(
               ${className}
             `}
           />
-          <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-[#86868b] text-[13px]">
-            น.
-          </div>
         </div>
         {error && (
           <p className="text-sm text-[#ff3b30]">{error}</p>
@@ -100,4 +56,3 @@ export const TimeInput = forwardRef<HTMLInputElement, TimeInputProps>(
 );
 
 TimeInput.displayName = "TimeInput";
-

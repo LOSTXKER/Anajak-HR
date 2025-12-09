@@ -23,8 +23,8 @@ function HolidaysContent() {
 
   const fetchHolidays = async () => {
     setLoading(true);
-    const yearStart = startOfYear(new Date(selectedYear, 0, 1)).toISOString().split("T")[0];
-    const yearEnd = endOfYear(new Date(selectedYear, 0, 1)).toISOString().split("T")[0];
+    const yearStart = format(startOfYear(new Date(selectedYear, 0, 1)), "yyyy-MM-dd");
+    const yearEnd = format(endOfYear(new Date(selectedYear, 0, 1)), "yyyy-MM-dd");
 
     const { data, error } = await supabase
       .from("holidays")
@@ -156,17 +156,15 @@ function HolidaysContent() {
                       return (
                         <div
                           key={holiday.id}
-                          className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${
-                            isToday
+                          className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${isToday
                               ? "bg-[#af52de]/10 border border-[#af52de]/30"
                               : isPast
-                              ? "bg-[#f5f5f7] opacity-60"
-                              : "bg-[#f5f5f7] hover:bg-[#e8e8ed]"
-                          }`}
+                                ? "bg-[#f5f5f7] opacity-60"
+                                : "bg-[#f5f5f7] hover:bg-[#e8e8ed]"
+                            }`}
                         >
-                          <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center ${
-                            isToday ? "bg-[#af52de] text-white" : "bg-white"
-                          }`}>
+                          <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center ${isToday ? "bg-[#af52de] text-white" : "bg-white"
+                            }`}>
                             <span className="text-[16px] font-bold">
                               {format(holidayDate, "d")}
                             </span>
@@ -175,9 +173,8 @@ function HolidaysContent() {
                             </span>
                           </div>
                           <div className="flex-1">
-                            <p className={`text-[15px] font-medium ${
-                              isToday ? "text-[#af52de]" : "text-[#1d1d1f]"
-                            }`}>
+                            <p className={`text-[15px] font-medium ${isToday ? "text-[#af52de]" : "text-[#1d1d1f]"
+                              }`}>
                               {holiday.name}
                             </p>
                             <p className="text-[13px] text-[#86868b]">

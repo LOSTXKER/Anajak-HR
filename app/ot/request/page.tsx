@@ -13,6 +13,7 @@ import { DateInput } from "@/components/ui/DateInput";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { ArrowLeft, Calendar, Clock, FileText, CheckCircle, AlertCircle, PartyPopper, Sun, Briefcase } from "lucide-react";
+import { format } from "date-fns";
 import { getOTRateForDate } from "@/lib/utils/holiday";
 
 function OTRequestContent() {
@@ -30,7 +31,7 @@ function OTRequestContent() {
   } | null>(null);
 
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split("T")[0],
+    date: format(new Date(), "yyyy-MM-dd"),
     startTime: "18:00",
     endTime: "21:00",
     reason: "",
@@ -59,7 +60,7 @@ function OTRequestContent() {
       const requestDate = new Date(formData.date);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       // ตรวจสอบว่าไม่ใช่วันในอดีต
       if (requestDate < today) {
         setError("ไม่สามารถขอ OT ย้อนหลังได้");
@@ -75,7 +76,7 @@ function OTRequestContent() {
         setLoading(false);
         return;
       }
-      
+
       // ตรวจสอบ OT ที่ซ้ำซ้อน (pending หรือ approved)
       const { data: existingOT } = await supabase
         .from("ot_requests")
@@ -83,7 +84,7 @@ function OTRequestContent() {
         .eq("employee_id", employee.id)
         .eq("request_date", formData.date)
         .in("status", ["pending", "approved"]);
-        
+
       if (existingOT && existingOT.length > 0) {
         setError("คุณมีคำขอ OT ในวันนี้แล้ว");
         setLoading(false);
@@ -164,18 +165,17 @@ function OTRequestContent() {
                 <DateInput
                   value={formData.date}
                   onChange={(val) => setFormData({ ...formData, date: val })}
-                  min={new Date().toISOString().split("T")[0]}
+                  min={format(new Date(), "yyyy-MM-dd")}
                 />
 
                 {/* Day Type Info */}
                 {dayInfo && (
-                  <div className={`mt-3 p-4 rounded-xl ${
-                    dayInfo.type === "holiday" 
-                      ? "bg-[#ff3b30]/10 border border-[#ff3b30]/20" 
-                      : dayInfo.type === "weekend"
-                        ? "bg-[#ff9500]/10 border border-[#ff9500]/20"
-                        : "bg-[#0071e3]/10 border border-[#0071e3]/20"
-                  }`}>
+                  <div className={`mt-3 p-4 rounded-xl ${dayInfo.type === "holiday"
+                    ? "bg-[#ff3b30]/10 border border-[#ff3b30]/20"
+                    : dayInfo.type === "weekend"
+                      ? "bg-[#ff9500]/10 border border-[#ff9500]/20"
+                      : "bg-[#0071e3]/10 border border-[#0071e3]/20"
+                    }`}>
                     <div className="flex items-center gap-3">
                       {dayInfo.type === "holiday" ? (
                         <PartyPopper className="w-5 h-5 text-[#ff3b30] flex-shrink-0" />
@@ -186,22 +186,21 @@ function OTRequestContent() {
                       )}
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <p className={`text-[14px] font-medium ${
-                            dayInfo.type === "holiday" 
-                              ? "text-[#ff3b30]" 
-                              : dayInfo.type === "weekend"
-                                ? "text-[#ff9500]"
-                                : "text-[#0071e3]"
-                          }`}>
-                            {dayInfo.type === "holiday" 
-                              ? `🎉 ${dayInfo.holidayName}` 
+                          <p className={`text-[14px] font-medium ${dayInfo.type === "holiday"
+                            ? "text-[#ff3b30]"
+                            : dayInfo.type === "weekend"
+                              ? "text-[#ff9500]"
+                              : "text-[#0071e3]"
+                            }`}>
+                            {dayInfo.type === "holiday"
+                              ? `🎉 ${dayInfo.holidayName}`
                               : dayInfo.type === "weekend"
                                 ? "🌅 วันหยุดสุดสัปดาห์"
                                 : "📋 วันทำงานปกติ"}
                           </p>
                           <Badge variant={
-                            dayInfo.type === "holiday" 
-                              ? "danger" 
+                            dayInfo.type === "holiday"
+                              ? "danger"
                               : dayInfo.type === "weekend"
                                 ? "warning"
                                 : "info"
@@ -209,15 +208,14 @@ function OTRequestContent() {
                             {dayInfo.rate}x
                           </Badge>
                         </div>
-                        <p className={`text-[13px] mt-1 ${
-                          dayInfo.type === "holiday" 
-                            ? "text-[#ff3b30]/80" 
-                            : dayInfo.type === "weekend"
-                              ? "text-[#ff9500]/80"
-                              : "text-[#0071e3]/80"
-                        }`}>
-                          {dayInfo.requireCheckin 
-                            ? "⚠️ ต้องเช็คอินก่อนเริ่ม OT" 
+                        <p className={`text-[13px] mt-1 ${dayInfo.type === "holiday"
+                          ? "text-[#ff3b30]/80"
+                          : dayInfo.type === "weekend"
+                            ? "text-[#ff9500]/80"
+                            : "text-[#0071e3]/80"
+                          }`}>
+                          {dayInfo.requireCheckin
+                            ? "⚠️ ต้องเช็คอินก่อนเริ่ม OT"
                             : "✅ ไม่ต้องเช็คอินก่อน"}
                         </p>
                       </div>

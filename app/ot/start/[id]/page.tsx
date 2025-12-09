@@ -10,12 +10,12 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { uploadAttendancePhoto } from "@/lib/utils/upload-photo";
-import { 
-  Camera, 
-  ArrowLeft, 
-  CheckCircle, 
-  AlertCircle, 
-  Clock, 
+import {
+  Camera,
+  ArrowLeft,
+  CheckCircle,
+  AlertCircle,
+  Clock,
   Play,
   Calendar,
   PartyPopper,
@@ -64,12 +64,12 @@ function OTStartContent({ id }: { id: string }) {
   } | null>(null);
   const [todayAttendance, setTodayAttendance] = useState<any>(null);
   const [checkingRequirements, setCheckingRequirements] = useState(true);
-  
+
   // GPS state
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState("");
   const [gettingLocation, setGettingLocation] = useState(false);
-  
+
   // Early start buffer (minutes)
   const [earlyStartBuffer, setEarlyStartBuffer] = useState(15);
 
@@ -113,7 +113,7 @@ function OTStartContent({ id }: { id: string }) {
   const getLocation = () => {
     setGettingLocation(true);
     setLocationError("");
-    
+
     if (!navigator.geolocation) {
       setLocationError("เบราว์เซอร์ไม่รองรับ GPS");
       setGettingLocation(false);
@@ -152,7 +152,7 @@ function OTStartContent({ id }: { id: string }) {
         .select("setting_value")
         .eq("setting_key", "ot_early_start_buffer")
         .single();
-      
+
       if (bufferData?.setting_value) {
         setEarlyStartBuffer(parseInt(bufferData.setting_value) || 15);
       }
@@ -180,7 +180,7 @@ function OTStartContent({ id }: { id: string }) {
   // Check if it's the correct day
   const isCorrectDay = () => {
     if (!otRequest) return false;
-    const today = new Date().toISOString().split("T")[0];
+    const today = format(new Date(), "yyyy-MM-dd");
     return otRequest.request_date <= today; // Can start on the day or after (for past dates)
   };
 
@@ -188,34 +188,34 @@ function OTStartContent({ id }: { id: string }) {
   const canStartOT = () => {
     if (!otRequest || otRequest.status !== "approved") return false;
     if (otRequest.actual_start_time) return false;
-    
+
     // Check if it's the correct day first
     if (!isCorrectDay()) return false;
-    
+
     // Use settings to determine if check-in is required
     if (dayInfo && !dayInfo.requireCheckin) return true;
-    
+
     // If OT type is holiday, can start without check-in (fallback)
     if (otRequest.ot_type === "holiday") return true;
-    
+
     // Check-in required but not checked in
     if (!todayAttendance?.clock_in_time) return false;
-    
+
     return true;
   };
 
   // Check if it's too early to start OT
   const canStartByTime = () => {
     if (!otRequest) return { canStart: false, message: "", minutesUntilStart: 0 };
-    
+
     const now = new Date();
     const approvedStartTime = otRequest.approved_start_time || otRequest.requested_start_time;
     const startTime = new Date(approvedStartTime);
-    
+
     // Calculate minutes until approved start time
     const diffMs = startTime.getTime() - now.getTime();
     const minutesUntilStart = Math.ceil(diffMs / (1000 * 60));
-    
+
     // Allow starting if within the buffer period (e.g., 15 minutes before)
     if (minutesUntilStart > earlyStartBuffer) {
       const hours = Math.floor(minutesUntilStart / 60);
@@ -227,7 +227,7 @@ function OTStartContent({ id }: { id: string }) {
         minutesUntilStart,
       };
     }
-    
+
     return { canStart: true, message: "", minutesUntilStart };
   };
 
@@ -263,7 +263,7 @@ function OTStartContent({ id }: { id: string }) {
         };
       }
     }
-    
+
     // Check-in required
     if (!todayAttendance?.clock_in_time) {
       return {
@@ -508,10 +508,10 @@ function OTStartContent({ id }: { id: string }) {
             {dayInfo && (
               <Badge variant={
                 dayInfo.type === "holiday" ? "danger" :
-                dayInfo.type === "weekend" ? "warning" : "info"
+                  dayInfo.type === "weekend" ? "warning" : "info"
               }>
                 {dayInfo.type === "holiday" ? "🎉 วันหยุดนักขัตฤกษ์" :
-                 dayInfo.type === "weekend" ? "🌅 วันหยุดสุดสัปดาห์" : "📋 วันทำงานปกติ"} ({dayInfo.rate}x)
+                  dayInfo.type === "weekend" ? "🌅 วันหยุดสุดสัปดาห์" : "📋 วันทำงานปกติ"} ({dayInfo.rate}x)
               </Badge>
             )}
           </div>
@@ -534,13 +534,12 @@ function OTStartContent({ id }: { id: string }) {
 
         {/* Requirement Status */}
         {!checkingRequirements && (
-          <div className={`mb-6 p-4 rounded-xl ${
-            getRequirementMessage().canProceed 
+          <div className={`mb-6 p-4 rounded-xl ${getRequirementMessage().canProceed
               ? dayInfo && (dayInfo.type === "holiday" || dayInfo.type === "weekend")
                 ? dayInfo.type === "holiday" ? "bg-[#ff3b30]/10 border border-[#ff3b30]/30" : "bg-[#ff9500]/10 border border-[#ff9500]/30"
                 : "bg-[#34c759]/10 border border-[#34c759]/30"
               : "bg-[#ff3b30]/10 border border-[#ff3b30]/30"
-          }`}>
+            }`}>
             <div className="flex items-center gap-3">
               {dayInfo?.type === "holiday" ? (
                 <PartyPopper className="w-5 h-5 text-[#ff3b30]" />
@@ -552,13 +551,12 @@ function OTStartContent({ id }: { id: string }) {
                 <AlertCircle className="w-5 h-5 text-[#ff3b30]" />
               )}
               <div>
-                <p className={`text-[14px] font-medium ${
-                  getRequirementMessage().canProceed 
-                    ? dayInfo?.type === "holiday" ? "text-[#ff3b30]" 
-                      : dayInfo?.type === "weekend" ? "text-[#ff9500]" 
-                      : "text-[#34c759]"
+                <p className={`text-[14px] font-medium ${getRequirementMessage().canProceed
+                    ? dayInfo?.type === "holiday" ? "text-[#ff3b30]"
+                      : dayInfo?.type === "weekend" ? "text-[#ff9500]"
+                        : "text-[#34c759]"
                     : "text-[#ff3b30]"
-                }`}>
+                  }`}>
                   {getRequirementMessage().message}
                 </p>
                 {!getRequirementMessage().canProceed && (

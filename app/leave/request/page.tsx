@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { DateInput } from "@/components/ui/DateInput";
 import { Badge } from "@/components/ui/Badge";
 import { ArrowLeft, Calendar, FileText, Upload, CheckCircle, AlertCircle, TrendingUp } from "lucide-react";
+import { format } from "date-fns";
 
 const leaveTypes = [
   { value: "sick", label: "ลาป่วย", color: "text-[#ff3b30]" },
@@ -36,8 +37,8 @@ function LeaveRequestContent() {
 
   const [formData, setFormData] = useState({
     leaveType: "sick",
-    startDate: new Date().toISOString().split("T")[0],
-    endDate: new Date().toISOString().split("T")[0],
+    startDate: format(new Date(), "yyyy-MM-dd"),
+    endDate: format(new Date(), "yyyy-MM-dd"),
     isHalfDay: false,
     reason: "",
     attachmentFile: null as File | null,
@@ -125,7 +126,7 @@ function LeaveRequestContent() {
       setError("วันสิ้นสุดต้องมากกว่าหรือเท่ากับวันเริ่มต้น");
       return;
     }
-    
+
     // ตรวจสอบว่าไม่ใช่วันในอดีต
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -145,13 +146,13 @@ function LeaveRequestContent() {
         .eq("employee_id", employee.id)
         .in("status", ["pending", "approved"])
         .or(`start_date.lte.${formData.endDate},end_date.gte.${formData.startDate}`);
-        
+
       if (existingLeave && existingLeave.length > 0) {
         setError("คุณมีคำขอลาในช่วงวันนี้แล้ว");
         setLoading(false);
         return;
       }
-      
+
       let attachmentUrl = null;
 
       // Upload attachment if exists
@@ -279,10 +280,9 @@ function LeaveRequestContent() {
                       }
                       className={`
                         px-4 py-3 rounded-xl text-[15px] font-medium transition-all
-                        ${
-                          formData.leaveType === type.value
-                            ? "bg-[#0071e3] text-white ring-4 ring-[#0071e3]/20"
-                            : "bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e8e8ed]"
+                        ${formData.leaveType === type.value
+                          ? "bg-[#0071e3] text-white ring-4 ring-[#0071e3]/20"
+                          : "bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e8e8ed]"
                         }
                       `}
                     >

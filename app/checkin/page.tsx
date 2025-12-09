@@ -10,7 +10,8 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { uploadAttendancePhoto } from "@/lib/utils/upload-photo";
 import { isWithinRadius, formatDistance } from "@/lib/utils/geo";
-import { Camera, MapPin, ArrowLeft, CheckCircle, AlertCircle, Navigation } from "lucide-react";
+import { Camera, MapPin, ArrowLeft, CheckCircle, AlertCircle, Navigation, Calendar, Timer } from "lucide-react";
+import { format, parseISO, isSameDay, startOfDay } from "date-fns";
 
 interface Branch {
   id: string;
@@ -31,13 +32,18 @@ function CheckinContent() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  
+
   // ข้อมูลสาขาและการตรวจรัศมี
   const [branch, setBranch] = useState<Branch | null>(null);
   const [radiusCheck, setRadiusCheck] = useState<{ inRadius: boolean; distance: number } | null>(null);
-  
+
   // ช่วงเวลาที่อนุญาต
   const [allowedTime, setAllowedTime] = useState({ checkinStart: "06:00", checkinEnd: "12:00" });
+
+  // Holiday check
+  const [isHoliday, setIsHoliday] = useState(false);
+  const [holidayName, setHolidayName] = useState("");
+  const [hasApprovedOT, setHasApprovedOT] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -68,9 +74,10 @@ function CheckinContent() {
 
   const fetchBranchAndSettings = async () => {
     if (!employee?.branch_id) return;
+    const today = format(new Date(), "yyyy-MM-dd");
 
-    // ดึงข้อมูลสาขาและ settings พร้อมกัน
-    const [branchRes, settingsRes] = await Promise.all([
+    // ดึงข้อมูลสาขา, settings, holidays, และ OT พร้อมกัน
+    const [branchRes, settingsRes, holidaysRes, otRes] = await Promise.all([
       supabase
         .from("branches")
         .select("id, name, gps_lat, gps_lng, radius_meters")
@@ -79,13 +86,23 @@ function CheckinContent() {
       supabase
         .from("system_settings")
         .select("setting_key, setting_value")
-        .in("setting_key", ["checkin_time_start", "checkin_time_end"])
+        .in("setting_key", ["checkin_time_start", "checkin_time_end"]),
+      supabase
+        .from("holidays")
+        .select("*")
+        .eq("date", today),
+      supabase
+        .from("ot_requests")
+        .select("id")
+        .eq("employee_id", employee.id)
+        .eq("request_date", today)
+        .eq("status", "approved")
     ]);
 
     if (branchRes.data) {
       setBranch(branchRes.data);
     }
-    
+
     if (settingsRes.data) {
       const settings: Record<string, string> = {};
       settingsRes.data.forEach((s: any) => {
@@ -95,6 +112,17 @@ function CheckinContent() {
         checkinStart: settings.checkin_time_start || "06:00",
         checkinEnd: settings.checkin_time_end || "12:00",
       });
+    }
+
+    // Check if today is a holiday
+    if (holidaysRes.data && holidaysRes.data.length > 0) {
+      setIsHoliday(true);
+      setHolidayName(holidaysRes.data[0].name);
+    }
+
+    // Check if there's approved OT for today
+    if (otRes.data && otRes.data.length > 0) {
+      setHasApprovedOT(true);
     }
   };
 
@@ -148,12 +176,12 @@ function CheckinContent() {
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     const currentTimeInMinutes = currentHour * 60 + currentMinute;
-    
+
     const [startHour, startMinute] = allowedTime.checkinStart.split(":").map(Number);
     const [endHour, endMinute] = allowedTime.checkinEnd.split(":").map(Number);
     const startTimeInMinutes = startHour * 60 + startMinute;
     const endTimeInMinutes = endHour * 60 + endMinute;
-    
+
     if (currentTimeInMinutes < startTimeInMinutes || currentTimeInMinutes > endTimeInMinutes) {
       setError(
         `⚠️ ไม่สามารถเช็คอินนอกเวลาได้\n\n` +
@@ -173,7 +201,7 @@ function CheckinContent() {
     setError("");
 
     try {
-      const today = new Date().toISOString().split("T")[0];
+      const today = format(new Date(), "yyyy-MM-dd");
 
       // Check if already checked in
       const { data: existing } = await supabase
@@ -181,7 +209,7 @@ function CheckinContent() {
         .select("id")
         .eq("employee_id", employee.id)
         .eq("work_date", today)
-        .single();
+        .maybeSingle();
 
       if (existing) {
         setError("คุณได้เช็กอินวันนี้แล้ว");
@@ -216,7 +244,7 @@ function CheckinContent() {
       const now = new Date();
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
       const workStartMinutes = workStartHour * 60 + workStartMinute;
-      
+
       // สายต่อเมื่อเกิน threshold ที่กำหนด
       const minutesLate = currentMinutes - workStartMinutes;
       const isLate = minutesLate > lateThresholdMinutes;
@@ -262,6 +290,41 @@ function CheckinContent() {
       setLoading(false);
     }
   };
+
+  // Holiday block - if it's a holiday and no approved OT, show blocked message
+  if (isHoliday && !hasApprovedOT) {
+    return (
+      <div className="min-h-screen bg-[#fbfbfd] flex items-center justify-center p-6">
+        <div className="text-center max-w-sm">
+          <div className="w-20 h-20 bg-[#ff9500]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Calendar className="w-10 h-10 text-[#ff9500]" strokeWidth={2} />
+          </div>
+          <h2 className="text-[28px] font-semibold text-[#1d1d1f] mb-2">
+            วันหยุด
+          </h2>
+          <p className="text-[17px] text-[#86868b] mb-2">
+            {holidayName}
+          </p>
+          <p className="text-[15px] text-[#86868b] mb-8">
+            ต้องขอ OT ก่อนถึงจะเช็คอินได้
+          </p>
+          <div className="space-y-3">
+            <Link href="/ot/request">
+              <button className="w-full py-3.5 bg-[#ff9500] hover:bg-[#ff8000] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
+                <Timer className="w-5 h-5" />
+                ขอทำ OT
+              </button>
+            </Link>
+            <Link href="/">
+              <button className="w-full py-3.5 bg-[#f5f5f7] hover:bg-[#e8e8ed] text-[#1d1d1f] font-semibold rounded-xl transition-all">
+                กลับหน้าแรก
+              </button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (success) {
     return (
@@ -341,9 +404,8 @@ function CheckinContent() {
           <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-[#e8e8ed]">
             <div className="flex items-center gap-3">
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  location ? "bg-[#34c759]/10" : "bg-[#ff9500]/10"
-                }`}
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${location ? "bg-[#34c759]/10" : "bg-[#ff9500]/10"
+                  }`}
               >
                 <MapPin className={`w-5 h-5 ${location ? "text-[#34c759]" : "text-[#ff9500]"}`} />
               </div>
@@ -366,17 +428,15 @@ function CheckinContent() {
           {/* Radius Check Status */}
           {branch && radiusCheck && (
             <div
-              className={`flex items-center justify-between p-4 rounded-xl border ${
-                radiusCheck.inRadius
-                  ? "bg-[#34c759]/10 border-[#34c759]/30"
-                  : "bg-[#ff3b30]/10 border-[#ff3b30]/30"
-              }`}
+              className={`flex items-center justify-between p-4 rounded-xl border ${radiusCheck.inRadius
+                ? "bg-[#34c759]/10 border-[#34c759]/30"
+                : "bg-[#ff3b30]/10 border-[#ff3b30]/30"
+                }`}
             >
               <div className="flex items-center gap-3">
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    radiusCheck.inRadius ? "bg-[#34c759]/20" : "bg-[#ff3b30]/20"
-                  }`}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center ${radiusCheck.inRadius ? "bg-[#34c759]/20" : "bg-[#ff3b30]/20"
+                    }`}
                 >
                   <Navigation
                     className={`w-5 h-5 ${radiusCheck.inRadius ? "text-[#34c759]" : "text-[#ff3b30]"}`}
@@ -384,9 +444,8 @@ function CheckinContent() {
                 </div>
                 <div>
                   <p
-                    className={`text-[15px] font-medium ${
-                      radiusCheck.inRadius ? "text-[#34c759]" : "text-[#ff3b30]"
-                    }`}
+                    className={`text-[15px] font-medium ${radiusCheck.inRadius ? "text-[#34c759]" : "text-[#ff3b30]"
+                      }`}
                   >
                     {radiusCheck.inRadius ? "อยู่ในรัศมีที่อนุญาต ✓" : "อยู่นอกรัศมีที่อนุญาต ✗"}
                   </p>
@@ -396,9 +455,8 @@ function CheckinContent() {
                 </div>
               </div>
               <div
-                className={`w-3 h-3 rounded-full ${
-                  radiusCheck.inRadius ? "bg-[#34c759]" : "bg-[#ff3b30]"
-                }`}
+                className={`w-3 h-3 rounded-full ${radiusCheck.inRadius ? "bg-[#34c759]" : "bg-[#ff3b30]"
+                  }`}
               />
             </div>
           )}
@@ -420,9 +478,8 @@ function CheckinContent() {
           <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-[#e8e8ed]">
             <div className="flex items-center gap-3">
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  stream ? "bg-[#34c759]/10" : "bg-[#ff9500]/10"
-                }`}
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${stream ? "bg-[#34c759]/10" : "bg-[#ff9500]/10"
+                  }`}
               >
                 <Camera className={`w-5 h-5 ${stream ? "text-[#34c759]" : "text-[#ff9500]"}`} />
               </div>

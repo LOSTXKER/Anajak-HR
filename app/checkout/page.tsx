@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { uploadAttendancePhoto } from "@/lib/utils/upload-photo";
 import { isWithinRadius, formatDistance } from "@/lib/utils/geo";
 import { Camera, MapPin, ArrowLeft, CheckCircle, AlertCircle, Clock, Navigation } from "lucide-react";
+import { format } from "date-fns";
 
 interface Branch {
   id: string;
@@ -32,11 +33,11 @@ function CheckoutContent() {
   const [success, setSuccess] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [todayLog, setTodayLog] = useState<any>(null);
-  
+
   // ข้อมูลสาขาและการตรวจรัศมี
   const [branch, setBranch] = useState<Branch | null>(null);
   const [radiusCheck, setRadiusCheck] = useState<{ inRadius: boolean; distance: number } | null>(null);
-  
+
   // ช่วงเวลาที่อนุญาต
   const [allowedTime, setAllowedTime] = useState({ checkoutStart: "15:00", checkoutEnd: "22:00" });
 
@@ -87,7 +88,7 @@ function CheckoutContent() {
     if (branchRes.data) {
       setBranch(branchRes.data);
     }
-    
+
     if (settingsRes.data) {
       const settings: Record<string, string> = {};
       settingsRes.data.forEach((s: any) => {
@@ -102,13 +103,13 @@ function CheckoutContent() {
 
   const checkTodayLog = async () => {
     if (!employee) return;
-    const today = new Date().toISOString().split("T")[0];
+    const today = format(new Date(), "yyyy-MM-dd");
     const { data } = await supabase
       .from("attendance_logs")
       .select("*")
       .eq("employee_id", employee.id)
       .eq("work_date", today)
-      .single();
+      .maybeSingle();
     setTodayLog(data);
   };
 
@@ -161,21 +162,21 @@ function CheckoutContent() {
         setLoading(false);
         return;
       }
-      
+
       // ตรวจสอบเวลาที่อนุญาต
       const now = new Date();
       const currentHour = now.getHours();
       const currentMinute = now.getMinutes();
       const currentTimeInMinutes = currentHour * 60 + currentMinute;
-      
+
       const [startHour, startMinute] = allowedTime.checkoutStart.split(":").map(Number);
       const [endHour, endMinute] = allowedTime.checkoutEnd.split(":").map(Number);
       const startTimeInMinutes = startHour * 60 + startMinute;
       const endTimeInMinutes = endHour * 60 + endMinute;
-      
+
       // ตรวจสอบว่าเป็น early checkout หรือไม่ (ก่อนเวลาปกติ)
       const isEarlyCheckout = currentTimeInMinutes < startTimeInMinutes;
-      
+
       // ป้องกันการ checkout หลังเวลาที่กำหนด (เกินเวลาไป)
       if (currentTimeInMinutes > endTimeInMinutes) {
         setError(
@@ -412,9 +413,8 @@ function CheckoutContent() {
           <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-[#e8e8ed]">
             <div className="flex items-center gap-3">
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  location ? "bg-[#34c759]/10" : "bg-[#ff9500]/10"
-                }`}
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${location ? "bg-[#34c759]/10" : "bg-[#ff9500]/10"
+                  }`}
               >
                 <MapPin className={`w-5 h-5 ${location ? "text-[#34c759]" : "text-[#ff9500]"}`} />
               </div>
@@ -437,17 +437,15 @@ function CheckoutContent() {
           {/* Radius Check Status */}
           {branch && radiusCheck && (
             <div
-              className={`flex items-center justify-between p-4 rounded-xl border ${
-                radiusCheck.inRadius
-                  ? "bg-[#34c759]/10 border-[#34c759]/30"
-                  : "bg-[#ff9500]/10 border-[#ff9500]/30"
-              }`}
+              className={`flex items-center justify-between p-4 rounded-xl border ${radiusCheck.inRadius
+                ? "bg-[#34c759]/10 border-[#34c759]/30"
+                : "bg-[#ff9500]/10 border-[#ff9500]/30"
+                }`}
             >
               <div className="flex items-center gap-3">
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    radiusCheck.inRadius ? "bg-[#34c759]/20" : "bg-[#ff9500]/20"
-                  }`}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center ${radiusCheck.inRadius ? "bg-[#34c759]/20" : "bg-[#ff9500]/20"
+                    }`}
                 >
                   <Navigation
                     className={`w-5 h-5 ${radiusCheck.inRadius ? "text-[#34c759]" : "text-[#ff9500]"}`}
@@ -455,9 +453,8 @@ function CheckoutContent() {
                 </div>
                 <div>
                   <p
-                    className={`text-[15px] font-medium ${
-                      radiusCheck.inRadius ? "text-[#34c759]" : "text-[#ff9500]"
-                    }`}
+                    className={`text-[15px] font-medium ${radiusCheck.inRadius ? "text-[#34c759]" : "text-[#ff9500]"
+                      }`}
                   >
                     {radiusCheck.inRadius ? "อยู่ในรัศมีสาขา ✓" : "อยู่นอกรัศมีสาขา"}
                   </p>

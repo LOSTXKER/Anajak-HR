@@ -85,7 +85,7 @@ function AdminDashboardContent() {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const today = new Date().toISOString().split("T")[0];
+      const today = format(new Date(), "yyyy-MM-dd");
 
       // นับเฉพาะพนักงานที่ไม่ใช่ admin
       const { count: totalEmployees } = await supabase

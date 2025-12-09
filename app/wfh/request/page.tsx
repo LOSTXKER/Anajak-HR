@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { DateInput } from "@/components/ui/DateInput";
 import { ArrowLeft, Calendar, FileText, CheckCircle, AlertCircle, Home } from "lucide-react";
+import { format } from "date-fns";
 
 function WFHRequestContent() {
   const { employee } = useAuth();
@@ -19,7 +20,7 @@ function WFHRequestContent() {
   const [success, setSuccess] = useState(false);
 
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split("T")[0],
+    date: format(new Date(), "yyyy-MM-dd"),
     isHalfDay: false,
     reason: "",
   });
@@ -32,7 +33,7 @@ function WFHRequestContent() {
     const requestDate = new Date(formData.date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     if (requestDate < today) {
       setError("ไม่สามารถขอ WFH ย้อนหลังได้");
       return;
@@ -49,13 +50,13 @@ function WFHRequestContent() {
         .eq("employee_id", employee.id)
         .eq("date", formData.date)
         .in("status", ["pending", "approved"]);
-        
+
       if (existingWFH && existingWFH.length > 0) {
         setError("คุณมีคำขอ WFH ในวันนี้แล้ว");
         setLoading(false);
         return;
       }
-      
+
       const { error: insertError } = await supabase.from("wfh_requests").insert({
         employee_id: employee.id,
         date: formData.date,
@@ -132,7 +133,7 @@ function WFHRequestContent() {
                 <DateInput
                   value={formData.date}
                   onChange={(val) => setFormData({ ...formData, date: val })}
-                  min={new Date().toISOString().split("T")[0]}
+                  min={format(new Date(), "yyyy-MM-dd")}
                 />
               </div>
 
