@@ -22,6 +22,7 @@ import {
   Search,
   Building2,
   Filter,
+  HelpCircle,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, differenceInMinutes } from "date-fns";
 import { th } from "date-fns/locale";
@@ -363,6 +364,22 @@ function PayrollContent() {
     }).format(amount);
   };
 
+  // Tooltip component for column headers
+  const ColumnHeader = ({ label, tooltip, align = "center" }: { label: string; tooltip: string; align?: "left" | "center" | "right" }) => (
+    <th className={`text-${align} px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase ${align === "left" ? "px-4" : ""}`}>
+      <div className={`flex items-center gap-1 ${align === "right" ? "justify-end" : align === "center" ? "justify-center" : ""}`}>
+        <span>{label}</span>
+        <div className="relative group">
+          <HelpCircle className="w-3.5 h-3.5 text-[#86868b] cursor-help hover:text-[#0071e3] transition-colors" />
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-[#1d1d1f] text-white text-[11px] rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 shadow-lg">
+            {tooltip}
+            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#1d1d1f]" />
+          </div>
+        </div>
+      </div>
+    </th>
+  );
+
   return (
     <AdminLayout title="ระบบเงินเดือน (Payroll)">
       {/* Controls */}
@@ -517,16 +534,56 @@ function PayrollContent() {
               <thead>
                 <tr className="border-b border-[#e8e8ed] bg-[#f5f5f7]">
                   <th className="text-left px-4 py-3 text-[11px] font-semibold text-[#86868b] uppercase">พนักงาน</th>
-                  <th className="text-right px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase">เงินเดือนตั้ง</th>
-                  <th className="text-center px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase">วันทำงาน</th>
-                  <th className="text-center px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase">ลา</th>
-                  <th className="text-center px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase">สาย</th>
-                  <th className="text-center px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase">OT</th>
-                  <th className="text-right px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase">เงินเดือน</th>
-                  <th className="text-right px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase">คอมมิชชั่น</th>
-                  <th className="text-right px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase">เงิน OT</th>
-                  <th className="text-right px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase">หักสาย</th>
-                  <th className="text-right px-4 py-3 text-[11px] font-semibold text-[#86868b] uppercase">รวม</th>
+                  <ColumnHeader 
+                    label="เงินเดือนตั้ง" 
+                    tooltip="ฐานเงินเดือนที่กำหนดให้พนักงาน (ตั้งค่าได้ในหน้าจัดการพนักงาน)" 
+                    align="right" 
+                  />
+                  <ColumnHeader 
+                    label="วันทำงาน" 
+                    tooltip="จำนวนวันที่มาทำงานจริงในเดือนนี้ (ไม่รวมวันหยุด)" 
+                    align="center" 
+                  />
+                  <ColumnHeader 
+                    label="ลา" 
+                    tooltip="จำนวนวันลาที่ได้รับอนุมัติในเดือนนี้" 
+                    align="center" 
+                  />
+                  <ColumnHeader 
+                    label="สาย" 
+                    tooltip={`จำนวนวันที่มาสาย และนาทีสายรวม (หลัง ${settings.work_start_time} น.)`}
+                    align="center" 
+                  />
+                  <ColumnHeader 
+                    label="OT" 
+                    tooltip="ชั่วโมงทำงานล่วงเวลาที่เสร็จสิ้นแล้ว" 
+                    align="center" 
+                  />
+                  <ColumnHeader 
+                    label="เงินเดือน" 
+                    tooltip={`(เงินเดือนตั้ง ÷ ${settings.days_per_month} วัน) × วันทำงานจริง`}
+                    align="right" 
+                  />
+                  <ColumnHeader 
+                    label="คอมมิชชั่น" 
+                    tooltip="ค่าคอมมิชชั่นประจำเดือน (ตั้งค่าได้ในหน้าจัดการพนักงาน)" 
+                    align="right" 
+                  />
+                  <ColumnHeader 
+                    label="เงิน OT" 
+                    tooltip="ค่าตอบแทนการทำงานล่วงเวลา (คำนวณตามอัตรา OT ที่ตั้งไว้)" 
+                    align="right" 
+                  />
+                  <ColumnHeader 
+                    label="หักสาย" 
+                    tooltip={`นาทีสาย × ${settings.late_deduction_per_minute} บาท/นาที`}
+                    align="right" 
+                  />
+                  <ColumnHeader 
+                    label="รวม" 
+                    tooltip="เงินเดือน + คอมมิชชั่น + เงิน OT - หักสาย" 
+                    align="right" 
+                  />
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e8e8ed]">
