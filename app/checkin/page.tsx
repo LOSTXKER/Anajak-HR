@@ -157,15 +157,30 @@ function CheckinContent() {
         return;
       }
 
-      // Check late (after 9:00 AM) - TODO: ใช้ค่าจาก settings
+      // ดึงค่า work_start_time และ late_threshold_minutes จาก settings
+      const { data: settingsData } = await supabase
+        .from("system_settings")
+        .select("setting_key, setting_value")
+        .in("setting_key", ["work_start_time", "late_threshold_minutes"]);
+
+      const settingsMap: Record<string, string> = {};
+      settingsData?.forEach((item) => {
+        settingsMap[item.setting_key] = item.setting_value;
+      });
+
+      const workStartTime = settingsMap.work_start_time || "09:00";
+      const lateThresholdMinutes = parseInt(settingsMap.late_threshold_minutes || "0");
+      const [workStartHour, workStartMinute] = workStartTime.split(":").map(Number);
+
+      // คำนวณสาย
       const now = new Date();
-      const workStartHour = 9;
-      const workStartMinute = 0;
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
       const workStartMinutes = workStartHour * 60 + workStartMinute;
       
-      const isLate = currentMinutes > workStartMinutes;
-      const lateMinutes = isLate ? currentMinutes - workStartMinutes : 0;
+      // สายต่อเมื่อเกิน threshold ที่กำหนด
+      const minutesLate = currentMinutes - workStartMinutes;
+      const isLate = minutesLate > lateThresholdMinutes;
+      const lateMinutes = isLate ? minutesLate : 0;
 
       const { error: insertError } = await supabase
         .from("attendance_logs")
