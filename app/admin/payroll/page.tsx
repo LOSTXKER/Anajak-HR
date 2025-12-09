@@ -131,7 +131,7 @@ function PayrollContent() {
       .order("name");
     
     // Filter out system accounts (not real employees)
-    const includedEmployees = (data || []).filter(e => !e.is_system_account);
+    const includedEmployees = (data || []).filter((e: any) => !e.is_system_account);
     setEmployees(includedEmployees);
   };
 
@@ -165,11 +165,11 @@ function PayrollContent() {
       let employeesToProcess = employees;
       
       if (selectedEmployee !== "all") {
-        employeesToProcess = employees.filter(e => e.id === selectedEmployee);
+        employeesToProcess = employees.filter((e: any) => e.id === selectedEmployee);
       }
       
       if (selectedBranch !== "all") {
-        employeesToProcess = employeesToProcess.filter(e => 
+        employeesToProcess = employeesToProcess.filter((e: any) => 
           selectedBranch === "none" ? !e.branch_id : e.branch_id === selectedBranch
         );
       }
@@ -211,11 +211,11 @@ function PayrollContent() {
           .lte("request_date", endDate);
         
         const approvedLateDates = new Set(
-          (approvedLateRequests || []).map(r => r.request_date)
+          (approvedLateRequests || []).map((r: any) => r.request_date)
         );
 
         // คำนวณข้อมูล
-        const workDays = attendance?.filter(a => a.status !== "holiday").length || 0;
+        const workDays = attendance?.filter((a: any) => a.status !== "holiday").length || 0;
         const totalWorkHours = attendance?.reduce((sum: number, a: any) => sum + (a.total_hours || 0), 0) || 0;
         const lateDays = attendance?.filter((a: any) => a.is_late).length || 0;
         
@@ -332,7 +332,7 @@ function PayrollContent() {
       const results = await Promise.all(payrollPromises);
       
       // Filter by search
-      const filteredResults = results.filter(r => 
+      const filteredResults = results.filter((r: any) => 
         r.employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.employee.email.toLowerCase().includes(searchTerm.toLowerCase())
       );

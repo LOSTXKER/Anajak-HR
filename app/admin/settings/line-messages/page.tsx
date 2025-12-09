@@ -249,7 +249,7 @@ function LineMessagesContent() {
   const fetchMessages = async () => {
     setLoading(true);
     try {
-      const keys = MESSAGE_TEMPLATES.map(t => t.key);
+      const keys = MESSAGE_TEMPLATES.map((t: any) => t.key);
       const { data, error } = await supabase
         .from("system_settings")
         .select("setting_key, setting_value")
@@ -258,8 +258,8 @@ function LineMessagesContent() {
       if (error) throw error;
 
       const messagesMap: Record<string, string> = {};
-      MESSAGE_TEMPLATES.forEach(template => {
-        const found = data?.find(d => d.setting_key === template.key);
+      MESSAGE_TEMPLATES.forEach((template: any) => {
+        const found = data?.find((d: any) => d.setting_key === template.key);
         messagesMap[template.key] = found?.setting_value || template.defaultValue;
       });
 
@@ -295,7 +295,7 @@ function LineMessagesContent() {
   };
 
   const handleReset = (key: string) => {
-    const template = MESSAGE_TEMPLATES.find(t => t.key === key);
+    const template = MESSAGE_TEMPLATES.find((t: any) => t.key === key);
     if (template) {
       setMessages(prev => ({ ...prev, [key]: template.defaultValue }));
       toast.success("รีเซ็ตแล้ว", "กดบันทึกเพื่อยืนยัน");
@@ -304,7 +304,7 @@ function LineMessagesContent() {
 
   const handleResetAll = () => {
     const defaultMessages: Record<string, string> = {};
-    MESSAGE_TEMPLATES.forEach(template => {
+    MESSAGE_TEMPLATES.forEach((template: any) => {
       defaultMessages[template.key] = template.defaultValue;
     });
     setMessages(defaultMessages);
@@ -420,7 +420,7 @@ function LineMessagesContent() {
                 <div className="bg-[#f5f5f7] rounded-xl p-3">
                   <p className="text-[12px] font-medium text-[#86868b] mb-2">ตัวแปรที่ใช้ได้:</p>
                   <div className="flex flex-wrap gap-2">
-                    {template.variables.map(variable => (
+                    {template.variables.map((variable: string) => (
                       <code 
                         key={variable}
                         className="px-2 py-1 bg-white rounded-lg text-[12px] text-[#1d1d1f] border border-[#e8e8ed]"

@@ -303,9 +303,9 @@ function EmployeesContent() {
   });
 
   // Stats
-  const realEmployees = employees.filter((e) => !e.is_system_account).length;
-  const systemAccounts = employees.filter((e) => e.is_system_account).length;
-  const totalSalary = employees.filter(e => !e.is_system_account).reduce((sum, e) => sum + (e.base_salary || 0), 0);
+  const realEmployees = employees.filter((e: any) => !e.is_system_account).length;
+  const systemAccounts = employees.filter((e: any) => e.is_system_account).length;
+  const totalSalary = employees.filter((e: any) => !e.is_system_account).reduce((sum: number, e: any) => sum + (e.base_salary || 0), 0);
 
   return (
     <AdminLayout title="จัดการพนักงาน" description={`${employees.length} คน`}>

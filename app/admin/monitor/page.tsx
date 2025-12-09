@@ -84,7 +84,7 @@ function MonitorContent() {
   useEffect(() => {
     const timer = setInterval(() => {
       const times: Record<string, string> = {};
-      activeOTs.forEach(ot => {
+      activeOTs.forEach((ot: any) => {
         const minutes = differenceInMinutes(new Date(), new Date(ot.actual_start_time));
         const hours = Math.floor(minutes / 60);
         const mins = minutes % 60;
@@ -142,20 +142,20 @@ function MonitorContent() {
       
       // กรอง attendance เฉพาะพนักงานจริง (ไม่รวมบัญชีระบบ)
       const attendance = (attendanceResult.data || []).filter(
-        a => !a.employee?.is_system_account
+        (a: any) => !a.employee?.is_system_account
       );
-      const checkedIn = attendance.filter(a => a.clock_in_time).length;
-      const checkedOut = attendance.filter(a => a.clock_out_time).length;
-      const late = attendance.filter(a => a.is_late).length;
+      const checkedIn = attendance.filter((a: any) => a.clock_in_time).length;
+      const checkedOut = attendance.filter((a: any) => a.clock_out_time).length;
+      const late = attendance.filter((a: any) => a.is_late).length;
 
       // กรอง OT เฉพาะพนักงานจริง
       const activeOTFiltered = (activeOTResult.data || []).filter(
-        ot => !ot.employee?.is_system_account
+        (ot: any) => !ot.employee?.is_system_account
       );
 
       // กรอง activity เฉพาะพนักงานจริง
       const recentFiltered = (recentResult.data || [])
-        .filter(a => !a.employee?.is_system_account)
+        .filter((a: any) => !a.employee?.is_system_account)
         .slice(0, 10);
 
       setStats({

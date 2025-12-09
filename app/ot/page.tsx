@@ -95,17 +95,17 @@ function OTPageContent() {
 
       if (data) {
         // Find active OT (started but not ended)
-        const active = data.find(ot => ot.actual_start_time && !ot.actual_end_time);
+        const active = data.find((ot: any) => ot.actual_start_time && !ot.actual_end_time);
         setActiveOT(active || null);
 
         // Pending approval
-        setPendingApproval(data.filter(ot => ot.status === "pending"));
+        setPendingApproval(data.filter((ot: any) => ot.status === "pending"));
 
         // Approved but not started
-        setApprovedOT(data.filter(ot => ot.status === "approved" && !ot.actual_start_time));
+        setApprovedOT(data.filter((ot: any) => ot.status === "approved" && !ot.actual_start_time));
 
         // Completed
-        setCompletedOT(data.filter(ot => ot.status === "completed" || (ot.actual_end_time)));
+        setCompletedOT(data.filter((ot: any) => ot.status === "completed" || (ot.actual_end_time)));
       }
     } catch (error) {
       console.error("Error fetching OT data:", error);
@@ -156,9 +156,9 @@ function OTPageContent() {
 
   // Calculate total OT hours this month
   const thisMonthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
-  const thisMonthOT = completedOT.filter(ot => ot.request_date >= thisMonthStart);
-  const totalHours = thisMonthOT.reduce((sum, ot) => sum + (ot.actual_ot_hours || 0), 0);
-  const totalAmount = thisMonthOT.reduce((sum, ot) => sum + (ot.ot_amount || 0), 0);
+  const thisMonthOT = completedOT.filter((ot: any) => ot.request_date >= thisMonthStart);
+  const totalHours = thisMonthOT.reduce((sum: number, ot: any) => sum + (ot.actual_ot_hours || 0), 0);
+  const totalAmount = thisMonthOT.reduce((sum: number, ot: any) => sum + (ot.ot_amount || 0), 0);
 
   return (
     <div className="min-h-screen bg-[#fbfbfd]">

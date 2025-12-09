@@ -140,7 +140,7 @@ function ReportsContent() {
           .lte("work_date", endStr);
 
         // Calculate
-        const totalWorkDays = attendance?.filter(a => a.status !== "holiday").length || 0;
+        const totalWorkDays = attendance?.filter((a: any) => a.status !== "holiday").length || 0;
         const totalWorkHours = attendance?.reduce((sum: number, a: any) => sum + (a.total_hours || 0), 0) || 0;
         const totalLateDays = attendance?.filter((a: any) => a.is_late).length || 0;
 
@@ -219,7 +219,7 @@ function ReportsContent() {
 
   const getBranchName = (branchId: string | null) => {
     if (!branchId) return "-";
-    return branches.find(b => b.id === branchId)?.name || "-";
+    return branches.find((b: any) => b.id === branchId)?.name || "-";
   };
 
   const exportToCSV = () => {

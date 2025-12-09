@@ -86,12 +86,12 @@ function LateRequestContent() {
       // กรองเอาเฉพาะวันที่ยังไม่มี approved request
       const approvedDates = new Set(
         (requestsData || [])
-          .filter(r => r.status === "approved" || r.status === "pending")
-          .map(r => r.request_date)
+          .filter((r: any) => r.status === "approved" || r.status === "pending")
+          .map((r: any) => r.request_date)
       );
       
       const filteredAttendance = (attendanceData || []).filter(
-        a => !approvedDates.has(a.work_date)
+        (a: any) => !approvedDates.has(a.work_date)
       );
 
       setLateAttendances(filteredAttendance);
@@ -114,7 +114,7 @@ function LateRequestContent() {
 
     try {
       // ดึงข้อมูล late_minutes จาก attendance
-      const attendance = lateAttendances.find(a => a.work_date === selectedDate);
+      const attendance = lateAttendances.find((a: any) => a.work_date === selectedDate);
       
       const { error: insertError } = await supabase
         .from("late_requests")
