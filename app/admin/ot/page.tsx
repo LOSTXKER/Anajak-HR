@@ -29,6 +29,7 @@ import {
   X,
   Plus,
   User,
+  MapPin,
 } from "lucide-react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
@@ -492,7 +493,7 @@ function OTManagementContent() {
                     </div>
                     {/* Photos */}
                     {(ot.before_photo_url || ot.after_photo_url) && (
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 mb-2">
                         {ot.before_photo_url && (
                           <button
                             onClick={() => setViewingPhoto({ url: ot.before_photo_url, type: "ก่อน OT" })}
@@ -510,6 +511,33 @@ function OTManagementContent() {
                             <Camera className="w-3 h-3" />
                             หลัง
                           </button>
+                        )}
+                      </div>
+                    )}
+                    {/* GPS Location */}
+                    {(ot.start_gps_lat || ot.end_gps_lat) && (
+                      <div className="flex flex-wrap gap-2">
+                        {ot.start_gps_lat && ot.start_gps_lng && (
+                          <a
+                            href={`https://www.google.com/maps?q=${ot.start_gps_lat},${ot.start_gps_lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[#ff9500] bg-[#ff9500]/10 rounded-lg hover:bg-[#ff9500]/20"
+                          >
+                            <MapPin className="w-3 h-3" />
+                            GPS เริ่ม
+                          </a>
+                        )}
+                        {ot.end_gps_lat && ot.end_gps_lng && (
+                          <a
+                            href={`https://www.google.com/maps?q=${ot.end_gps_lat},${ot.end_gps_lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[#34c759] bg-[#34c759]/10 rounded-lg hover:bg-[#34c759]/20"
+                          >
+                            <MapPin className="w-3 h-3" />
+                            GPS จบ
+                          </a>
                         )}
                       </div>
                     )}

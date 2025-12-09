@@ -19,7 +19,9 @@ import {
   Play,
   Calendar,
   PartyPopper,
-  Info
+  Info,
+  MapPin,
+  Loader2
 } from "lucide-react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
@@ -55,6 +57,14 @@ function OTStartContent({ id }: { id: string }) {
   const [holidayInfo, setHolidayInfo] = useState<any>(null);
   const [todayAttendance, setTodayAttendance] = useState<any>(null);
   const [checkingRequirements, setCheckingRequirements] = useState(true);
+  
+  // GPS state
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationError, setLocationError] = useState("");
+  const [gettingLocation, setGettingLocation] = useState(false);
+  
+  // Early start buffer (minutes)
+  const [earlyStartBuffer, setEarlyStartBuffer] = useState(15);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -92,11 +102,54 @@ function OTStartContent({ id }: { id: string }) {
     }
   };
 
+  // Get GPS location
+  const getLocation = () => {
+    setGettingLocation(true);
+    setLocationError("");
+    
+    if (!navigator.geolocation) {
+      setLocationError("เบราว์เซอร์ไม่รองรับ GPS");
+      setGettingLocation(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setGettingLocation(false);
+      },
+      (err) => {
+        setLocationError("ไม่สามารถรับตำแหน่งได้: " + err.message);
+        setGettingLocation(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  // Auto get location on mount
+  useEffect(() => {
+    getLocation();
+  }, []);
+
   const checkRequirements = async () => {
     if (!otRequest || !employee) return;
     setCheckingRequirements(true);
 
     try {
+      // Fetch early start buffer setting
+      const { data: bufferData } = await supabase
+        .from("system_settings")
+        .select("setting_value")
+        .eq("setting_key", "ot_early_start_buffer")
+        .single();
+      
+      if (bufferData?.setting_value) {
+        setEarlyStartBuffer(parseInt(bufferData.setting_value) || 15);
+      }
+
       // Check if OT date is a holiday
       const holiday = await isHoliday(otRequest.request_date, employee.branch_id || undefined);
       setHolidayInfo(holiday);
@@ -144,12 +197,49 @@ function OTStartContent({ id }: { id: string }) {
     return true;
   };
 
+  // Check if it's too early to start OT
+  const canStartByTime = () => {
+    if (!otRequest) return { canStart: false, message: "", minutesUntilStart: 0 };
+    
+    const now = new Date();
+    const approvedStartTime = otRequest.approved_start_time || otRequest.requested_start_time;
+    const startTime = new Date(approvedStartTime);
+    
+    // Calculate minutes until approved start time
+    const diffMs = startTime.getTime() - now.getTime();
+    const minutesUntilStart = Math.ceil(diffMs / (1000 * 60));
+    
+    // Allow starting if within the buffer period (e.g., 15 minutes before)
+    if (minutesUntilStart > earlyStartBuffer) {
+      const hours = Math.floor(minutesUntilStart / 60);
+      const mins = minutesUntilStart % 60;
+      const timeStr = hours > 0 ? `${hours} ชม. ${mins} นาที` : `${mins} นาที`;
+      return {
+        canStart: false,
+        message: `⏳ ยังเร็วเกินไป อีก ${timeStr} ถึงเริ่ม OT ได้\n(เริ่มได้ก่อน ${earlyStartBuffer} นาที)`,
+        minutesUntilStart,
+      };
+    }
+    
+    return { canStart: true, message: "", minutesUntilStart };
+  };
+
   const getRequirementMessage = () => {
     // Check date first
     if (!isCorrectDay()) {
       return {
         type: "wrong_date",
         message: `❌ ยังไม่ถึงวัน OT (${format(new Date(otRequest?.request_date || ""), "d MMMM yyyy", { locale: th })})`,
+        canProceed: false,
+      };
+    }
+
+    // Check time - prevent starting too early
+    const timeCheck = canStartByTime();
+    if (!timeCheck.canStart) {
+      return {
+        type: "too_early",
+        message: timeCheck.message,
         canProceed: false,
       };
     }
@@ -222,6 +312,12 @@ function OTStartContent({ id }: { id: string }) {
       return;
     }
 
+    // Check GPS
+    if (!location) {
+      setError("กรุณาเปิด GPS และกดปุ่มรีเฟรชตำแหน่ง");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -258,6 +354,8 @@ function OTStartContent({ id }: { id: string }) {
             work_date: otRequest.request_date,
             clock_in_time: now.toISOString(),
             clock_in_photo_url: photoUrl,
+            clock_in_gps_lat: location.lat,
+            clock_in_gps_lng: location.lng,
             status: "holiday", // Mark as holiday work
             work_mode: "onsite",
             note: `OT วันหยุด: ${holidayInfo?.name || "วันหยุด"}`,
@@ -269,19 +367,21 @@ function OTStartContent({ id }: { id: string }) {
         }
       }
 
-      // Update OT request
+      // Update OT request with GPS
       const { error: updateError } = await supabase
         .from("ot_requests")
         .update({
           actual_start_time: now.toISOString(),
           before_photo_url: photoUrl,
+          start_gps_lat: location.lat,
+          start_gps_lng: location.lng,
           ot_type: holidayInfo ? "holiday" : otRequest.ot_type || "normal",
         })
         .eq("id", id);
 
       if (updateError) throw updateError;
 
-      // Send LINE notification
+      // Send LINE notification with GPS
       try {
         await fetch("/api/notifications", {
           method: "POST",
@@ -293,6 +393,8 @@ function OTStartContent({ id }: { id: string }) {
               date: otRequest.request_date,
               time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false }),
               isHoliday: !!holidayInfo,
+              gpsLat: location.lat,
+              gpsLng: location.lng,
             },
           }),
         });
@@ -473,17 +575,54 @@ function OTStartContent({ id }: { id: string }) {
           </div>
         </Card>
 
-        {/* Status */}
-        <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-[#e8e8ed] mb-6">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${stream ? "bg-[#34c759]/10" : "bg-[#ff9500]/10"}`}>
-              <Camera className={`w-5 h-5 ${stream ? "text-[#34c759]" : "text-[#ff9500]"}`} />
+        {/* Camera & GPS Status */}
+        <div className="space-y-3 mb-6">
+          {/* Camera Status */}
+          <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-[#e8e8ed]">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${stream ? "bg-[#34c759]/10" : "bg-[#ff9500]/10"}`}>
+                <Camera className={`w-5 h-5 ${stream ? "text-[#34c759]" : "text-[#ff9500]"}`} />
+              </div>
+              <p className="text-[15px] font-medium text-[#1d1d1f]">
+                {stream ? "กล้องพร้อมใช้งาน" : "กำลังเปิดกล้อง..."}
+              </p>
             </div>
-            <p className="text-[15px] font-medium text-[#1d1d1f]">
-              {stream ? "กล้องพร้อมใช้งาน" : "กำลังเปิดกล้อง..."}
-            </p>
+            <div className={`w-3 h-3 rounded-full ${stream ? "bg-[#34c759]" : "bg-[#ff9500] animate-pulse"}`} />
           </div>
-          <div className={`w-3 h-3 rounded-full ${stream ? "bg-[#34c759]" : "bg-[#ff9500] animate-pulse"}`} />
+
+          {/* GPS Status */}
+          <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-[#e8e8ed]">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${location ? "bg-[#34c759]/10" : locationError ? "bg-[#ff3b30]/10" : "bg-[#ff9500]/10"}`}>
+                {gettingLocation ? (
+                  <Loader2 className="w-5 h-5 text-[#ff9500] animate-spin" />
+                ) : (
+                  <MapPin className={`w-5 h-5 ${location ? "text-[#34c759]" : locationError ? "text-[#ff3b30]" : "text-[#ff9500]"}`} />
+                )}
+              </div>
+              <div>
+                <p className={`text-[15px] font-medium ${location ? "text-[#1d1d1f]" : locationError ? "text-[#ff3b30]" : "text-[#1d1d1f]"}`}>
+                  {gettingLocation ? "กำลังหาตำแหน่ง..." : location ? "ตำแหน่ง GPS พร้อม" : locationError || "รอรับตำแหน่ง"}
+                </p>
+                {location && (
+                  <p className="text-[12px] text-[#86868b]">
+                    {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {!location && !gettingLocation && (
+                <button
+                  onClick={getLocation}
+                  className="text-[13px] text-[#0071e3] hover:underline"
+                >
+                  รีเฟรช
+                </button>
+              )}
+              <div className={`w-3 h-3 rounded-full ${location ? "bg-[#34c759]" : locationError ? "bg-[#ff3b30]" : "bg-[#ff9500] animate-pulse"}`} />
+            </div>
+          </div>
         </div>
 
         {/* Error */}
