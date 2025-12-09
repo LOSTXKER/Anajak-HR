@@ -369,13 +369,10 @@ function PayrollContent() {
     <th className={`text-${align} px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase ${align === "left" ? "px-4" : ""}`}>
       <div className={`flex items-center gap-1 ${align === "right" ? "justify-end" : align === "center" ? "justify-center" : ""}`}>
         <span>{label}</span>
-        <div className="relative group">
-          <HelpCircle className="w-3.5 h-3.5 text-[#86868b] cursor-help hover:text-[#0071e3] transition-colors" />
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-[#1d1d1f] text-white text-[11px] rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 shadow-lg">
-            {tooltip}
-            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#1d1d1f]" />
-          </div>
-        </div>
+        <HelpCircle 
+          className="w-3.5 h-3.5 text-[#86868b] cursor-help hover:text-[#0071e3] transition-colors" 
+          title={tooltip}
+        />
       </div>
     </th>
   );
