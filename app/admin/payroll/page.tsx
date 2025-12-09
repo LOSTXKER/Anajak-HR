@@ -201,10 +201,17 @@ function PayrollContent() {
         attendance?.forEach((a: any) => {
           if (a.is_late && a.clock_in_time) {
             const clockIn = new Date(a.clock_in_time);
-            const workStart = new Date(a.clock_in_time);
-            workStart.setHours(startHour, startMinute, 0, 0);
-            if (clockIn > workStart) {
-              lateMinutes += differenceInMinutes(clockIn, workStart);
+            // ดึงเฉพาะชั่วโมงและนาทีของเวลา clock in
+            const clockInHour = clockIn.getHours();
+            const clockInMinute = clockIn.getMinutes();
+            
+            // คำนวณนาทีจากเที่ยงคืน
+            const clockInTotalMinutes = clockInHour * 60 + clockInMinute;
+            const workStartTotalMinutes = startHour * 60 + startMinute;
+            
+            // ถ้ามาสายจริงๆ (clock in หลังเวลาเริ่มงาน)
+            if (clockInTotalMinutes > workStartTotalMinutes) {
+              lateMinutes += clockInTotalMinutes - workStartTotalMinutes;
             }
           }
         });
