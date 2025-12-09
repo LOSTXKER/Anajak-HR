@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Modal } from "@/components/ui/Modal";
+import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import {
   Clock,
@@ -211,16 +212,19 @@ function LateRequestsContent() {
         </div>
 
         {/* Status Filter */}
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
-        >
-          <option value="pending">รออนุมัติ</option>
-          <option value="approved">อนุมัติแล้ว</option>
-          <option value="rejected">ไม่อนุมัติ</option>
-          <option value="all">ทั้งหมด</option>
-        </select>
+        <div className="min-w-[150px]">
+          <Select
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { value: "pending", label: "รออนุมัติ" },
+              { value: "approved", label: "อนุมัติแล้ว" },
+              { value: "rejected", label: "ไม่อนุมัติ" },
+              { value: "all", label: "ทั้งหมด" },
+            ]}
+            placeholder="สถานะ"
+          />
+        </div>
       </div>
 
       {/* Stats */}

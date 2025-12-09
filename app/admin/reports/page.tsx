@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
 import { 
   Download, 
   ChevronLeft, 
@@ -301,27 +302,31 @@ function ReportsContent() {
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
             />
           </div>
-          <select
-            value={selectedBranch}
-            onChange={(e) => setSelectedBranch(e.target.value)}
-            className="px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px] min-w-[150px]"
-          >
-            <option value="all">ทุกสาขา</option>
-            <option value="none">ไม่มีสาขา</option>
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
-          <select
-            value={selectedRole}
-            onChange={(e) => setSelectedRole(e.target.value)}
-            className="px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px] min-w-[130px]"
-          >
-            <option value="all">ทุกตำแหน่ง</option>
-            <option value="staff">พนักงาน</option>
-            <option value="supervisor">หัวหน้างาน</option>
-            <option value="admin">Admin</option>
-          </select>
+          <div className="min-w-[150px]">
+            <Select
+              value={selectedBranch}
+              onChange={setSelectedBranch}
+              options={[
+                { value: "all", label: "ทุกสาขา" },
+                { value: "none", label: "ไม่มีสาขา" },
+                ...branches.map((b) => ({ value: b.id, label: b.name }))
+              ]}
+              placeholder="เลือกสาขา"
+            />
+          </div>
+          <div className="min-w-[130px]">
+            <Select
+              value={selectedRole}
+              onChange={setSelectedRole}
+              options={[
+                { value: "all", label: "ทุกตำแหน่ง" },
+                { value: "staff", label: "พนักงาน" },
+                { value: "supervisor", label: "หัวหน้างาน" },
+                { value: "admin", label: "Admin" },
+              ]}
+              placeholder="ตำแหน่ง"
+            />
+          </div>
         </div>
       </div>
 

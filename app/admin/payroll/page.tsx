@@ -8,6 +8,8 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { 
   Download, 
   ChevronLeft, 
@@ -369,10 +371,9 @@ function PayrollContent() {
     <th className={`text-${align} px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase ${align === "left" ? "px-4" : ""}`}>
       <div className={`flex items-center gap-1 ${align === "right" ? "justify-end" : align === "center" ? "justify-center" : ""}`}>
         <span>{label}</span>
-        <HelpCircle 
-          className="w-3.5 h-3.5 text-[#86868b] cursor-help hover:text-[#0071e3] transition-colors" 
-          title={tooltip}
-        />
+        <Tooltip content={tooltip} position="bottom">
+          <HelpCircle className="w-3.5 h-3.5 text-[#86868b] cursor-help hover:text-[#0071e3] transition-colors" />
+        </Tooltip>
       </div>
     </th>
   );
@@ -418,27 +419,29 @@ function PayrollContent() {
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
             />
           </div>
-          <select
-            value={selectedEmployee}
-            onChange={(e) => setSelectedEmployee(e.target.value)}
-            className="px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px] min-w-[180px]"
-          >
-            <option value="all">พนักงานทั้งหมด</option>
-            {employees.map((e) => (
-              <option key={e.id} value={e.id}>{e.name}</option>
-            ))}
-          </select>
-          <select
-            value={selectedBranch}
-            onChange={(e) => setSelectedBranch(e.target.value)}
-            className="px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px] min-w-[150px]"
-          >
-            <option value="all">ทุกสาขา</option>
-            <option value="none">ไม่มีสาขา</option>
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
+          <div className="min-w-[180px]">
+            <Select
+              value={selectedEmployee}
+              onChange={setSelectedEmployee}
+              options={[
+                { value: "all", label: "พนักงานทั้งหมด" },
+                ...employees.map((e) => ({ value: e.id, label: e.name }))
+              ]}
+              placeholder="เลือกพนักงาน"
+            />
+          </div>
+          <div className="min-w-[150px]">
+            <Select
+              value={selectedBranch}
+              onChange={setSelectedBranch}
+              options={[
+                { value: "all", label: "ทุกสาขา" },
+                { value: "none", label: "ไม่มีสาขา" },
+                ...branches.map((b) => ({ value: b.id, label: b.name }))
+              ]}
+              placeholder="เลือกสาขา"
+            />
+          </div>
         </div>
       </div>
 
