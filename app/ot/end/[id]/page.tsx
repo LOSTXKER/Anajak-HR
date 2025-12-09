@@ -10,12 +10,12 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { uploadAttendancePhoto } from "@/lib/utils/upload-photo";
-import { 
-  Camera, 
-  ArrowLeft, 
-  CheckCircle, 
-  AlertCircle, 
-  Clock, 
+import {
+  Camera,
+  ArrowLeft,
+  CheckCircle,
+  AlertCircle,
+  Clock,
   Square,
   Calendar,
   Timer,
@@ -56,7 +56,7 @@ function OTEndContent({ id }: { id: string }) {
   const [otRequest, setOtRequest] = useState<OTRequest | null>(null);
   const [fetchingOT, setFetchingOT] = useState(true);
   const [elapsedTime, setElapsedTime] = useState<string>("00:00");
-  
+
   // GPS state
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState("");
@@ -87,7 +87,7 @@ function OTEndContent({ id }: { id: string }) {
   const getLocation = () => {
     setGettingLocation(true);
     setLocationError("");
-    
+
     if (!navigator.geolocation) {
       setLocationError("เบราว์เซอร์ไม่รองรับ GPS");
       setGettingLocation(false);
@@ -203,24 +203,24 @@ function OTEndContent({ id }: { id: string }) {
       // ot_type can be: "holiday", "weekend", "workday"
       // ot_rate is the actual multiplier (1, 1.5, 2, etc.)
       let otRate = otRequest.ot_rate || 1.5; // Use stored rate from start OT
-      
+
       // ดึงข้อมูลเงินเดือนและ hours_per_day
       const { data: empData } = await supabase
         .from("employees")
         .select("base_salary")
         .eq("id", employee.id)
         .single();
-      
+
       const { data: settingsData } = await supabase
         .from("system_settings")
         .select("setting_value")
         .eq("setting_key", "hours_per_day")
-        .single();
-      
+        .maybeSingle();
+
       const baseSalary = empData?.base_salary || 0;
       const hoursPerDay = parseFloat(settingsData?.setting_value || "8");
       const daysPerMonth = 30; // สมมติ 30 วัน
-      
+
       // Calculate OT amount
       let otAmount = null;
       if (baseSalary > 0) {
@@ -382,9 +382,9 @@ function OTEndContent({ id }: { id: string }) {
           {otRequest.before_photo_url && (
             <div className="mt-3 pt-3 border-t border-[#e8e8ed]">
               <p className="text-[13px] text-[#86868b] mb-2">รูปก่อนเริ่ม OT:</p>
-              <img 
-                src={otRequest.before_photo_url} 
-                alt="Before OT" 
+              <img
+                src={otRequest.before_photo_url}
+                alt="Before OT"
                 className="w-20 h-20 object-cover rounded-lg"
               />
             </div>

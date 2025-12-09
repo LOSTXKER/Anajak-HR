@@ -67,8 +67,8 @@ function EditAttendanceContent() {
       .from("system_settings")
       .select("setting_value")
       .eq("setting_key", "work_start_time")
-      .single();
-    
+      .maybeSingle();
+
     if (data?.setting_value) {
       setWorkStartTime(data.setting_value);
     }
@@ -136,7 +136,7 @@ function EditAttendanceContent() {
       const [workStartHour, workStartMinute] = workStartTime.split(":").map(Number);
       const clockInTotalMinutes = inHours * 60 + inMinutes;
       const workStartTotalMinutes = workStartHour * 60 + workStartMinute;
-      
+
       const isLate = clockInTotalMinutes > workStartTotalMinutes;
       const lateMinutes = isLate ? clockInTotalMinutes - workStartTotalMinutes : 0;
 
@@ -378,7 +378,7 @@ function EditAttendanceContent() {
               {saving ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
             </Button>
           </div>
-          
+
           {/* Delete Button - Subtle */}
           <div className="flex justify-center">
             <button

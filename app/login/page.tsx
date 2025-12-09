@@ -40,7 +40,7 @@ export default function LoginPage() {
           .from("employees")
           .select("role, account_status")
           .eq("id", data.user.id)
-          .single();
+          .maybeSingle();
 
         // Check account status
         if (employee?.account_status === "pending") {

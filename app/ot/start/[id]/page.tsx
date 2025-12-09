@@ -151,7 +151,7 @@ function OTStartContent({ id }: { id: string }) {
         .from("system_settings")
         .select("setting_value")
         .eq("setting_key", "ot_early_start_buffer")
-        .single();
+        .maybeSingle();
 
       if (bufferData?.setting_value) {
         setEarlyStartBuffer(parseInt(bufferData.setting_value) || 15);
@@ -167,7 +167,7 @@ function OTStartContent({ id }: { id: string }) {
         .select("*")
         .eq("employee_id", employee.id)
         .eq("work_date", otRequest.request_date)
-        .single();
+        .maybeSingle();
 
       setTodayAttendance(attendance);
     } catch (err) {
@@ -535,10 +535,10 @@ function OTStartContent({ id }: { id: string }) {
         {/* Requirement Status */}
         {!checkingRequirements && (
           <div className={`mb-6 p-4 rounded-xl ${getRequirementMessage().canProceed
-              ? dayInfo && (dayInfo.type === "holiday" || dayInfo.type === "weekend")
-                ? dayInfo.type === "holiday" ? "bg-[#ff3b30]/10 border border-[#ff3b30]/30" : "bg-[#ff9500]/10 border border-[#ff9500]/30"
-                : "bg-[#34c759]/10 border border-[#34c759]/30"
-              : "bg-[#ff3b30]/10 border border-[#ff3b30]/30"
+            ? dayInfo && (dayInfo.type === "holiday" || dayInfo.type === "weekend")
+              ? dayInfo.type === "holiday" ? "bg-[#ff3b30]/10 border border-[#ff3b30]/30" : "bg-[#ff9500]/10 border border-[#ff9500]/30"
+              : "bg-[#34c759]/10 border border-[#34c759]/30"
+            : "bg-[#ff3b30]/10 border border-[#ff3b30]/30"
             }`}>
             <div className="flex items-center gap-3">
               {dayInfo?.type === "holiday" ? (
@@ -552,10 +552,10 @@ function OTStartContent({ id }: { id: string }) {
               )}
               <div>
                 <p className={`text-[14px] font-medium ${getRequirementMessage().canProceed
-                    ? dayInfo?.type === "holiday" ? "text-[#ff3b30]"
-                      : dayInfo?.type === "weekend" ? "text-[#ff9500]"
-                        : "text-[#34c759]"
-                    : "text-[#ff3b30]"
+                  ? dayInfo?.type === "holiday" ? "text-[#ff3b30]"
+                    : dayInfo?.type === "weekend" ? "text-[#ff9500]"
+                      : "text-[#34c759]"
+                  : "text-[#ff3b30]"
                   }`}>
                   {getRequirementMessage().message}
                 </p>
