@@ -19,6 +19,7 @@ import {
   ChevronDown,
   Settings,
   Timer,
+  AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { supabase } from "@/lib/supabase/client";
@@ -392,7 +393,7 @@ export default function HomePage() {
         </div>
 
         {/* Quick Actions - Secondary */}
-        <div className="grid grid-cols-4 gap-3 mb-12">
+        <div className="grid grid-cols-5 gap-3 mb-12">
           {[
             {
               href: "/ot",
@@ -411,6 +412,12 @@ export default function HomePage() {
               icon: Home,
               title: "WFH",
               color: "bg-[#0071e3]",
+            },
+            {
+              href: "/late-request",
+              icon: AlertCircle,
+              title: "ขอมาสาย",
+              color: "bg-[#ff3b30]",
             },
             {
               href: "/history",

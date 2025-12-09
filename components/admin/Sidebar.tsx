@@ -44,6 +44,7 @@ export function Sidebar() {
     ot: 0,
     leave: 0,
     wfh: 0,
+    late: 0,
   });
 
   useEffect(() => {
@@ -54,7 +55,7 @@ export function Sidebar() {
 
   const fetchPendingCounts = async () => {
     try {
-      const [employeesResult, otResult, leaveResult, wfhResult] = await Promise.all([
+      const [employeesResult, otResult, leaveResult, wfhResult, lateResult] = await Promise.all([
         supabase
           .from("employees")
           .select("id", { count: "exact", head: true })
@@ -71,6 +72,10 @@ export function Sidebar() {
           .from("wfh_requests")
           .select("id", { count: "exact", head: true })
           .eq("status", "pending"),
+        supabase
+          .from("late_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending"),
       ]);
 
       setPendingCounts({
@@ -78,6 +83,7 @@ export function Sidebar() {
         ot: otResult.count || 0,
         leave: leaveResult.count || 0,
         wfh: wfhResult.count || 0,
+        late: lateResult.count || 0,
       });
     } catch (error) {
       console.error("Error fetching pending counts:", error);
@@ -97,6 +103,7 @@ export function Sidebar() {
       items: [
         { title: "พนักงาน", href: "/admin/employees", icon: Users, badge: pendingCounts.employees },
         { title: "การเข้างาน", href: "/admin/attendance", icon: Clock },
+        { title: "คำขอมาสาย", href: "/admin/late-requests", icon: Clock, badge: pendingCounts.late },
         { title: "OT", href: "/admin/ot", icon: Calendar, badge: pendingCounts.ot },
         { title: "การลา", href: "/admin/leave", icon: FileText, badge: pendingCounts.leave },
         { title: "WFH", href: "/admin/wfh", icon: Home, badge: pendingCounts.wfh },
@@ -112,7 +119,7 @@ export function Sidebar() {
     },
   ];
 
-  const totalPending = pendingCounts.employees + pendingCounts.ot + pendingCounts.leave + pendingCounts.wfh;
+  const totalPending = pendingCounts.employees + pendingCounts.ot + pendingCounts.leave + pendingCounts.wfh + pendingCounts.late;
 
   const handleSignOut = async () => {
     await signOut();

@@ -189,17 +189,35 @@ function PayrollContent() {
           .gte("start_date", startDate)
           .lte("end_date", endDate);
 
+        // ดึงคำขอมาสายที่อนุมัติแล้ว (ไม่หักเงินสาย)
+        const { data: approvedLateRequests } = await supabase
+          .from("late_requests")
+          .select("request_date")
+          .eq("employee_id", emp.id)
+          .eq("status", "approved")
+          .gte("request_date", startDate)
+          .lte("request_date", endDate);
+        
+        const approvedLateDates = new Set(
+          (approvedLateRequests || []).map(r => r.request_date)
+        );
+
         // คำนวณข้อมูล
         const workDays = attendance?.filter(a => a.status !== "holiday").length || 0;
         const totalWorkHours = attendance?.reduce((sum: number, a: any) => sum + (a.total_hours || 0), 0) || 0;
         const lateDays = attendance?.filter((a: any) => a.is_late).length || 0;
         
-        // คำนวณนาทีสาย
+        // คำนวณนาทีสาย (ไม่รวมวันที่มี approved late request)
         let lateMinutes = 0;
         const [startHour, startMinute] = settings.work_start_time.split(":").map(Number);
         const MAX_LATE_MINUTES = 120; // สูงสุด 2 ชั่วโมง ถ้าเกินถือว่าไม่ใช่การมาสาย
         
         attendance?.forEach((a: any) => {
+          // ถ้าวันนี้มี approved late request ไม่นับเป็นสาย
+          if (approvedLateDates.has(a.work_date)) {
+            return;
+          }
+          
           if (a.is_late && a.clock_in_time) {
             // ถ้ามี late_minutes ในฐานข้อมูลให้ใช้เลย
             if (a.late_minutes && a.late_minutes > 0) {
