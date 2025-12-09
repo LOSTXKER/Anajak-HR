@@ -364,7 +364,7 @@ function EditAttendanceContent() {
         </Card>
 
         {/* Actions */}
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="flex items-center gap-4">
             <Button variant="secondary" onClick={() => router.back()} fullWidth>
               ยกเลิก
@@ -379,15 +379,16 @@ function EditAttendanceContent() {
             </Button>
           </div>
           
-          {/* Delete Button */}
-          <Button
-            variant="danger"
-            onClick={() => setShowDeleteConfirm(true)}
-            fullWidth
-            icon={<Trash2 className="w-5 h-5" />}
-          >
-            ลบข้อมูลการเข้างานนี้
-          </Button>
+          {/* Delete Button - Subtle */}
+          <div className="flex justify-center">
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="flex items-center gap-2 px-4 py-2 text-[13px] text-[#ff3b30] hover:bg-[#ff3b30]/10 rounded-lg transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              ลบข้อมูลการเข้างานนี้
+            </button>
+          </div>
         </div>
       </div>
 
