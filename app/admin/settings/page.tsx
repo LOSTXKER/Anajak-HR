@@ -87,6 +87,10 @@ function SettingsContent() {
   const [settings, setSettings] = useState({
     workStartTime: "09:00",
     workEndTime: "18:00",
+    checkinTimeStart: "06:00",
+    checkinTimeEnd: "12:00",
+    checkoutTimeStart: "15:00",
+    checkoutTimeEnd: "22:00",
     lateThreshold: "15",
     requirePhoto: true,
     requireGPS: true,
@@ -116,6 +120,10 @@ function SettingsContent() {
         setSettings({
           workStartTime: settingsMap.work_start_time || "09:00",
           workEndTime: settingsMap.work_end_time || "18:00",
+          checkinTimeStart: settingsMap.checkin_time_start || "06:00",
+          checkinTimeEnd: settingsMap.checkin_time_end || "12:00",
+          checkoutTimeStart: settingsMap.checkout_time_start || "15:00",
+          checkoutTimeEnd: settingsMap.checkout_time_end || "22:00",
           lateThreshold: settingsMap.late_threshold_minutes || "15",
           requirePhoto: settingsMap.require_photo === "true",
           requireGPS: settingsMap.require_gps === "true",
@@ -137,6 +145,10 @@ function SettingsContent() {
       const updates = [
         { key: "work_start_time", value: settings.workStartTime },
         { key: "work_end_time", value: settings.workEndTime },
+        { key: "checkin_time_start", value: settings.checkinTimeStart },
+        { key: "checkin_time_end", value: settings.checkinTimeEnd },
+        { key: "checkout_time_start", value: settings.checkoutTimeStart },
+        { key: "checkout_time_end", value: settings.checkoutTimeEnd },
         { key: "late_threshold_minutes", value: settings.lateThreshold },
         { key: "require_photo", value: settings.requirePhoto.toString() },
         { key: "require_gps", value: settings.requireGPS.toString() },
@@ -201,6 +213,44 @@ function SettingsContent() {
                 value={settings.workEndTime}
                 onChange={(val) => setSettings({ ...settings, workEndTime: val })}
               />
+            </div>
+            
+            <div className="mt-6 p-4 bg-[#ff9500]/10 border border-[#ff9500]/30 rounded-xl">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertCircle className="w-5 h-5 text-[#ff9500]" />
+                <h4 className="text-[15px] font-semibold text-[#ff9500]">
+                  ช่วงเวลาที่อนุญาตให้เช็คอิน/เอาท์
+                </h4>
+              </div>
+              <p className="text-[13px] text-[#86868b] mb-4">
+                กำหนดช่วงเวลาที่พนักงานสามารถเช็คอิน/เอาท์ได้ (ป้องกันการทำงานนอกเวลา)
+              </p>
+              
+              <div className="grid grid-cols-2 gap-4 mb-3">
+                <TimeInput
+                  label="เช็คอินได้ตั้งแต่"
+                  value={settings.checkinTimeStart}
+                  onChange={(val) => setSettings({ ...settings, checkinTimeStart: val })}
+                />
+                <TimeInput
+                  label="เช็คอินได้ถึง"
+                  value={settings.checkinTimeEnd}
+                  onChange={(val) => setSettings({ ...settings, checkinTimeEnd: val })}
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <TimeInput
+                  label="เช็คเอาท์ได้ตั้งแต่"
+                  value={settings.checkoutTimeStart}
+                  onChange={(val) => setSettings({ ...settings, checkoutTimeStart: val })}
+                />
+                <TimeInput
+                  label="เช็คเอาท์ได้ถึง"
+                  value={settings.checkoutTimeEnd}
+                  onChange={(val) => setSettings({ ...settings, checkoutTimeEnd: val })}
+                />
+              </div>
             </div>
 
             <div className="mt-4">

@@ -35,6 +35,9 @@ function CheckinContent() {
   // ข้อมูลสาขาและการตรวจรัศมี
   const [branch, setBranch] = useState<Branch | null>(null);
   const [radiusCheck, setRadiusCheck] = useState<{ inRadius: boolean; distance: number } | null>(null);
+  
+  // ช่วงเวลาที่อนุญาต
+  const [allowedTime, setAllowedTime] = useState({ checkinStart: "06:00", checkinEnd: "12:00" });
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -66,15 +69,32 @@ function CheckinContent() {
   const fetchBranchAndSettings = async () => {
     if (!employee?.branch_id) return;
 
-    // ดึงข้อมูลสาขา
-    const { data: branchData } = await supabase
-      .from("branches")
-      .select("id, name, gps_lat, gps_lng, radius_meters")
-      .eq("id", employee.branch_id)
-      .single();
+    // ดึงข้อมูลสาขาและ settings พร้อมกัน
+    const [branchRes, settingsRes] = await Promise.all([
+      supabase
+        .from("branches")
+        .select("id, name, gps_lat, gps_lng, radius_meters")
+        .eq("id", employee.branch_id)
+        .single(),
+      supabase
+        .from("system_settings")
+        .select("setting_key, setting_value")
+        .in("setting_key", ["checkin_time_start", "checkin_time_end"])
+    ]);
 
-    if (branchData) {
-      setBranch(branchData);
+    if (branchRes.data) {
+      setBranch(branchRes.data);
+    }
+    
+    if (settingsRes.data) {
+      const settings: Record<string, string> = {};
+      settingsRes.data.forEach((s: any) => {
+        settings[s.setting_key] = s.setting_value;
+      });
+      setAllowedTime({
+        checkinStart: settings.checkin_time_start || "06:00",
+        checkinEnd: settings.checkin_time_end || "12:00",
+      });
     }
   };
 
@@ -120,6 +140,26 @@ function CheckinContent() {
     // ตรวจสอบว่ามีสาขาหรือไม่
     if (!branch) {
       setError("คุณยังไม่ได้กำหนดสาขา กรุณาติดต่อ Admin");
+      return;
+    }
+
+    // ตรวจสอบเวลาที่อนุญาต
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTimeInMinutes = currentHour * 60 + currentMinute;
+    
+    const [startHour, startMinute] = allowedTime.checkinStart.split(":").map(Number);
+    const [endHour, endMinute] = allowedTime.checkinEnd.split(":").map(Number);
+    const startTimeInMinutes = startHour * 60 + startMinute;
+    const endTimeInMinutes = endHour * 60 + endMinute;
+    
+    if (currentTimeInMinutes < startTimeInMinutes || currentTimeInMinutes > endTimeInMinutes) {
+      setError(
+        `⚠️ ไม่สามารถเช็คอินนอกเวลาได้\n\n` +
+        `เวลาที่อนุญาต: ${allowedTime.checkinStart} - ${allowedTime.checkinEnd} น.\n` +
+        `หากต้องการทำงานนอกเวลา กรุณาขอ OT ก่อน`
+      );
       return;
     }
 
