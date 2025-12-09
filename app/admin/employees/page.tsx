@@ -25,6 +25,9 @@ import {
   Building2,
   DollarSign,
   Edit2,
+  Gift,
+  UserX,
+  Settings,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -36,6 +39,8 @@ interface Employee {
   role: string;
   branch_id: string | null;
   base_salary: number;
+  commission: number;
+  exclude_from_payroll: boolean;
   created_at: string;
 }
 
@@ -81,20 +86,25 @@ function EmployeesContent() {
     role: "staff",
     branch_id: "",
     base_salary: 15000,
+    commission: 0,
+    exclude_from_payroll: false,
   });
 
-  // Edit Salary Modal
-  const [salaryModal, setSalaryModal] = useState<{ open: boolean; employee: Employee | null }>({
+  // Edit Payroll Modal
+  const [payrollModal, setPayrollModal] = useState<{ open: boolean; employee: Employee | null }>({
     open: false,
     employee: null,
   });
-  const [newSalary, setNewSalary] = useState("");
-  const [savingSalary, setSavingSalary] = useState(false);
+  const [payrollForm, setPayrollForm] = useState({
+    base_salary: 0,
+    commission: 0,
+    exclude_from_payroll: false,
+  });
+  const [savingPayroll, setSavingPayroll] = useState(false);
 
   useEffect(() => {
     fetchEmployees();
     fetchBranches();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchEmployees = async () => {
@@ -151,34 +161,39 @@ function EmployeesContent() {
     }
   };
 
-  const handleUpdateSalary = async () => {
-    if (!salaryModal.employee) return;
+  const handleUpdatePayroll = async () => {
+    if (!payrollModal.employee) return;
     
-    const salary = parseFloat(newSalary);
-    if (isNaN(salary) || salary < 0) {
-      toast.error("ข้อมูลไม่ถูกต้อง", "กรุณากรอกเงินเดือนที่ถูกต้อง");
-      return;
-    }
-
-    setSavingSalary(true);
+    setSavingPayroll(true);
     try {
       const { error } = await supabase
         .from("employees")
-        .update({ base_salary: salary })
-        .eq("id", salaryModal.employee.id);
+        .update({
+          base_salary: payrollForm.base_salary,
+          commission: payrollForm.commission,
+          exclude_from_payroll: payrollForm.exclude_from_payroll,
+        })
+        .eq("id", payrollModal.employee.id);
       
       if (error) throw error;
 
       setEmployees(employees.map((emp) => 
-        emp.id === salaryModal.employee!.id ? { ...emp, base_salary: salary } : emp
+        emp.id === payrollModal.employee!.id 
+          ? { 
+              ...emp, 
+              base_salary: payrollForm.base_salary,
+              commission: payrollForm.commission,
+              exclude_from_payroll: payrollForm.exclude_from_payroll,
+            } 
+          : emp
       ));
       
-      toast.success("อัพเดตสำเร็จ", "เปลี่ยนเงินเดือนเรียบร้อยแล้ว");
-      setSalaryModal({ open: false, employee: null });
+      toast.success("อัพเดตสำเร็จ", "บันทึกข้อมูล Payroll เรียบร้อยแล้ว");
+      setPayrollModal({ open: false, employee: null });
     } catch (error) {
-      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถอัพเดตเงินเดือนได้");
+      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถบันทึกได้");
     } finally {
-      setSavingSalary(false);
+      setSavingPayroll(false);
     }
   };
 
@@ -203,7 +218,6 @@ function EmployeesContent() {
     setAdding(true);
 
     try {
-      // Call API to create employee
       const response = await fetch("/api/employees/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -218,19 +232,23 @@ function EmployeesContent() {
 
       toast.success("สำเร็จ", "เพิ่มพนักงานใหม่เรียบร้อยแล้ว");
       setShowAddModal(false);
-      setNewEmployee({ name: "", email: "", phone: "", password: "", role: "staff", branch_id: "", base_salary: 15000 });
+      setNewEmployee({ 
+        name: "", 
+        email: "", 
+        phone: "", 
+        password: "", 
+        role: "staff", 
+        branch_id: "", 
+        base_salary: 15000,
+        commission: 0,
+        exclude_from_payroll: false,
+      });
       fetchEmployees();
     } catch (error: any) {
       toast.error("เกิดข้อผิดพลาด", error.message || "ไม่สามารถเพิ่มพนักงานได้");
     } finally {
       setAdding(false);
     }
-  };
-
-  const getBranchName = (branchId: string | null) => {
-    if (!branchId) return "ยังไม่กำหนด";
-    const branch = branches.find((b) => b.id === branchId);
-    return branch?.name || "ไม่พบสาขา";
   };
 
   const formatSalary = (salary: number) => {
@@ -265,9 +283,9 @@ function EmployeesContent() {
   });
 
   // Stats
-  const employeesWithBranch = employees.filter((e) => e.branch_id).length;
-  const employeesWithoutBranch = employees.filter((e) => !e.branch_id).length;
-  const totalSalary = employees.reduce((sum, e) => sum + (e.base_salary || 0), 0);
+  const includedInPayroll = employees.filter((e) => !e.exclude_from_payroll).length;
+  const excludedFromPayroll = employees.filter((e) => e.exclude_from_payroll).length;
+  const totalSalary = employees.filter(e => !e.exclude_from_payroll).reduce((sum, e) => sum + (e.base_salary || 0), 0);
 
   return (
     <AdminLayout title="จัดการพนักงาน" description={`${employees.length} คน`}>
@@ -305,38 +323,22 @@ function EmployeesContent() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         {[
           { label: "ทั้งหมด", value: employees.length, color: "text-[#1d1d1f]" },
-          { label: "ผู้ดูแล", value: employees.filter((e) => e.role === "admin").length, color: "text-[#af52de]" },
-          { label: "หัวหน้า", value: employees.filter((e) => e.role === "supervisor").length, color: "text-[#0071e3]" },
-          { label: "มีสาขา", value: employeesWithBranch, color: "text-[#34c759]" },
-          { label: "ไม่มีสาขา", value: employeesWithoutBranch, color: "text-[#ff9500]" },
-          { label: "เงินเดือนรวม", value: `฿${formatSalary(totalSalary)}`, color: "text-[#0071e3]", small: true },
+          { label: "ใน Payroll", value: includedInPayroll, color: "text-[#34c759]" },
+          { label: "ไม่อยู่ Payroll", value: excludedFromPayroll, color: "text-[#ff9500]" },
+          { label: "มีสาขา", value: employees.filter((e) => e.branch_id).length, color: "text-[#0071e3]" },
+          { label: "เงินเดือนรวม", value: `฿${formatSalary(totalSalary)}`, color: "text-[#af52de]", small: true },
         ].map((stat, i) => (
           <Card key={i} elevated>
             <div className="text-center py-2">
-              <p className={`${stat.small ? "text-[18px]" : "text-[24px]"} font-semibold ${stat.color}`}>{stat.value}</p>
+              <p className={`${stat.small ? "text-[16px]" : "text-[22px]"} font-semibold ${stat.color}`}>{stat.value}</p>
               <p className="text-[11px] text-[#86868b]">{stat.label}</p>
             </div>
           </Card>
         ))}
       </div>
-
-      {/* Warning for employees without branch */}
-      {employeesWithoutBranch > 0 && (
-        <div className="flex items-center gap-3 p-4 bg-[#ff9500]/10 rounded-xl mb-6 border border-[#ff9500]/30">
-          <MapPin className="w-5 h-5 text-[#ff9500]" />
-          <div>
-            <p className="text-[15px] font-medium text-[#ff9500]">
-              มีพนักงาน {employeesWithoutBranch} คนที่ยังไม่ได้กำหนดสาขา
-            </p>
-            <p className="text-[13px] text-[#86868b]">
-              พนักงานที่ไม่มีสาขาจะไม่สามารถตรวจสอบรัศมีเมื่อเช็คอินได้
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Table */}
       <Card elevated padding="none">
@@ -351,54 +353,47 @@ function EmployeesContent() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#e8e8ed]">
-                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase tracking-wide">
-                    พนักงาน
-                  </th>
-                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase tracking-wide hidden md:table-cell">
-                    ติดต่อ
-                  </th>
-                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase tracking-wide">
-                    ตำแหน่ง
-                  </th>
-                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase tracking-wide">
-                    สาขา
-                  </th>
-                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase tracking-wide">
-                    เงินเดือน
-                  </th>
-                  <th className="text-right px-6 py-4"></th>
+                  <th className="text-left px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">พนักงาน</th>
+                  <th className="text-left px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase hidden md:table-cell">ติดต่อ</th>
+                  <th className="text-left px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">ตำแหน่ง</th>
+                  <th className="text-left px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">สาขา</th>
+                  <th className="text-left px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">Payroll</th>
+                  <th className="text-right px-4 py-4"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e8e8ed]">
                 {filteredEmployees.map((emp) => (
-                  <tr key={emp.id} className="hover:bg-[#f5f5f7] transition-colors">
-                    <td className="px-6 py-4">
+                  <tr key={emp.id} className={`hover:bg-[#f5f5f7] transition-colors ${emp.exclude_from_payroll ? "opacity-60" : ""}`}>
+                    <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
                         <Avatar name={emp.name} size="md" />
                         <div>
-                          <p className="text-[15px] font-medium text-[#1d1d1f]">
-                            {emp.name}
-                          </p>
-                          <p className="text-[13px] text-[#86868b] md:hidden">
-                            {emp.email}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-[14px] font-medium text-[#1d1d1f]">{emp.name}</p>
+                            {emp.exclude_from_payroll && (
+                              <span className="px-1.5 py-0.5 text-[10px] bg-[#ff9500]/10 text-[#ff9500] rounded-md">
+                                ไม่รวม Payroll
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[12px] text-[#86868b] md:hidden">{emp.email}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 hidden md:table-cell">
+                    <td className="px-4 py-4 hidden md:table-cell">
                       <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-[13px] text-[#6e6e73]">
-                          <Mail className="w-4 h-4" />
+                        <div className="flex items-center gap-2 text-[12px] text-[#6e6e73]">
+                          <Mail className="w-3.5 h-3.5" />
                           {emp.email}
                         </div>
-                        <div className="flex items-center gap-2 text-[13px] text-[#6e6e73]">
-                          <Phone className="w-4 h-4" />
+                        <div className="flex items-center gap-2 text-[12px] text-[#6e6e73]">
+                          <Phone className="w-3.5 h-3.5" />
                           {emp.phone}
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="w-36">
+                    <td className="px-4 py-4">
+                      <div className="w-32">
                         <Select
                           value={emp.role}
                           onChange={(value) => handleUpdateRole(emp.id, value)}
@@ -406,8 +401,8 @@ function EmployeesContent() {
                         />
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="w-40">
+                    <td className="px-4 py-4">
+                      <div className="w-36">
                         <Select
                           value={emp.branch_id || ""}
                           onChange={(value) => handleUpdateBranch(emp.id, value)}
@@ -416,20 +411,32 @@ function EmployeesContent() {
                         />
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4">
                       <button
                         onClick={() => {
-                          setSalaryModal({ open: true, employee: emp });
-                          setNewSalary(String(emp.base_salary || 0));
+                          setPayrollModal({ open: true, employee: emp });
+                          setPayrollForm({
+                            base_salary: emp.base_salary || 0,
+                            commission: emp.commission || 0,
+                            exclude_from_payroll: emp.exclude_from_payroll || false,
+                          });
                         }}
-                        className="flex items-center gap-2 px-3 py-2 text-[14px] font-medium text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/20 transition-colors"
+                        className="flex flex-col items-start gap-0.5 px-3 py-2 text-left bg-[#f5f5f7] rounded-lg hover:bg-[#e8e8ed] transition-colors"
                       >
-                        <DollarSign className="w-4 h-4" />
-                        ฿{formatSalary(emp.base_salary)}
-                        <Edit2 className="w-3 h-3 ml-1" />
+                        <div className="flex items-center gap-1.5 text-[13px] font-medium text-[#0071e3]">
+                          <DollarSign className="w-3.5 h-3.5" />
+                          ฿{formatSalary(emp.base_salary)}
+                        </div>
+                        {emp.commission > 0 && (
+                          <div className="flex items-center gap-1 text-[11px] text-[#af52de]">
+                            <Gift className="w-3 h-3" />
+                            +฿{formatSalary(emp.commission)}
+                          </div>
+                        )}
+                        <span className="text-[10px] text-[#86868b]">คลิกเพื่อแก้ไข</span>
                       </button>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-4 py-4 text-right">
                       <button
                         onClick={() => setDeleteConfirm({ open: true, id: emp.id, name: emp.name })}
                         className="p-2 text-[#86868b] hover:text-[#ff3b30] hover:bg-[#ff3b30]/10 rounded-lg transition-colors"
@@ -450,13 +457,8 @@ function EmployeesContent() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6">
           <Card className="max-w-[500px] w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-[21px] font-semibold text-[#1d1d1f]">
-                เพิ่มพนักงานใหม่
-              </h3>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors"
-              >
+              <h3 className="text-[21px] font-semibold text-[#1d1d1f]">เพิ่มพนักงานใหม่</h3>
+              <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -470,7 +472,6 @@ function EmployeesContent() {
                 placeholder="กรุณากรอกชื่อ-นามสกุล"
                 required
               />
-
               <Input
                 label="อีเมล"
                 type="email"
@@ -479,7 +480,6 @@ function EmployeesContent() {
                 placeholder="กรุณากรอกอีเมล"
                 required
               />
-
               <Input
                 label="เบอร์โทรศัพท์"
                 type="tel"
@@ -488,43 +488,32 @@ function EmployeesContent() {
                 placeholder="กรุณากรอกเบอร์โทรศัพท์"
                 required
               />
-
               <Input
                 label="รหัสผ่าน"
                 type="password"
                 value={newEmployee.password}
                 onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })}
-                placeholder="กรุณากรอกรหัสผ่าน (อย่างน้อย 6 ตัวอักษร)"
+                placeholder="อย่างน้อย 6 ตัวอักษร"
                 required
                 minLength={6}
               />
-
               <div>
-                <label className="block text-[15px] font-medium text-[#1d1d1f] mb-2">
-                  ตำแหน่ง
-                </label>
+                <label className="block text-[15px] font-medium text-[#1d1d1f] mb-2">ตำแหน่ง</label>
                 <Select
                   value={newEmployee.role}
                   onChange={(value) => setNewEmployee({ ...newEmployee, role: value })}
                   options={roleOptions}
                 />
               </div>
-
               <div>
-                <label className="block text-[15px] font-medium text-[#1d1d1f] mb-2">
-                  สาขา
-                </label>
+                <label className="block text-[15px] font-medium text-[#1d1d1f] mb-2">สาขา</label>
                 <Select
                   value={newEmployee.branch_id}
                   onChange={(value) => setNewEmployee({ ...newEmployee, branch_id: value })}
                   options={branchOptions}
                   placeholder="เลือกสาขา"
                 />
-                <p className="text-[13px] text-[#86868b] mt-1">
-                  สำคัญ: ต้องกำหนดสาขาเพื่อใช้ระบบตรวจรัศมี GPS
-                </p>
               </div>
-
               <Input
                 label="เงินเดือน (บาท)"
                 type="number"
@@ -533,14 +522,28 @@ function EmployeesContent() {
                 placeholder="15000"
                 min={0}
               />
-
+              <Input
+                label="คอมมิชชั่น (บาท/เดือน)"
+                type="number"
+                value={String(newEmployee.commission)}
+                onChange={(e) => setNewEmployee({ ...newEmployee, commission: parseInt(e.target.value) || 0 })}
+                placeholder="0"
+                min={0}
+              />
+              <label className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-xl cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={newEmployee.exclude_from_payroll}
+                  onChange={(e) => setNewEmployee({ ...newEmployee, exclude_from_payroll: e.target.checked })}
+                  className="w-5 h-5 rounded"
+                />
+                <div>
+                  <span className="text-[15px] text-[#1d1d1f]">ไม่รวมใน Payroll</span>
+                  <p className="text-[12px] text-[#86868b]">บัญชีนี้จะไม่ถูกคำนวณในระบบเงินเดือน</p>
+                </div>
+              </label>
               <div className="flex gap-3 mt-6">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setShowAddModal(false)}
-                  fullWidth
-                >
+                <Button type="button" variant="secondary" onClick={() => setShowAddModal(false)} fullWidth>
                   ยกเลิก
                 </Button>
                 <Button type="submit" loading={adding} fullWidth>
@@ -552,11 +555,11 @@ function EmployeesContent() {
         </div>
       )}
 
-      {/* Edit Salary Modal */}
+      {/* Edit Payroll Modal */}
       <Modal
-        isOpen={salaryModal.open}
-        onClose={() => setSalaryModal({ open: false, employee: null })}
-        title={`แก้ไขเงินเดือน - ${salaryModal.employee?.name}`}
+        isOpen={payrollModal.open}
+        onClose={() => setPayrollModal({ open: false, employee: null })}
+        title={`ตั้งค่า Payroll - ${payrollModal.employee?.name}`}
         size="sm"
       >
         <div className="space-y-4">
@@ -567,25 +570,46 @@ function EmployeesContent() {
             </label>
             <Input
               type="number"
-              value={newSalary}
-              onChange={(e) => setNewSalary(e.target.value)}
+              value={String(payrollForm.base_salary)}
+              onChange={(e) => setPayrollForm({ ...payrollForm, base_salary: parseInt(e.target.value) || 0 })}
               placeholder="15000"
               min={0}
             />
-            <p className="text-[13px] text-[#86868b] mt-2">
-              เงินเดือนปัจจุบัน: ฿{formatSalary(salaryModal.employee?.base_salary || 0)}
-            </p>
           </div>
 
+          <div>
+            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
+              <Gift className="w-4 h-4 inline mr-1" />
+              คอมมิชชั่น (บาท/เดือน)
+            </label>
+            <Input
+              type="number"
+              value={String(payrollForm.commission)}
+              onChange={(e) => setPayrollForm({ ...payrollForm, commission: parseInt(e.target.value) || 0 })}
+              placeholder="0"
+              min={0}
+            />
+            <p className="text-[12px] text-[#86868b] mt-1">คอมมิชชั่นคงที่ต่อเดือน</p>
+          </div>
+
+          <label className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-xl cursor-pointer">
+            <input
+              type="checkbox"
+              checked={payrollForm.exclude_from_payroll}
+              onChange={(e) => setPayrollForm({ ...payrollForm, exclude_from_payroll: e.target.checked })}
+              className="w-5 h-5 rounded"
+            />
+            <div>
+              <span className="text-[15px] text-[#1d1d1f]">ไม่รวมใน Payroll</span>
+              <p className="text-[12px] text-[#86868b]">บัญชีนี้จะไม่ถูกคำนวณในระบบเงินเดือน</p>
+            </div>
+          </label>
+
           <div className="flex gap-3 pt-4">
-            <Button
-              variant="secondary"
-              onClick={() => setSalaryModal({ open: false, employee: null })}
-              className="flex-1"
-            >
+            <Button variant="secondary" onClick={() => setPayrollModal({ open: false, employee: null })} className="flex-1">
               ยกเลิก
             </Button>
-            <Button onClick={handleUpdateSalary} loading={savingSalary} className="flex-1">
+            <Button onClick={handleUpdatePayroll} loading={savingPayroll} className="flex-1">
               บันทึก
             </Button>
           </div>

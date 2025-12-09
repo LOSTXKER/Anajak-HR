@@ -8,7 +8,6 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
-import { Select } from "@/components/ui/Select";
 import { 
   Download, 
   ChevronLeft, 
@@ -18,52 +17,75 @@ import {
   AlertTriangle,
   FileText,
   Calculator,
-  Users
+  Users,
+  Gift,
+  Search,
+  Building2,
+  Filter,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, differenceInMinutes } from "date-fns";
 import { th } from "date-fns/locale";
 
+interface Employee {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  branch_id: string | null;
+  base_salary: number;
+  commission: number;
+  exclude_from_payroll: boolean;
+}
+
 interface PayrollData {
-  employee: {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-    base_salary_rate: number | null;
-    ot_rate_1_5x: number | null;
-    ot_rate_2x: number | null;
-  };
+  employee: Employee;
   workDays: number;
   totalWorkHours: number;
   lateDays: number;
   lateMinutes: number;
+  leaveDays: number;
   otHours: number;
   otAmount: number;
   basePay: number;
+  commission: number;
   latePenalty: number;
   totalPay: number;
 }
 
 interface Settings {
   work_hours_per_day: number;
-  late_penalty_per_minute: number;
+  late_deduction_per_minute: number;
   days_per_month: number;
+  work_start_time: string;
+}
+
+interface Branch {
+  id: string;
+  name: string;
 }
 
 function PayrollContent() {
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [payrollData, setPayrollData] = useState<PayrollData[]>([]);
-  const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
-  const [employees, setEmployees] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  
+  // Filters
+  const [selectedEmployee, setSelectedEmployee] = useState("all");
+  const [selectedBranch, setSelectedBranch] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+
   const [settings, setSettings] = useState<Settings>({
     work_hours_per_day: 8,
-    late_penalty_per_minute: 0,
+    late_deduction_per_minute: 0,
     days_per_month: 26,
+    work_start_time: "09:00",
   });
   const [summary, setSummary] = useState({
     totalEmployees: 0,
     totalBasePay: 0,
+    totalCommission: 0,
     totalOTPay: 0,
     totalLatePenalty: 0,
     totalPay: 0,
@@ -71,53 +93,74 @@ function PayrollContent() {
 
   useEffect(() => {
     fetchEmployees();
+    fetchBranches();
     fetchSettings();
   }, []);
 
   useEffect(() => {
-    calculatePayroll();
-  }, [currentMonth, selectedEmployee, employees, settings]);
+    if (employees.length > 0) {
+      calculatePayroll();
+    }
+  }, [currentMonth, selectedEmployee, selectedBranch, employees, settings]);
+
+  const fetchBranches = async () => {
+    const { data } = await supabase
+      .from("branches")
+      .select("id, name")
+      .order("name");
+    setBranches(data || []);
+  };
 
   const fetchEmployees = async () => {
     const { data } = await supabase
       .from("employees")
-      .select("id, name, email, role, base_salary_rate, ot_rate_1_5x, ot_rate_2x")
-      .neq("role", "admin")
+      .select("id, name, email, role, branch_id, base_salary, commission, exclude_from_payroll")
+      .eq("account_status", "approved")
       .order("name");
     
-    setEmployees(data || []);
+    // Filter out excluded employees
+    const includedEmployees = (data || []).filter(e => !e.exclude_from_payroll);
+    setEmployees(includedEmployees);
   };
 
   const fetchSettings = async () => {
     const { data } = await supabase
       .from("system_settings")
       .select("key, value")
-      .in("key", ["work_hours_per_day", "late_penalty_per_minute", "days_per_month"]);
+      .in("key", ["hours_per_day", "late_deduction_per_minute", "days_per_month", "work_start_time"]);
 
     if (data) {
       const settingsObj: any = {};
       data.forEach((s: any) => {
-        settingsObj[s.key] = parseFloat(s.value) || 0;
+        settingsObj[s.key] = s.value;
       });
       setSettings({
-        work_hours_per_day: settingsObj.work_hours_per_day || 8,
-        late_penalty_per_minute: settingsObj.late_penalty_per_minute || 0,
-        days_per_month: settingsObj.days_per_month || 26,
+        work_hours_per_day: parseFloat(settingsObj.hours_per_day) || 8,
+        late_deduction_per_minute: parseFloat(settingsObj.late_deduction_per_minute) || 0,
+        days_per_month: parseFloat(settingsObj.days_per_month) || 26,
+        work_start_time: settingsObj.work_start_time || "09:00",
       });
     }
   };
 
   const calculatePayroll = async () => {
-    if (employees.length === 0) return;
-    
     setLoading(true);
     try {
       const startDate = format(startOfMonth(currentMonth), "yyyy-MM-dd");
       const endDate = format(endOfMonth(currentMonth), "yyyy-MM-dd");
 
-      const employeesToProcess = selectedEmployee === "all" 
-        ? employees 
-        : employees.filter(e => e.id === selectedEmployee);
+      // Filter employees
+      let employeesToProcess = employees;
+      
+      if (selectedEmployee !== "all") {
+        employeesToProcess = employees.filter(e => e.id === selectedEmployee);
+      }
+      
+      if (selectedBranch !== "all") {
+        employeesToProcess = employeesToProcess.filter(e => 
+          selectedBranch === "none" ? !e.branch_id : e.branch_id === selectedBranch
+        );
+      }
 
       const payrollPromises = employeesToProcess.map(async (emp) => {
         // ดึงข้อมูลการเข้างาน
@@ -128,12 +171,12 @@ function PayrollContent() {
           .gte("work_date", startDate)
           .lte("work_date", endDate);
 
-        // ดึงข้อมูล OT ที่ completed
+        // ดึงข้อมูล OT ที่มี actual_end_time (เสร็จแล้ว)
         const { data: otLogs } = await supabase
           .from("ot_requests")
           .select("*")
           .eq("employee_id", emp.id)
-          .eq("status", "completed")
+          .not("actual_end_time", "is", null)
           .gte("request_date", startDate)
           .lte("request_date", endDate);
 
@@ -147,37 +190,51 @@ function PayrollContent() {
           .lte("end_date", endDate);
 
         // คำนวณข้อมูล
-        const workDays = attendance?.length || 0;
+        const workDays = attendance?.filter(a => a.status !== "holiday").length || 0;
         const totalWorkHours = attendance?.reduce((sum: number, a: any) => sum + (a.total_hours || 0), 0) || 0;
         const lateDays = attendance?.filter((a: any) => a.is_late).length || 0;
         
-        // คำนวณนาทีสาย (สมมติว่าเริ่มงาน 09:00)
+        // คำนวณนาทีสาย
         let lateMinutes = 0;
+        const [startHour, startMinute] = settings.work_start_time.split(":").map(Number);
+        
         attendance?.forEach((a: any) => {
           if (a.is_late && a.clock_in_time) {
             const clockIn = new Date(a.clock_in_time);
             const workStart = new Date(a.clock_in_time);
-            workStart.setHours(9, 0, 0, 0);
+            workStart.setHours(startHour, startMinute, 0, 0);
             if (clockIn > workStart) {
               lateMinutes += differenceInMinutes(clockIn, workStart);
             }
           }
         });
 
+        // คำนวณวันลา
+        let leaveDays = 0;
+        leaves?.forEach((l: any) => {
+          const start = new Date(l.start_date);
+          const end = new Date(l.end_date);
+          const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          leaveDays += l.is_half_day ? 0.5 : days;
+        });
+
         // คำนวณ OT
         const otHours = otLogs?.reduce((sum: number, ot: any) => sum + (ot.actual_ot_hours || 0), 0) || 0;
         const otAmount = otLogs?.reduce((sum: number, ot: any) => sum + (ot.ot_amount || 0), 0) || 0;
 
-        // คำนวณเงินเดือน
-        const baseSalaryRate = emp.base_salary_rate || 0;
-        const dailyRate = baseSalaryRate / settings.days_per_month;
+        // คำนวณเงินเดือน - ใช้ base_salary ที่ถูกต้อง
+        const baseSalary = emp.base_salary || 0;
+        const dailyRate = baseSalary / settings.days_per_month;
         const basePay = workDays * dailyRate;
         
+        // ค่าคอมมิชชั่น
+        const commission = emp.commission || 0;
+        
         // หัก penalty สาย
-        const latePenalty = lateMinutes * settings.late_penalty_per_minute;
+        const latePenalty = lateMinutes * settings.late_deduction_per_minute;
 
         // รวมทั้งหมด
-        const totalPay = basePay + otAmount - latePenalty;
+        const totalPay = basePay + commission + otAmount - latePenalty;
 
         return {
           employee: emp,
@@ -185,24 +242,34 @@ function PayrollContent() {
           totalWorkHours,
           lateDays,
           lateMinutes,
+          leaveDays,
           otHours,
           otAmount,
           basePay,
+          commission,
           latePenalty,
           totalPay: Math.max(0, totalPay),
         } as PayrollData;
       });
 
       const results = await Promise.all(payrollPromises);
-      setPayrollData(results);
+      
+      // Filter by search
+      const filteredResults = results.filter(r => 
+        r.employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        r.employee.email.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      setPayrollData(filteredResults);
 
       // Calculate summary
       setSummary({
-        totalEmployees: results.length,
-        totalBasePay: results.reduce((sum, r) => sum + r.basePay, 0),
-        totalOTPay: results.reduce((sum, r) => sum + r.otAmount, 0),
-        totalLatePenalty: results.reduce((sum, r) => sum + r.latePenalty, 0),
-        totalPay: results.reduce((sum, r) => sum + r.totalPay, 0),
+        totalEmployees: filteredResults.length,
+        totalBasePay: filteredResults.reduce((sum, r) => sum + r.basePay, 0),
+        totalCommission: filteredResults.reduce((sum, r) => sum + r.commission, 0),
+        totalOTPay: filteredResults.reduce((sum, r) => sum + r.otAmount, 0),
+        totalLatePenalty: filteredResults.reduce((sum, r) => sum + r.latePenalty, 0),
+        totalPay: filteredResults.reduce((sum, r) => sum + r.totalPay, 0),
       });
     } catch (error) {
       console.error("Error calculating payroll:", error);
@@ -217,12 +284,15 @@ function PayrollContent() {
     const headers = [
       "ชื่อพนักงาน",
       "อีเมล",
+      "เงินเดือนตั้ง",
       "วันทำงาน",
       "ชั่วโมงทำงาน",
+      "วันลา",
       "วันสาย",
       "นาทีสาย",
       "ชั่วโมง OT",
       "เงินเดือนพื้นฐาน",
+      "คอมมิชชั่น",
       "เงิน OT",
       "หักสาย",
       "รวมเงิน",
@@ -231,12 +301,15 @@ function PayrollContent() {
     const rows = payrollData.map((r) => [
       r.employee.name,
       r.employee.email,
+      r.employee.base_salary,
       r.workDays,
       r.totalWorkHours.toFixed(1),
+      r.leaveDays,
       r.lateDays,
       r.lateMinutes,
       r.otHours.toFixed(1),
       r.basePay.toFixed(2),
+      r.commission.toFixed(2),
       r.otAmount.toFixed(2),
       r.latePenalty.toFixed(2),
       r.totalPay.toFixed(2),
@@ -252,8 +325,6 @@ function PayrollContent() {
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("th-TH", {
-      style: "currency",
-      currency: "THB",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
@@ -262,53 +333,78 @@ function PayrollContent() {
   return (
     <AdminLayout title="ระบบเงินเดือน (Payroll)">
       {/* Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col gap-4 mb-6">
         {/* Month Navigation */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-            className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5 text-[#6e6e73]" />
-          </button>
-          <h2 className="text-[17px] font-semibold text-[#1d1d1f] min-w-[180px] text-center">
-            {format(currentMonth, "MMMM yyyy", { locale: th })}
-          </h2>
-          <button
-            onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-            className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors"
-          >
-            <ChevronRight className="w-5 h-5 text-[#6e6e73]" />
-          </button>
-        </div>
-
-        {/* Filters & Actions */}
-        <div className="flex items-center gap-3">
-          <Select
-            value={selectedEmployee}
-            onChange={(e) => setSelectedEmployee(e.target.value)}
-            options={[
-              { value: "all", label: "พนักงานทั้งหมด" },
-              ...employees.map((e) => ({ value: e.id, label: e.name })),
-            ]}
-          />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+              className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5 text-[#6e6e73]" />
+            </button>
+            <h2 className="text-[17px] font-semibold text-[#1d1d1f] min-w-[180px] text-center">
+              {format(currentMonth, "MMMM yyyy", { locale: th })}
+            </h2>
+            <button
+              onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+              className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors"
+            >
+              <ChevronRight className="w-5 h-5 text-[#6e6e73]" />
+            </button>
+          </div>
           <Button variant="secondary" size="sm" onClick={exportToCSV} disabled={!payrollData.length}>
             <Download className="w-4 h-4" />
             Export CSV
           </Button>
         </div>
+
+        {/* Filters */}
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#86868b]" />
+            <input
+              type="text"
+              placeholder="ค้นหาพนักงาน..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
+            />
+          </div>
+          <select
+            value={selectedEmployee}
+            onChange={(e) => setSelectedEmployee(e.target.value)}
+            className="px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px] min-w-[180px]"
+          >
+            <option value="all">พนักงานทั้งหมด</option>
+            {employees.map((e) => (
+              <option key={e.id} value={e.id}>{e.name}</option>
+            ))}
+          </select>
+          <select
+            value={selectedBranch}
+            onChange={(e) => setSelectedBranch(e.target.value)}
+            className="px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px] min-w-[150px]"
+          >
+            <option value="all">ทุกสาขา</option>
+            <option value="none">ไม่มีสาขา</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
         <Card elevated>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#0071e3]/10 rounded-xl flex items-center justify-center">
               <Users className="w-5 h-5 text-[#0071e3]" />
             </div>
             <div>
-              <p className="text-[24px] font-semibold text-[#1d1d1f]">{summary.totalEmployees}</p>
-              <p className="text-[12px] text-[#86868b]">พนักงาน</p>
+              <p className="text-[22px] font-semibold text-[#1d1d1f]">{summary.totalEmployees}</p>
+              <p className="text-[11px] text-[#86868b]">พนักงาน</p>
             </div>
           </div>
         </Card>
@@ -318,8 +414,19 @@ function PayrollContent() {
               <DollarSign className="w-5 h-5 text-[#34c759]" />
             </div>
             <div>
-              <p className="text-[20px] font-semibold text-[#34c759]">{formatCurrency(summary.totalBasePay)}</p>
-              <p className="text-[12px] text-[#86868b]">เงินเดือน</p>
+              <p className="text-[18px] font-semibold text-[#34c759]">฿{formatCurrency(summary.totalBasePay)}</p>
+              <p className="text-[11px] text-[#86868b]">เงินเดือน</p>
+            </div>
+          </div>
+        </Card>
+        <Card elevated>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-[#af52de]/10 rounded-xl flex items-center justify-center">
+              <Gift className="w-5 h-5 text-[#af52de]" />
+            </div>
+            <div>
+              <p className="text-[18px] font-semibold text-[#af52de]">฿{formatCurrency(summary.totalCommission)}</p>
+              <p className="text-[11px] text-[#86868b]">คอมมิชชั่น</p>
             </div>
           </div>
         </Card>
@@ -329,8 +436,8 @@ function PayrollContent() {
               <Clock className="w-5 h-5 text-[#ff9500]" />
             </div>
             <div>
-              <p className="text-[20px] font-semibold text-[#ff9500]">{formatCurrency(summary.totalOTPay)}</p>
-              <p className="text-[12px] text-[#86868b]">OT</p>
+              <p className="text-[18px] font-semibold text-[#ff9500]">฿{formatCurrency(summary.totalOTPay)}</p>
+              <p className="text-[11px] text-[#86868b]">OT</p>
             </div>
           </div>
         </Card>
@@ -340,19 +447,19 @@ function PayrollContent() {
               <AlertTriangle className="w-5 h-5 text-[#ff3b30]" />
             </div>
             <div>
-              <p className="text-[20px] font-semibold text-[#ff3b30]">-{formatCurrency(summary.totalLatePenalty)}</p>
-              <p className="text-[12px] text-[#86868b]">หักสาย</p>
+              <p className="text-[18px] font-semibold text-[#ff3b30]">-฿{formatCurrency(summary.totalLatePenalty)}</p>
+              <p className="text-[11px] text-[#86868b]">หักสาย</p>
             </div>
           </div>
         </Card>
         <Card elevated>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#af52de]/10 rounded-xl flex items-center justify-center">
-              <Calculator className="w-5 h-5 text-[#af52de]" />
+            <div className="w-10 h-10 bg-[#0071e3]/10 rounded-xl flex items-center justify-center">
+              <Calculator className="w-5 h-5 text-[#0071e3]" />
             </div>
             <div>
-              <p className="text-[20px] font-semibold text-[#af52de]">{formatCurrency(summary.totalPay)}</p>
-              <p className="text-[12px] text-[#86868b]">รวมทั้งหมด</p>
+              <p className="text-[18px] font-semibold text-[#0071e3]">฿{formatCurrency(summary.totalPay)}</p>
+              <p className="text-[11px] text-[#86868b]">รวมทั้งหมด</p>
             </div>
           </div>
         </Card>
@@ -376,106 +483,107 @@ function PayrollContent() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#e8e8ed] bg-[#f5f5f7]">
-                  <th className="text-left px-6 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
-                    พนักงาน
-                  </th>
-                  <th className="text-center px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
-                    วันทำงาน
-                  </th>
-                  <th className="text-center px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
-                    ชั่วโมง
-                  </th>
-                  <th className="text-center px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
-                    สาย
-                  </th>
-                  <th className="text-center px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
-                    OT
-                  </th>
-                  <th className="text-right px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
-                    เงินเดือน
-                  </th>
-                  <th className="text-right px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
-                    เงิน OT
-                  </th>
-                  <th className="text-right px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
-                    หักสาย
-                  </th>
-                  <th className="text-right px-6 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
-                    รวม
-                  </th>
+                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-[#86868b] uppercase">พนักงาน</th>
+                  <th className="text-right px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase">เงินเดือนตั้ง</th>
+                  <th className="text-center px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase">วันทำงาน</th>
+                  <th className="text-center px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase">ลา</th>
+                  <th className="text-center px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase">สาย</th>
+                  <th className="text-center px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase">OT</th>
+                  <th className="text-right px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase">เงินเดือน</th>
+                  <th className="text-right px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase">คอมมิชชั่น</th>
+                  <th className="text-right px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase">เงิน OT</th>
+                  <th className="text-right px-3 py-3 text-[11px] font-semibold text-[#86868b] uppercase">หักสาย</th>
+                  <th className="text-right px-4 py-3 text-[11px] font-semibold text-[#86868b] uppercase">รวม</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e8e8ed]">
                 {payrollData.map((row) => (
                   <tr key={row.employee.id} className="hover:bg-[#f5f5f7] transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
                         <Avatar name={row.employee.name} size="sm" />
                         <div>
-                          <p className="text-[14px] font-medium text-[#1d1d1f]">{row.employee.name}</p>
-                          <p className="text-[12px] text-[#86868b]">{row.employee.email}</p>
+                          <p className="text-[13px] font-medium text-[#1d1d1f]">{row.employee.name}</p>
+                          <p className="text-[11px] text-[#86868b]">{row.employee.email}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-center">
-                      <span className="text-[14px] text-[#1d1d1f]">{row.workDays}</span>
+                    <td className="px-3 py-3 text-right">
+                      <span className="text-[13px] text-[#86868b]">฿{formatCurrency(row.employee.base_salary)}</span>
                     </td>
-                    <td className="px-4 py-4 text-center">
-                      <span className="text-[14px] text-[#0071e3]">{row.totalWorkHours.toFixed(1)}</span>
+                    <td className="px-3 py-3 text-center">
+                      <span className="text-[13px] text-[#1d1d1f]">{row.workDays}</span>
                     </td>
-                    <td className="px-4 py-4 text-center">
+                    <td className="px-3 py-3 text-center">
+                      {row.leaveDays > 0 ? (
+                        <span className="text-[13px] text-[#ff9500]">{row.leaveDays}</span>
+                      ) : (
+                        <span className="text-[13px] text-[#86868b]">-</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-center">
                       {row.lateDays > 0 ? (
-                        <span className="text-[14px] text-[#ff9500]">{row.lateDays} ({row.lateMinutes} นาที)</span>
+                        <span className="text-[13px] text-[#ff3b30]">{row.lateDays} ({row.lateMinutes}น.)</span>
                       ) : (
-                        <span className="text-[14px] text-[#86868b]">-</span>
+                        <span className="text-[13px] text-[#86868b]">-</span>
                       )}
                     </td>
-                    <td className="px-4 py-4 text-center">
+                    <td className="px-3 py-3 text-center">
                       {row.otHours > 0 ? (
-                        <span className="text-[14px] text-[#ff9500]">{row.otHours.toFixed(1)} ชม.</span>
+                        <span className="text-[13px] text-[#ff9500]">{row.otHours.toFixed(1)}ชม.</span>
                       ) : (
-                        <span className="text-[14px] text-[#86868b]">-</span>
+                        <span className="text-[13px] text-[#86868b]">-</span>
                       )}
                     </td>
-                    <td className="px-4 py-4 text-right">
-                      <span className="text-[14px] text-[#1d1d1f]">{formatCurrency(row.basePay)}</span>
+                    <td className="px-3 py-3 text-right">
+                      <span className="text-[13px] text-[#1d1d1f]">฿{formatCurrency(row.basePay)}</span>
                     </td>
-                    <td className="px-4 py-4 text-right">
+                    <td className="px-3 py-3 text-right">
+                      {row.commission > 0 ? (
+                        <span className="text-[13px] font-medium text-[#af52de]">+฿{formatCurrency(row.commission)}</span>
+                      ) : (
+                        <span className="text-[13px] text-[#86868b]">-</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-right">
                       {row.otAmount > 0 ? (
-                        <span className="text-[14px] font-medium text-[#ff9500]">+{formatCurrency(row.otAmount)}</span>
+                        <span className="text-[13px] font-medium text-[#ff9500]">+฿{formatCurrency(row.otAmount)}</span>
                       ) : (
-                        <span className="text-[14px] text-[#86868b]">-</span>
+                        <span className="text-[13px] text-[#86868b]">-</span>
                       )}
                     </td>
-                    <td className="px-4 py-4 text-right">
+                    <td className="px-3 py-3 text-right">
                       {row.latePenalty > 0 ? (
-                        <span className="text-[14px] font-medium text-[#ff3b30]">-{formatCurrency(row.latePenalty)}</span>
+                        <span className="text-[13px] font-medium text-[#ff3b30]">-฿{formatCurrency(row.latePenalty)}</span>
                       ) : (
-                        <span className="text-[14px] text-[#86868b]">-</span>
+                        <span className="text-[13px] text-[#86868b]">-</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="text-[15px] font-semibold text-[#34c759]">{formatCurrency(row.totalPay)}</span>
+                    <td className="px-4 py-3 text-right">
+                      <span className="text-[14px] font-semibold text-[#34c759]">฿{formatCurrency(row.totalPay)}</span>
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="bg-[#f5f5f7] border-t-2 border-[#d2d2d7]">
-                  <td colSpan={5} className="px-6 py-4 text-[14px] font-semibold text-[#1d1d1f]">
-                    รวมทั้งหมด
+                  <td colSpan={6} className="px-4 py-3 text-[13px] font-semibold text-[#1d1d1f]">
+                    รวมทั้งหมด ({summary.totalEmployees} คน)
                   </td>
-                  <td className="px-4 py-4 text-right text-[14px] font-semibold text-[#1d1d1f]">
-                    {formatCurrency(summary.totalBasePay)}
+                  <td className="px-3 py-3 text-right text-[13px] font-semibold text-[#1d1d1f]">
+                    ฿{formatCurrency(summary.totalBasePay)}
                   </td>
-                  <td className="px-4 py-4 text-right text-[14px] font-semibold text-[#ff9500]">
-                    +{formatCurrency(summary.totalOTPay)}
+                  <td className="px-3 py-3 text-right text-[13px] font-semibold text-[#af52de]">
+                    +฿{formatCurrency(summary.totalCommission)}
                   </td>
-                  <td className="px-4 py-4 text-right text-[14px] font-semibold text-[#ff3b30]">
-                    -{formatCurrency(summary.totalLatePenalty)}
+                  <td className="px-3 py-3 text-right text-[13px] font-semibold text-[#ff9500]">
+                    +฿{formatCurrency(summary.totalOTPay)}
                   </td>
-                  <td className="px-6 py-4 text-right text-[16px] font-bold text-[#34c759]">
-                    {formatCurrency(summary.totalPay)}
+                  <td className="px-3 py-3 text-right text-[13px] font-semibold text-[#ff3b30]">
+                    -฿{formatCurrency(summary.totalLatePenalty)}
+                  </td>
+                  <td className="px-4 py-3 text-right text-[15px] font-bold text-[#34c759]">
+                    ฿{formatCurrency(summary.totalPay)}
                   </td>
                 </tr>
               </tfoot>
@@ -489,12 +597,11 @@ function PayrollContent() {
         <div className="flex items-start gap-3">
           <FileText className="w-5 h-5 text-[#86868b] mt-0.5" />
           <div className="text-[13px] text-[#86868b]">
-            <p className="font-medium text-[#1d1d1f] mb-1">หมายเหตุ:</p>
+            <p className="font-medium text-[#1d1d1f] mb-1">สูตรคำนวณ:</p>
             <ul className="list-disc list-inside space-y-1">
-              <li>เงินเดือนพื้นฐาน = (เงินเดือนเต็ม ÷ {settings.days_per_month} วัน) × วันทำงานจริง</li>
-              <li>เงิน OT คำนวณตาม rate ที่ตั้งไว้ในระบบ (1.5x / 2x)</li>
-              <li>หักสาย = นาทีสาย × {settings.late_penalty_per_minute} บาท/นาที</li>
-              <li>กรุณาตรวจสอบข้อมูลก่อนดำเนินการจ่ายเงินเดือน</li>
+              <li>เงินเดือน = (เงินเดือนตั้ง ÷ {settings.days_per_month} วัน) × วันทำงานจริง</li>
+              <li>หักสาย = นาทีสาย × {settings.late_deduction_per_minute} บาท/นาที</li>
+              <li>รวม = เงินเดือน + คอมมิชชั่น + OT - หักสาย</li>
             </ul>
           </div>
         </div>
@@ -510,4 +617,3 @@ export default function PayrollPage() {
     </ProtectedRoute>
   );
 }
-

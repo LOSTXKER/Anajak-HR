@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, email, phone, password, role, branch_id, base_salary } = body;
+    const { name, email, phone, password, role, branch_id, base_salary, commission, exclude_from_payroll } = body;
 
     // Validate input
     if (!name || !email || !phone || !password || !role) {
@@ -64,9 +64,11 @@ export async function POST(request: NextRequest) {
         email,
         phone,
         role,
-        branch_id: branch_id || null, // สาขาที่สังกัด
-        base_salary: base_salary || 15000, // เงินเดือนฐาน
-        account_status: "approved", // Admin สร้างเอง ไม่ต้องรออนุมัติ
+        branch_id: branch_id || null,
+        base_salary: base_salary || 15000,
+        commission: commission || 0,
+        exclude_from_payroll: exclude_from_payroll || false,
+        account_status: "approved",
       });
 
     if (employeeError) {
