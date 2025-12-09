@@ -157,13 +157,33 @@ function OTEndContent({ id }: { id: string }) {
       const actualMinutes = differenceInMinutes(effectiveEndTime, startTime);
       const actualOTHours = Math.max(0, actualMinutes / 60);
 
-      // Get OT rate
-      const otRate = otRequest.ot_rate || 1.5;
+      // Get OT rate from ot_type
+      let otRate = 1.5; // default
+      if (otRequest.ot_type === "1x") otRate = 1;
+      else if (otRequest.ot_type === "1.5x") otRate = 1.5;
+      else if (otRequest.ot_type === "2x" || otRequest.ot_type === "holiday") otRate = 2;
       
-      // Calculate OT amount (if base_salary_rate is set)
+      // ดึงข้อมูลเงินเดือนและ hours_per_day
+      const { data: empData } = await supabase
+        .from("employees")
+        .select("base_salary")
+        .eq("id", employee.id)
+        .single();
+      
+      const { data: settingsData } = await supabase
+        .from("system_settings")
+        .select("setting_value")
+        .eq("setting_key", "hours_per_day")
+        .single();
+      
+      const baseSalary = empData?.base_salary || 0;
+      const hoursPerDay = parseFloat(settingsData?.setting_value || "8");
+      const daysPerMonth = 30; // สมมติ 30 วัน
+      
+      // Calculate OT amount
       let otAmount = null;
-      if (employee.base_salary_rate) {
-        const hourlyRate = employee.base_salary_rate / 8; // สมมติทำงาน 8 ชม./วัน
+      if (baseSalary > 0) {
+        const hourlyRate = baseSalary / daysPerMonth / hoursPerDay;
         otAmount = actualOTHours * hourlyRate * otRate;
       }
 
