@@ -21,8 +21,11 @@ import {
   User, 
   Search,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Download,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { th } from "date-fns/locale";
 
 interface WFHRequest {
@@ -46,6 +49,7 @@ function WFHManagementContent() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [processing, setProcessing] = useState(false);
 
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -68,7 +72,7 @@ function WFHManagementContent() {
   useEffect(() => {
     fetchWFHRequests();
     fetchEmployees();
-  }, [filter]);
+  }, [filter, currentMonth]);
 
   const fetchEmployees = async () => {
     try {
@@ -86,10 +90,15 @@ function WFHManagementContent() {
   const fetchWFHRequests = async () => {
     setLoading(true);
     try {
+      const startDate = format(startOfMonth(currentMonth), "yyyy-MM-dd");
+      const endDate = format(endOfMonth(currentMonth), "yyyy-MM-dd");
+
       let query = supabase
         .from("wfh_requests")
         .select(`*, employee:employees!employee_id(name, email)`)
-        .order("created_at", { ascending: false });
+        .gte("date", startDate)
+        .lte("date", endDate)
+        .order("date", { ascending: false });
 
       if (filter !== "all") query = query.eq("status", filter);
 
@@ -206,6 +215,24 @@ function WFHManagementContent() {
     }
   };
 
+  const exportCSV = () => {
+    if (!wfhRequests.length) return;
+    const headers = ["ชื่อ", "วันที่", "ครึ่งวัน", "เหตุผล", "สถานะ"];
+    const rows = wfhRequests.map((w) => [
+      w.employee?.name || "-",
+      format(new Date(w.date), "dd/MM/yyyy"),
+      w.is_half_day ? "ใช่" : "ไม่",
+      w.reason,
+      w.status,
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `wfh-${format(currentMonth, "yyyy-MM")}.csv`;
+    link.click();
+  };
+
   // Filter by search
   const filteredRequests = wfhRequests.filter((wfh) => {
     if (!searchTerm) return true;
@@ -236,6 +263,31 @@ function WFHManagementContent() {
 
   return (
     <AdminLayout title="จัดการคำขอ WFH">
+      {/* Month Navigation */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+            className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5 text-[#6e6e73]" />
+          </button>
+          <h2 className="text-[17px] font-semibold text-[#1d1d1f] min-w-[180px] text-center">
+            {format(currentMonth, "MMMM yyyy", { locale: th })}
+          </h2>
+          <button
+            onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+            className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors"
+          >
+            <ChevronRight className="w-5 h-5 text-[#6e6e73]" />
+          </button>
+        </div>
+        <Button variant="secondary" size="sm" onClick={exportCSV}>
+          <Download className="w-4 h-4" />
+          Export
+        </Button>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {[
@@ -308,7 +360,7 @@ function WFHManagementContent() {
           </div>
         ) : filteredRequests.length === 0 ? (
           <Card elevated>
-            <div className="text-center py-20 text-[#86868b]">ไม่มีคำขอ WFH</div>
+            <div className="text-center py-20 text-[#86868b]">ไม่มีคำขอ WFH ในเดือนนี้</div>
           </Card>
         ) : (
           filteredRequests.map((wfh) => (

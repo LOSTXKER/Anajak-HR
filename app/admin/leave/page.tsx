@@ -21,11 +21,12 @@ import {
   Plus,
   User,
   Search,
-  X,
   Trash2,
-  Edit2,
+  ChevronLeft,
+  ChevronRight,
+  Download,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { th } from "date-fns/locale";
 
 interface LeaveRequest {
@@ -61,6 +62,7 @@ function LeaveManagementContent() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [processing, setProcessing] = useState(false);
 
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -85,7 +87,7 @@ function LeaveManagementContent() {
   useEffect(() => {
     fetchLeaveRequests();
     fetchEmployees();
-  }, [filter]);
+  }, [filter, currentMonth]);
 
   const fetchEmployees = async () => {
     try {
@@ -103,9 +105,15 @@ function LeaveManagementContent() {
   const fetchLeaveRequests = async () => {
     setLoading(true);
     try {
+      const startDate = format(startOfMonth(currentMonth), "yyyy-MM-dd");
+      const endDate = format(endOfMonth(currentMonth), "yyyy-MM-dd");
+
       let query = supabase
         .from("leave_requests")
         .select(`*, employee:employees!employee_id(name, email)`)
+        .or(`start_date.gte.${startDate},end_date.lte.${endDate}`)
+        .gte("start_date", startDate)
+        .lte("start_date", endDate)
         .order("created_at", { ascending: false });
 
       if (filter !== "all") query = query.eq("status", filter);
@@ -229,6 +237,26 @@ function LeaveManagementContent() {
     }
   };
 
+  const exportCSV = () => {
+    if (!leaveRequests.length) return;
+    const headers = ["ชื่อ", "ประเภท", "วันที่เริ่ม", "วันที่สิ้นสุด", "จำนวนวัน", "เหตุผล", "สถานะ"];
+    const rows = leaveRequests.map((l) => [
+      l.employee?.name || "-",
+      leaveTypeLabels[l.leave_type]?.label || l.leave_type,
+      format(new Date(l.start_date), "dd/MM/yyyy"),
+      format(new Date(l.end_date), "dd/MM/yyyy"),
+      calculateDays(l.start_date, l.end_date, l.is_half_day),
+      l.reason,
+      l.status,
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `leave-${format(currentMonth, "yyyy-MM")}.csv`;
+    link.click();
+  };
+
   // Filter by search
   const filteredRequests = leaveRequests.filter((leave) => {
     if (!searchTerm) return true;
@@ -267,6 +295,31 @@ function LeaveManagementContent() {
 
   return (
     <AdminLayout title="จัดการคำขอลา">
+      {/* Month Navigation */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+            className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5 text-[#6e6e73]" />
+          </button>
+          <h2 className="text-[17px] font-semibold text-[#1d1d1f] min-w-[180px] text-center">
+            {format(currentMonth, "MMMM yyyy", { locale: th })}
+          </h2>
+          <button
+            onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+            className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors"
+          >
+            <ChevronRight className="w-5 h-5 text-[#6e6e73]" />
+          </button>
+        </div>
+        <Button variant="secondary" size="sm" onClick={exportCSV}>
+          <Download className="w-4 h-4" />
+          Export
+        </Button>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {[
@@ -339,7 +392,7 @@ function LeaveManagementContent() {
           </div>
         ) : filteredRequests.length === 0 ? (
           <Card elevated>
-            <div className="text-center py-20 text-[#86868b]">ไม่มีคำขอลา</div>
+            <div className="text-center py-20 text-[#86868b]">ไม่มีคำขอลาในเดือนนี้</div>
           </Card>
         ) : (
           filteredRequests.map((leave) => {
