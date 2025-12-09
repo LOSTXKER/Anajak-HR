@@ -199,11 +199,10 @@ function OTEndContent({ id }: { id: string }) {
       const actualMinutes = differenceInMinutes(effectiveEndTime, startTime);
       const actualOTHours = Math.max(0, actualMinutes / 60);
 
-      // Get OT rate from ot_type
-      let otRate = 1.5; // default
-      if (otRequest.ot_type === "1x") otRate = 1;
-      else if (otRequest.ot_type === "1.5x") otRate = 1.5;
-      else if (otRequest.ot_type === "2x" || otRequest.ot_type === "holiday") otRate = 2;
+      // Get OT rate from stored value (set during OT start)
+      // ot_type can be: "holiday", "weekend", "workday"
+      // ot_rate is the actual multiplier (1, 1.5, 2, etc.)
+      let otRate = otRequest.ot_rate || 1.5; // Use stored rate from start OT
       
       // ดึงข้อมูลเงินเดือนและ hours_per_day
       const { data: empData } = await supabase

@@ -40,6 +40,7 @@ interface OTRequest {
   before_photo_url: string | null;
   actual_start_time: string | null;
   ot_type: string;
+  ot_rate: number | null;
 }
 
 function OTStartContent({ id }: { id: string }) {

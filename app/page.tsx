@@ -602,7 +602,7 @@ export default function HomePage() {
                 <span className="text-[13px] text-white/80 font-medium">กำลังทำ OT</span>
               </div>
               <Badge className="bg-white/20 text-white border-0">
-                {activeOT.ot_type === "holiday" ? "2x" : "1.5x"}
+                {activeOT.ot_rate || 1.5}x
               </Badge>
             </div>
             

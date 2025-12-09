@@ -462,7 +462,13 @@ function OTManagementContent() {
                       </h3>
                       {getStatusBadge(ot.status, ot)}
                       {ot.ot_type === "holiday" && (
-                        <Badge variant="info">วันหยุด (2x)</Badge>
+                        <Badge variant="danger">วันหยุด ({ot.ot_rate || 2}x)</Badge>
+                      )}
+                      {ot.ot_type === "weekend" && (
+                        <Badge variant="warning">สุดสัปดาห์ ({ot.ot_rate || 1.5}x)</Badge>
+                      )}
+                      {ot.ot_type === "workday" && ot.ot_rate && (
+                        <Badge variant="info">วันทำงาน ({ot.ot_rate}x)</Badge>
                       )}
                     </div>
                     <p className="text-[14px] text-[#86868b] mb-2">

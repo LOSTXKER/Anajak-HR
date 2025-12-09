@@ -258,7 +258,10 @@ function OTPageContent() {
                                 {format(new Date(ot.request_date), "d MMMM yyyy", { locale: th })}
                               </span>
                               {ot.ot_type === "holiday" && (
-                                <Badge variant="warning">วันหยุด</Badge>
+                                <Badge variant="danger">วันหยุด</Badge>
+                              )}
+                              {ot.ot_type === "weekend" && (
+                                <Badge variant="warning">สุดสัปดาห์</Badge>
                               )}
                               {!canStart && (
                                 <Badge variant="default">ยังไม่ถึงวัน</Badge>
@@ -350,7 +353,10 @@ function OTPageContent() {
                               {format(new Date(ot.request_date), "d MMM", { locale: th })}
                             </span>
                             {ot.ot_type === "holiday" && (
-                              <Badge variant="warning">วันหยุด</Badge>
+                              <Badge variant="danger">วันหยุด</Badge>
+                            )}
+                            {ot.ot_type === "weekend" && (
+                              <Badge variant="warning">สุดสัปดาห์</Badge>
                             )}
                           </div>
                           {ot.actual_start_time && ot.actual_end_time && (

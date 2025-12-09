@@ -264,6 +264,8 @@ function PayrollContent() {
         });
 
         // คำนวณ OT แยกตามประเภท
+        // ot_type can be: "holiday", "weekend", "workday"
+        // ot_rate is the actual multiplier (1, 1.5, 2, etc.)
         let ot1xHours = 0, ot1xAmount = 0;
         let ot15xHours = 0, ot15xAmount = 0;
         let ot2xHours = 0, ot2xAmount = 0;
@@ -271,24 +273,19 @@ function PayrollContent() {
         otLogs?.forEach((ot: any) => {
           const hours = ot.actual_ot_hours || 0;
           const amount = ot.ot_amount || 0;
+          const rate = ot.ot_rate || 1.5; // Use stored rate
           
-          switch (ot.ot_type) {
-            case "1x":
-              ot1xHours += hours;
-              ot1xAmount += amount;
-              break;
-            case "1.5x":
-              ot15xHours += hours;
-              ot15xAmount += amount;
-              break;
-            case "2x":
-              ot2xHours += hours;
-              ot2xAmount += amount;
-              break;
-            default:
-              // ถ้าไม่มี type ให้นับเป็น 1x
-              ot1xHours += hours;
-              ot1xAmount += amount;
+          // Classify by rate
+          if (rate <= 1) {
+            ot1xHours += hours;
+            ot1xAmount += amount;
+          } else if (rate <= 1.5) {
+            ot15xHours += hours;
+            ot15xAmount += amount;
+          } else {
+            // rate >= 2 (holiday OT)
+            ot2xHours += hours;
+            ot2xAmount += amount;
           }
         });
         
