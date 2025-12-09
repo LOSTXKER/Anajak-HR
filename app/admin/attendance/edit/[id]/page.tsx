@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { TimeInput } from "@/components/ui/TimeInput";
+import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
@@ -20,6 +21,7 @@ import {
   AlertTriangle,
   CheckCircle,
   History,
+  Trash2,
 } from "lucide-react";
 
 interface AttendanceLog {
@@ -51,6 +53,7 @@ function EditAttendanceContent() {
   const [clockOut, setClockOut] = useState("");
   const [editReason, setEditReason] = useState("");
   const [workStartTime, setWorkStartTime] = useState("09:00");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     if (params.id) {
@@ -174,6 +177,29 @@ function EditAttendanceContent() {
       toast.error("เกิดข้อผิดพลาด", "ไม่สามารถบันทึกได้");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!attendance) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("attendance_logs")
+        .delete()
+        .eq("id", attendance.id);
+
+      if (error) throw error;
+
+      toast.success("ลบสำเร็จ", "ลบข้อมูลการเข้างานเรียบร้อยแล้ว");
+      router.push("/admin/attendance");
+    } catch (error) {
+      console.error("Error deleting attendance:", error);
+      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถลบได้");
+    } finally {
+      setSaving(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -338,20 +364,44 @@ function EditAttendanceContent() {
         </Card>
 
         {/* Actions */}
-        <div className="flex items-center gap-4">
-          <Button variant="secondary" onClick={() => router.back()} fullWidth>
-            ยกเลิก
-          </Button>
+        <div className="space-y-3">
+          <div className="flex items-center gap-4">
+            <Button variant="secondary" onClick={() => router.back()} fullWidth>
+              ยกเลิก
+            </Button>
+            <Button
+              onClick={handleSave}
+              loading={saving}
+              fullWidth
+              icon={!saving ? <Save className="w-5 h-5" /> : undefined}
+            >
+              {saving ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
+            </Button>
+          </div>
+          
+          {/* Delete Button */}
           <Button
-            onClick={handleSave}
-            loading={saving}
+            variant="danger"
+            onClick={() => setShowDeleteConfirm(true)}
             fullWidth
-            icon={!saving ? <Save className="w-5 h-5" /> : undefined}
+            icon={<Trash2 className="w-5 h-5" />}
           >
-            {saving ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
+            ลบข้อมูลการเข้างานนี้
           </Button>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDelete}
+        title="ยืนยันการลบ"
+        message={`คุณต้องการลบข้อมูลการเข้างานของ ${attendance?.employee?.name} วันที่ ${attendance ? format(new Date(attendance.work_date), "d MMMM yyyy", { locale: th }) : ""} ใช่หรือไม่?\n\nการลบนี้จะลบข้อมูลออกจากระบบถาวร ไม่สามารถกู้คืนได้`}
+        confirmText="ลบ"
+        confirmVariant="danger"
+        loading={saving}
+      />
     </AdminLayout>
   );
 }
