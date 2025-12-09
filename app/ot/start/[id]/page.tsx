@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { isHoliday } from "@/lib/utils/holiday";
+import { getOTRateForDate } from "@/lib/utils/holiday";
 
 interface OTRequest {
   id: string;
@@ -54,7 +54,13 @@ function OTStartContent({ id }: { id: string }) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [otRequest, setOtRequest] = useState<OTRequest | null>(null);
   const [fetchingOT, setFetchingOT] = useState(true);
-  const [holidayInfo, setHolidayInfo] = useState<any>(null);
+  const [dayInfo, setDayInfo] = useState<{
+    rate: number;
+    type: "holiday" | "weekend" | "workday";
+    typeName: string;
+    requireCheckin: boolean;
+    holidayName?: string;
+  } | null>(null);
   const [todayAttendance, setTodayAttendance] = useState<any>(null);
   const [checkingRequirements, setCheckingRequirements] = useState(true);
   
@@ -150,9 +156,9 @@ function OTStartContent({ id }: { id: string }) {
         setEarlyStartBuffer(parseInt(bufferData.setting_value) || 15);
       }
 
-      // Check if OT date is a holiday
-      const holiday = await isHoliday(otRequest.request_date, employee.branch_id || undefined);
-      setHolidayInfo(holiday);
+      // Get day type info (holiday, weekend, or workday)
+      const info = await getOTRateForDate(otRequest.request_date, employee.branch_id || undefined);
+      setDayInfo(info);
 
       // Check if employee has checked in today (for non-holiday OT)
       const { data: attendance } = await supabase
@@ -185,13 +191,13 @@ function OTStartContent({ id }: { id: string }) {
     // Check if it's the correct day first
     if (!isCorrectDay()) return false;
     
-    // If it's a holiday, can start without check-in
-    if (holidayInfo) return true;
+    // Use settings to determine if check-in is required
+    if (dayInfo && !dayInfo.requireCheckin) return true;
     
-    // If OT type is holiday, can start without check-in
+    // If OT type is holiday, can start without check-in (fallback)
     if (otRequest.ot_type === "holiday") return true;
     
-    // For normal OT, must have checked in first
+    // Check-in required but not checked in
     if (!todayAttendance?.clock_in_time) return false;
     
     return true;
@@ -244,14 +250,20 @@ function OTStartContent({ id }: { id: string }) {
       };
     }
 
-    if (holidayInfo || otRequest?.ot_type === "holiday") {
-      return {
-        type: "holiday",
-        message: `🎉 OT วันหยุด (${holidayInfo?.name || "วันหยุด"}) - ไม่ต้องเช็คอินก่อน`,
-        canProceed: true,
-      };
+    // Check based on day type
+    if (dayInfo) {
+      // Holiday or weekend - no check-in required based on settings
+      if (!dayInfo.requireCheckin) {
+        const emoji = dayInfo.type === "holiday" ? "🎉" : dayInfo.type === "weekend" ? "🌅" : "📋";
+        return {
+          type: dayInfo.type,
+          message: `${emoji} ${dayInfo.typeName} (${dayInfo.rate}x) - ไม่ต้องเช็คอินก่อน`,
+          canProceed: true,
+        };
+      }
     }
     
+    // Check-in required
     if (!todayAttendance?.clock_in_time) {
       return {
         type: "no_checkin",
@@ -270,7 +282,7 @@ function OTStartContent({ id }: { id: string }) {
 
     return {
       type: "ready",
-      message: "✅ พร้อมเริ่ม OT",
+      message: `✅ พร้อมเริ่ม OT ${dayInfo ? `(${dayInfo.rate}x)` : ""}`,
       canProceed: true,
     };
   };
@@ -344,9 +356,10 @@ function OTStartContent({ id }: { id: string }) {
       }
 
       const now = new Date();
+      const isNonWorkday = dayInfo && (dayInfo.type === "holiday" || dayInfo.type === "weekend");
 
-      // For holiday OT without attendance, create one automatically
-      if ((holidayInfo || otRequest.ot_type === "holiday") && !todayAttendance) {
+      // For holiday/weekend OT without attendance, create one automatically
+      if ((isNonWorkday || otRequest.ot_type === "holiday") && !todayAttendance) {
         const { error: attendanceError } = await supabase
           .from("attendance_logs")
           .insert({
@@ -356,14 +369,14 @@ function OTStartContent({ id }: { id: string }) {
             clock_in_photo_url: photoUrl,
             clock_in_gps_lat: location.lat,
             clock_in_gps_lng: location.lng,
-            status: "holiday", // Mark as holiday work
+            status: dayInfo?.type || "holiday", // Mark day type
             work_mode: "onsite",
-            note: `OT วันหยุด: ${holidayInfo?.name || "วันหยุด"}`,
+            note: `OT ${dayInfo?.typeName || "วันหยุด"}`,
             is_late: false,
           });
 
         if (attendanceError) {
-          console.error("Error creating holiday attendance:", attendanceError);
+          console.error("Error creating attendance:", attendanceError);
         }
       }
 
@@ -375,7 +388,8 @@ function OTStartContent({ id }: { id: string }) {
           before_photo_url: photoUrl,
           start_gps_lat: location.lat,
           start_gps_lng: location.lng,
-          ot_type: holidayInfo ? "holiday" : otRequest.ot_type || "normal",
+          ot_type: dayInfo?.type || otRequest.ot_type || "normal",
+          ot_rate: dayInfo?.rate || 1.5,
         })
         .eq("id", id);
 
@@ -392,7 +406,8 @@ function OTStartContent({ id }: { id: string }) {
               employeeName: employee.name,
               date: otRequest.request_date,
               time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false }),
-              isHoliday: !!holidayInfo,
+              dayType: dayInfo?.type || "workday",
+              otRate: dayInfo?.rate || 1.5,
               gpsLat: location.lat,
               gpsLng: location.lng,
             },
@@ -487,10 +502,16 @@ function OTStartContent({ id }: { id: string }) {
 
         {/* OT Info */}
         <Card elevated className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
             <Badge variant="success">อนุมัติแล้ว</Badge>
-            {(holidayInfo || otRequest.ot_type === "holiday") && (
-              <Badge variant="warning">OT วันหยุด (2x)</Badge>
+            {dayInfo && (
+              <Badge variant={
+                dayInfo.type === "holiday" ? "danger" :
+                dayInfo.type === "weekend" ? "warning" : "info"
+              }>
+                {dayInfo.type === "holiday" ? "🎉 วันหยุดนักขัตฤกษ์" :
+                 dayInfo.type === "weekend" ? "🌅 วันหยุดสุดสัปดาห์" : "📋 วันทำงานปกติ"} ({dayInfo.rate}x)
+              </Badge>
             )}
           </div>
           <div className="space-y-2">
@@ -514,13 +535,15 @@ function OTStartContent({ id }: { id: string }) {
         {!checkingRequirements && (
           <div className={`mb-6 p-4 rounded-xl ${
             getRequirementMessage().canProceed 
-              ? holidayInfo 
-                ? "bg-[#ff9500]/10 border border-[#ff9500]/30"
+              ? dayInfo && (dayInfo.type === "holiday" || dayInfo.type === "weekend")
+                ? dayInfo.type === "holiday" ? "bg-[#ff3b30]/10 border border-[#ff3b30]/30" : "bg-[#ff9500]/10 border border-[#ff9500]/30"
                 : "bg-[#34c759]/10 border border-[#34c759]/30"
               : "bg-[#ff3b30]/10 border border-[#ff3b30]/30"
           }`}>
             <div className="flex items-center gap-3">
-              {holidayInfo ? (
+              {dayInfo?.type === "holiday" ? (
+                <PartyPopper className="w-5 h-5 text-[#ff3b30]" />
+              ) : dayInfo?.type === "weekend" ? (
                 <PartyPopper className="w-5 h-5 text-[#ff9500]" />
               ) : getRequirementMessage().canProceed ? (
                 <CheckCircle className="w-5 h-5 text-[#34c759]" />
@@ -530,16 +553,13 @@ function OTStartContent({ id }: { id: string }) {
               <div>
                 <p className={`text-[14px] font-medium ${
                   getRequirementMessage().canProceed 
-                    ? holidayInfo ? "text-[#ff9500]" : "text-[#34c759]"
+                    ? dayInfo?.type === "holiday" ? "text-[#ff3b30]" 
+                      : dayInfo?.type === "weekend" ? "text-[#ff9500]" 
+                      : "text-[#34c759]"
                     : "text-[#ff3b30]"
                 }`}>
                   {getRequirementMessage().message}
                 </p>
-                {holidayInfo && (
-                  <p className="text-[13px] text-[#ff9500]/80 mt-1">
-                    🎉 {holidayInfo.name} - ชั่วโมงทั้งหมดคิดเป็น OT rate 2x
-                  </p>
-                )}
                 {!getRequirementMessage().canProceed && (
                   <Link href="/checkin" className="text-[13px] text-[#0071e3] hover:underline mt-1 inline-block">
                     ไปเช็คอิน →

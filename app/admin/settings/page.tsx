@@ -376,11 +376,18 @@ function SettingsContent() {
                 description="กำหนดอัตราหัก/เพิ่ม สำหรับคำนวณเงินเดือน"
               />
               <SettingLink
+                href="/admin/settings/working-days"
+                icon={Calendar}
+                color="text-[#0071e3]"
+                title="วันทำงานและ OT Rate"
+                description="ตั้งค่าวันทำงาน (จ-ศ/จ-ส) และอัตรา OT ตามประเภทวัน"
+              />
+              <SettingLink
                 href="/admin/settings/ot"
                 icon={Clock}
                 color="text-[#ff9500]"
-                title="ตั้งค่า OT"
-                description="กำหนดกฎ, อัตราค่าตอบแทน, และข้อจำกัดการทำ OT"
+                title="ตั้งค่า OT เพิ่มเติม"
+                description="กำหนดกฎ, ข้อจำกัด, และรายละเอียดอื่นๆ"
               />
               <SettingLink
                 href="/admin/holidays"

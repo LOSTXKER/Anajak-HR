@@ -12,8 +12,8 @@ import { TimeInput } from "@/components/ui/TimeInput";
 import { DateInput } from "@/components/ui/DateInput";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { ArrowLeft, Calendar, Clock, FileText, CheckCircle, AlertCircle, PartyPopper } from "lucide-react";
-import { isHoliday, getOTRate } from "@/lib/utils/holiday";
+import { ArrowLeft, Calendar, Clock, FileText, CheckCircle, AlertCircle, PartyPopper, Sun, Briefcase } from "lucide-react";
+import { getOTRateForDate } from "@/lib/utils/holiday";
 
 function OTRequestContent() {
   const { employee } = useAuth();
@@ -21,8 +21,13 @@ function OTRequestContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [holidayInfo, setHolidayInfo] = useState<any>(null);
-  const [estimatedRate, setEstimatedRate] = useState<number>(1.5);
+  const [dayInfo, setDayInfo] = useState<{
+    rate: number;
+    type: "holiday" | "weekend" | "workday";
+    typeName: string;
+    requireCheckin: boolean;
+    holidayName?: string;
+  } | null>(null);
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
@@ -31,24 +36,16 @@ function OTRequestContent() {
     reason: "",
   });
 
-  // Check if selected date is a holiday
+  // Check day type (holiday, weekend, or workday)
   useEffect(() => {
-    checkHoliday();
+    checkDayType();
   }, [formData.date, employee]);
 
-  const checkHoliday = async () => {
+  const checkDayType = async () => {
     if (!formData.date) return;
 
-    const holiday = await isHoliday(formData.date, employee?.branch_id || undefined);
-    setHolidayInfo(holiday);
-
-    // Get estimated OT rate
-    const rateInfo = await getOTRate("normal", formData.date, employee?.branch_id || undefined, {
-      ot_rate_1x: employee?.ot_rate_1x ?? undefined,
-      ot_rate_1_5x: employee?.ot_rate_1_5x ?? undefined,
-      ot_rate_2x: employee?.ot_rate_2x ?? undefined,
-    });
-    setEstimatedRate(rateInfo.rate);
+    const info = await getOTRateForDate(formData.date, employee?.branch_id || undefined);
+    setDayInfo(info);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -170,26 +167,61 @@ function OTRequestContent() {
                   min={new Date().toISOString().split("T")[0]}
                 />
 
-                {/* Holiday Alert */}
-                {holidayInfo && (
-                  <div className="mt-3 flex items-center gap-3 p-4 bg-[#ff3b30]/10 rounded-xl">
-                    <PartyPopper className="w-5 h-5 text-[#ff3b30] flex-shrink-0" />
-                    <div>
-                      <p className="text-[14px] font-medium text-[#ff3b30]">
-                        {holidayInfo.name}
-                      </p>
-                      <p className="text-[13px] text-[#ff3b30]/80">
-                        OT ในวันหยุด จะได้รับอัตรา {estimatedRate}x
-                      </p>
+                {/* Day Type Info */}
+                {dayInfo && (
+                  <div className={`mt-3 p-4 rounded-xl ${
+                    dayInfo.type === "holiday" 
+                      ? "bg-[#ff3b30]/10 border border-[#ff3b30]/20" 
+                      : dayInfo.type === "weekend"
+                        ? "bg-[#ff9500]/10 border border-[#ff9500]/20"
+                        : "bg-[#0071e3]/10 border border-[#0071e3]/20"
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      {dayInfo.type === "holiday" ? (
+                        <PartyPopper className="w-5 h-5 text-[#ff3b30] flex-shrink-0" />
+                      ) : dayInfo.type === "weekend" ? (
+                        <Sun className="w-5 h-5 text-[#ff9500] flex-shrink-0" />
+                      ) : (
+                        <Briefcase className="w-5 h-5 text-[#0071e3] flex-shrink-0" />
+                      )}
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <p className={`text-[14px] font-medium ${
+                            dayInfo.type === "holiday" 
+                              ? "text-[#ff3b30]" 
+                              : dayInfo.type === "weekend"
+                                ? "text-[#ff9500]"
+                                : "text-[#0071e3]"
+                          }`}>
+                            {dayInfo.type === "holiday" 
+                              ? `🎉 ${dayInfo.holidayName}` 
+                              : dayInfo.type === "weekend"
+                                ? "🌅 วันหยุดสุดสัปดาห์"
+                                : "📋 วันทำงานปกติ"}
+                          </p>
+                          <Badge variant={
+                            dayInfo.type === "holiday" 
+                              ? "danger" 
+                              : dayInfo.type === "weekend"
+                                ? "warning"
+                                : "info"
+                          }>
+                            {dayInfo.rate}x
+                          </Badge>
+                        </div>
+                        <p className={`text-[13px] mt-1 ${
+                          dayInfo.type === "holiday" 
+                            ? "text-[#ff3b30]/80" 
+                            : dayInfo.type === "weekend"
+                              ? "text-[#ff9500]/80"
+                              : "text-[#0071e3]/80"
+                        }`}>
+                          {dayInfo.requireCheckin 
+                            ? "⚠️ ต้องเช็คอินก่อนเริ่ม OT" 
+                            : "✅ ไม่ต้องเช็คอินก่อน"}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
-
-                {/* OT Rate Info */}
-                {!holidayInfo && (
-                  <div className="mt-3 flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                    <span className="text-[13px] text-[#86868b]">อัตรา OT</span>
-                    <Badge variant="info">{estimatedRate}x</Badge>
                   </div>
                 )}
               </div>

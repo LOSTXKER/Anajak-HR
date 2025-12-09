@@ -1,6 +1,48 @@
 import { supabase } from "@/lib/supabase/client";
 
 /**
+ * Get working days from settings
+ * @returns Array of working day numbers (1=Monday, ..., 7=Sunday)
+ */
+export async function getWorkingDays(): Promise<number[]> {
+  try {
+    const { data, error } = await supabase
+      .from("system_settings")
+      .select("setting_value")
+      .eq("setting_key", "working_days")
+      .single();
+
+    if (error && error.code !== "PGRST116") throw error;
+
+    if (data?.setting_value) {
+      return data.setting_value.split(",").map(Number).filter(Boolean);
+    }
+
+    // Default: Monday-Friday
+    return [1, 2, 3, 4, 5];
+  } catch (error) {
+    console.error("Error getting working days:", error);
+    return [1, 2, 3, 4, 5];
+  }
+}
+
+/**
+ * Check if a given date is a weekend (non-working day)
+ * @param date - Date string in format 'YYYY-MM-DD'
+ * @returns true if it's a weekend
+ */
+export async function isWeekend(date: string): Promise<boolean> {
+  const workingDays = await getWorkingDays();
+  const dateObj = new Date(date);
+  // JavaScript: 0=Sunday, 1=Monday, ..., 6=Saturday
+  // Our system: 1=Monday, ..., 7=Sunday
+  const dayOfWeek = dateObj.getDay();
+  const ourDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
+  
+  return !workingDays.includes(ourDayOfWeek);
+}
+
+/**
  * Check if a given date is a holiday
  * @param date - Date string in format 'YYYY-MM-DD'
  * @param branchId - Optional branch ID for branch-specific holidays
@@ -37,12 +79,118 @@ export async function isHoliday(date: string, branchId?: string) {
 }
 
 /**
- * Get OT rate multiplier based on OT type and whether it's a holiday
- * @param otType - 'normal', 'holiday', or 'pre_shift'
+ * Get day type for a given date
  * @param date - Date string in format 'YYYY-MM-DD'
  * @param branchId - Optional branch ID
- * @param employeeRates - Employee's custom rates (optional)
- * @returns OT rate multiplier
+ * @returns 'holiday' | 'weekend' | 'workday'
+ */
+export async function getDayType(
+  date: string,
+  branchId?: string
+): Promise<{ type: "holiday" | "weekend" | "workday"; holidayName?: string }> {
+  // Check holiday first (highest priority)
+  const holiday = await isHoliday(date, branchId);
+  if (holiday) {
+    return { type: "holiday", holidayName: holiday.name };
+  }
+
+  // Check weekend
+  const weekend = await isWeekend(date);
+  if (weekend) {
+    return { type: "weekend" };
+  }
+
+  return { type: "workday" };
+}
+
+/**
+ * Get OT settings from database
+ */
+export async function getOTSettings() {
+  try {
+    const { data, error } = await supabase
+      .from("system_settings")
+      .select("setting_key, setting_value")
+      .in("setting_key", [
+        "ot_rate_workday",
+        "ot_rate_weekend",
+        "ot_rate_holiday",
+        "ot_require_checkin_workday",
+        "ot_require_checkin_weekend",
+        "ot_require_checkin_holiday",
+      ]);
+
+    if (error) throw error;
+
+    const settings: Record<string, string> = {};
+    data?.forEach((item: any) => {
+      settings[item.setting_key] = item.setting_value;
+    });
+
+    return {
+      otRateWorkday: parseFloat(settings.ot_rate_workday) || 1.5,
+      otRateWeekend: parseFloat(settings.ot_rate_weekend) || 1.5,
+      otRateHoliday: parseFloat(settings.ot_rate_holiday) || 2.0,
+      requireCheckinWorkday: settings.ot_require_checkin_workday !== "false",
+      requireCheckinWeekend: settings.ot_require_checkin_weekend === "true",
+      requireCheckinHoliday: settings.ot_require_checkin_holiday === "true",
+    };
+  } catch (error) {
+    console.error("Error getting OT settings:", error);
+    return {
+      otRateWorkday: 1.5,
+      otRateWeekend: 1.5,
+      otRateHoliday: 2.0,
+      requireCheckinWorkday: true,
+      requireCheckinWeekend: false,
+      requireCheckinHoliday: false,
+    };
+  }
+}
+
+/**
+ * Get OT rate multiplier based on date
+ * @param date - Date string in format 'YYYY-MM-DD'
+ * @param branchId - Optional branch ID
+ * @returns OT rate info including rate, type, and whether check-in is required
+ */
+export async function getOTRateForDate(
+  date: string,
+  branchId?: string
+) {
+  const dayType = await getDayType(date, branchId);
+  const settings = await getOTSettings();
+
+  switch (dayType.type) {
+    case "holiday":
+      return {
+        rate: settings.otRateHoliday,
+        type: "holiday" as const,
+        typeName: `วันหยุดนักขัตฤกษ์ (${dayType.holidayName})`,
+        requireCheckin: settings.requireCheckinHoliday,
+        holidayName: dayType.holidayName,
+      };
+    case "weekend":
+      return {
+        rate: settings.otRateWeekend,
+        type: "weekend" as const,
+        typeName: "วันหยุดสุดสัปดาห์",
+        requireCheckin: settings.requireCheckinWeekend,
+      };
+    case "workday":
+    default:
+      return {
+        rate: settings.otRateWorkday,
+        type: "workday" as const,
+        typeName: "วันทำงานปกติ",
+        requireCheckin: settings.requireCheckinWorkday,
+      };
+  }
+}
+
+/**
+ * Get OT rate multiplier based on OT type and whether it's a holiday
+ * @deprecated Use getOTRateForDate instead
  */
 export async function getOTRate(
   otType: string,
@@ -50,34 +198,15 @@ export async function getOTRate(
   branchId?: string,
   employeeRates?: { ot_rate_1x?: number; ot_rate_1_5x?: number; ot_rate_2x?: number }
 ) {
-  const holidayInfo = await isHoliday(date, branchId);
-
-  // Default rates
-  const defaultRates = {
-    ot_rate_1x: employeeRates?.ot_rate_1x || 1.0,
-    ot_rate_1_5x: employeeRates?.ot_rate_1_5x || 1.5,
-    ot_rate_2x: employeeRates?.ot_rate_2x || 2.0,
+  const rateInfo = await getOTRateForDate(date, branchId);
+  
+  return {
+    rate: rateInfo.rate,
+    isHoliday: rateInfo.type === "holiday",
+    isWeekend: rateInfo.type === "weekend",
+    holidayName: rateInfo.holidayName,
+    requireCheckin: rateInfo.requireCheckin,
   };
-
-  // If it's a holiday, use 2x rate regardless of OT type
-  if (holidayInfo) {
-    return {
-      rate: defaultRates.ot_rate_2x,
-      isHoliday: true,
-      holidayName: holidayInfo.name,
-    };
-  }
-
-  // Normal day rates
-  switch (otType) {
-    case "holiday":
-      return { rate: defaultRates.ot_rate_2x, isHoliday: false };
-    case "pre_shift":
-      return { rate: defaultRates.ot_rate_1x, isHoliday: false };
-    case "normal":
-    default:
-      return { rate: defaultRates.ot_rate_1_5x, isHoliday: false };
-  }
 }
 
 /**
@@ -129,4 +258,3 @@ export async function getHolidaysInRange(
     return [];
   }
 }
-
