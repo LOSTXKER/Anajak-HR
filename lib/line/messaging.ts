@@ -523,3 +523,46 @@ export async function formatCheckOutMessage(
 📍 สถานที่: ${location}`;
 }
 
+/**
+ * Format early checkout notification (for admin alert)
+ */
+export async function formatEarlyCheckoutMessage(
+  employeeName: string,
+  time: string,
+  totalHours: number,
+  expectedTime: string,
+  location: string
+): Promise<string> {
+  const templateKey = "line_msg_early_checkout";
+
+  try {
+    const { data } = await supabaseServer
+      .from("system_settings")
+      .select("setting_value")
+      .eq("setting_key", templateKey)
+      .single();
+
+    if (data?.setting_value) {
+      return data.setting_value
+        .replace(/{employeeName}/g, employeeName)
+        .replace(/{time}/g, time)
+        .replace(/{totalHours}/g, totalHours.toFixed(1))
+        .replace(/{expectedTime}/g, expectedTime)
+        .replace(/{location}/g, location);
+    }
+  } catch (error) {
+    console.error("Error fetching message template:", error);
+  }
+
+  // Fallback to default message
+  return `⚠️ แจ้งเตือน: เช็คเอาท์ก่อนเวลา
+
+👤 พนักงาน: ${employeeName}
+⏰ เช็คเอาท์เมื่อ: ${time}
+⏱️ ทำงาน: ${totalHours.toFixed(1)} ชั่วโมง
+📍 สถานที่: ${location}
+⚠️ เวลาเช็คเอาท์ปกติ: ${expectedTime} เป็นต้นไป
+
+กรุณาติดตามหรือสอบถามเหตุผล`;
+}
+

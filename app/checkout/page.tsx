@@ -173,9 +173,13 @@ function CheckoutContent() {
       const startTimeInMinutes = startHour * 60 + startMinute;
       const endTimeInMinutes = endHour * 60 + endMinute;
       
-      if (currentTimeInMinutes < startTimeInMinutes || currentTimeInMinutes > endTimeInMinutes) {
+      // ตรวจสอบว่าเป็น early checkout หรือไม่ (ก่อนเวลาปกติ)
+      const isEarlyCheckout = currentTimeInMinutes < startTimeInMinutes;
+      
+      // ป้องกันการ checkout หลังเวลาที่กำหนด (เกินเวลาไป)
+      if (currentTimeInMinutes > endTimeInMinutes) {
         setError(
-          `⚠️ ไม่สามารถเช็คเอาท์นอกเวลาได้\n\n` +
+          `⚠️ ไม่สามารถเช็คเอาท์ได้\n\n` +
           `เวลาที่อนุญาต: ${allowedTime.checkoutStart} - ${allowedTime.checkoutEnd} น.\n` +
           `หากต้องการทำงานนอกเวลา กรุณาขอ OT ก่อน`
         );
@@ -208,7 +212,40 @@ function CheckoutContent() {
 
       if (updateError) throw updateError;
 
-      // ส่งแจ้งเตือน LINE (ไม่บล็อก UI)
+      // ถ้าเป็น Early Checkout → บันทึก anomaly และแจ้งเตือนแอดมิน
+      if (isEarlyCheckout) {
+        // บันทึก anomaly
+        await supabase.from("attendance_anomalies").insert({
+          attendance_log_id: todayLog.id,
+          anomaly_type: "early_checkout",
+          description: `พนักงานเช็คเอาท์ก่อนเวลา (${now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false })}) เวลาปกติ ${allowedTime.checkoutStart} น.`,
+          detected_at: now.toISOString(),
+          original_value: allowedTime.checkoutStart,
+          resolved: false,
+        });
+
+        // แจ้งเตือนแอดมินผ่าน LINE
+        try {
+          fetch("/api/notifications", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "early_checkout",
+              data: {
+                employeeName: employee.name,
+                time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false }),
+                totalHours: totalHours,
+                expectedTime: allowedTime.checkoutStart,
+                location: branch?.name || "สำนักงาน",
+              },
+            }),
+          }).catch((err) => console.error("Failed to send early checkout notification:", err));
+        } catch (notifyError) {
+          console.error("Early checkout notification error:", notifyError);
+        }
+      }
+
+      // ส่งแจ้งเตือน LINE ปกติ (ไม่บล็อก UI)
       try {
         fetch("/api/checkout-notification", {
           method: "POST",

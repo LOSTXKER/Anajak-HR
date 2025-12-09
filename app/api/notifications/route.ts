@@ -4,6 +4,7 @@ import {
   formatOTApprovalMessage,
   formatLeaveApprovalMessage,
   formatWFHApprovalMessage,
+  formatEarlyCheckoutMessage,
 } from "@/lib/line/messaging";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
@@ -58,6 +59,17 @@ export async function POST(request: NextRequest) {
           data.employeeName,
           format(new Date(data.date), "d MMMM yyyy", { locale: th }),
           data.approved
+        );
+        success = await sendLineMessage(message);
+        break;
+
+      case "early_checkout":
+        message = await formatEarlyCheckoutMessage(
+          data.employeeName,
+          data.time,
+          data.totalHours,
+          data.expectedTime,
+          data.location
         );
         success = await sendLineMessage(message);
         break;
