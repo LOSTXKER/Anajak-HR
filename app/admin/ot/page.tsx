@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/Input";
 import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { TimeInput } from "@/components/ui/TimeInput";
+import { DateInput } from "@/components/ui/DateInput";
 import { 
   Clock, 
   CheckCircle, 
@@ -383,11 +384,10 @@ function OTManagementContent() {
           />
         </div>
         <div className="flex gap-2">
-          <input
-            type="date"
+          <DateInput
             value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
+            onChange={setDateFilter}
+            placeholder="วว/ดด/ปปปป"
           />
           {dateFilter && (
             <Button variant="secondary" size="sm" onClick={() => setDateFilter("")}>
@@ -620,15 +620,11 @@ function OTManagementContent() {
         size="lg"
       >
         <div className="space-y-4">
-          <div>
-            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-1">วันที่</label>
-            <input
-              type="date"
-              value={editData.requestDate}
-              onChange={(e) => setEditData({ ...editData, requestDate: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
-            />
-          </div>
+          <DateInput
+            label="วันที่"
+            value={editData.requestDate}
+            onChange={(val) => setEditData({ ...editData, requestDate: val })}
+          />
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -748,11 +744,9 @@ function OTManagementContent() {
               <Calendar className="w-4 h-4 inline mr-1" />
               วันที่ *
             </label>
-            <input
-              type="date"
+            <DateInput
               value={addForm.requestDate}
-              onChange={(e) => setAddForm({ ...addForm, requestDate: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
+              onChange={(val) => setAddForm({ ...addForm, requestDate: val })}
             />
           </div>
 

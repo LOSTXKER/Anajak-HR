@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { DateInput } from "@/components/ui/DateInput";
 import { ArrowLeft, Calendar, FileText, CheckCircle, AlertCircle, Home } from "lucide-react";
 
 function WFHRequestContent() {
@@ -128,13 +129,10 @@ function WFHRequestContent() {
                   <Calendar className="w-4 h-4 text-[#86868b]" />
                   วันที่ต้องการ WFH
                 </label>
-                <input
-                  type="date"
+                <DateInput
                   value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  onChange={(val) => setFormData({ ...formData, date: val })}
                   min={new Date().toISOString().split("T")[0]}
-                  className="w-full px-4 py-3.5 text-[17px] bg-[#f5f5f7] rounded-xl border-0 focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
-                  required
                 />
               </div>
 

@@ -7,6 +7,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { DateInput } from "@/components/ui/DateInput";
 import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
@@ -209,12 +210,9 @@ function HolidaysContent() {
             <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
               วันที่
             </label>
-            <input
-              type="date"
+            <DateInput
               value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
-              required
+              onChange={(val) => setFormData({ ...formData, date: val })}
             />
           </div>
 

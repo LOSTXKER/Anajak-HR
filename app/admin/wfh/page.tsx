@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { DateInput } from "@/components/ui/DateInput";
 import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { 
@@ -462,11 +463,9 @@ function WFHManagementContent() {
               <Calendar className="w-4 h-4 inline mr-1" />
               วันที่ *
             </label>
-            <input
-              type="date"
+            <DateInput
               value={addForm.date}
-              onChange={(e) => setAddForm({ ...addForm, date: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
+              onChange={(val) => setAddForm({ ...addForm, date: val })}
             />
           </div>
 

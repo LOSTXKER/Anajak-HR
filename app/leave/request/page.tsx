@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { DateInput } from "@/components/ui/DateInput";
 import { Badge } from "@/components/ui/Badge";
 import { ArrowLeft, Calendar, FileText, Upload, CheckCircle, AlertCircle, TrendingUp } from "lucide-react";
 
@@ -322,14 +323,9 @@ function LeaveRequestContent() {
                     <Calendar className="w-4 h-4 text-[#86868b]" />
                     เริ่มต้น
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={formData.startDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, startDate: e.target.value })
-                    }
-                    className="w-full px-4 py-3.5 text-[17px] bg-[#f5f5f7] rounded-xl border-0 focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
-                    required
+                    onChange={(val) => setFormData({ ...formData, startDate: val })}
                   />
                 </div>
                 <div>
@@ -337,15 +333,10 @@ function LeaveRequestContent() {
                     <Calendar className="w-4 h-4 text-[#86868b]" />
                     สิ้นสุด
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={formData.endDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, endDate: e.target.value })
-                    }
+                    onChange={(val) => setFormData({ ...formData, endDate: val })}
                     min={formData.startDate}
-                    className="w-full px-4 py-3.5 text-[17px] bg-[#f5f5f7] rounded-xl border-0 focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
-                    required
                   />
                 </div>
               </div>

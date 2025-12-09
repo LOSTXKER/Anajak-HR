@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { DateInput } from "@/components/ui/DateInput";
 import { 
   Clock, 
   ArrowLeft, 
@@ -271,12 +272,10 @@ function LateRequestContent() {
               <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
                 หรือระบุวันที่เอง (สำหรับขอล่วงหน้า)
               </label>
-              <input
-                type="date"
+              <DateInput
                 value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
+                onChange={setSelectedDate}
                 max={format(addDays(new Date(), 7), "yyyy-MM-dd")}
-                className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#ff9500]/20 transition-all"
               />
             </div>
 

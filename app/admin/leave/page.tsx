@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { DateInput } from "@/components/ui/DateInput";
 import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { 
@@ -520,24 +521,17 @@ function LeaveManagementContent() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">วันที่เริ่ม</label>
-              <input
-                type="date"
-                value={addForm.startDate}
-                onChange={(e) => setAddForm({ ...addForm, startDate: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
-              />
-            </div>
-            <div>
-              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">วันที่สิ้นสุด</label>
-              <input
-                type="date"
-                value={addForm.endDate}
-                onChange={(e) => setAddForm({ ...addForm, endDate: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
-              />
-            </div>
+            <DateInput
+              label="วันที่เริ่ม"
+              value={addForm.startDate}
+              onChange={(val) => setAddForm({ ...addForm, startDate: val })}
+            />
+            <DateInput
+              label="วันที่สิ้นสุด"
+              value={addForm.endDate}
+              onChange={(val) => setAddForm({ ...addForm, endDate: val })}
+              min={addForm.startDate}
+            />
           </div>
 
           <label className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-xl cursor-pointer">

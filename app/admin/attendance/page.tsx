@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { TimeInput } from "@/components/ui/TimeInput";
+import { DateInput } from "@/components/ui/DateInput";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { 
@@ -305,11 +306,10 @@ function AttendanceContent() {
           </div>
           <div>
             <label className="block text-[13px] font-medium text-[#86868b] mb-1">วันที่</label>
-            <input
-              type="date"
+            <DateInput
               value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              className="w-full px-3 py-2 bg-[#f5f5f7] rounded-lg text-[14px] border-0 focus:ring-2 focus:ring-[#0071e3]"
+              onChange={setFilterDate}
+              placeholder="วว/ดด/ปปปป"
             />
           </div>
           <div className="flex items-end">
@@ -488,18 +488,11 @@ function AttendanceContent() {
             />
           </div>
 
-          <div>
-            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
-              <Calendar className="w-4 h-4 inline mr-1" />
-              วันที่ *
-            </label>
-            <input
-              type="date"
-              value={addForm.workDate}
-              onChange={(e) => setAddForm({ ...addForm, workDate: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
-            />
-          </div>
+          <DateInput
+            label="วันที่ *"
+            value={addForm.workDate}
+            onChange={(val) => setAddForm({ ...addForm, workDate: val })}
+          />
 
           <div className="grid grid-cols-2 gap-4">
             <div>

@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { TimeInput } from "@/components/ui/TimeInput";
+import { DateInput } from "@/components/ui/DateInput";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { ArrowLeft, Calendar, Clock, FileText, CheckCircle, AlertCircle, PartyPopper } from "lucide-react";
@@ -163,13 +164,10 @@ function OTRequestContent() {
                   <Calendar className="w-4 h-4 text-[#86868b]" />
                   วันที่
                 </label>
-                <input
-                  type="date"
+                <DateInput
                   value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  onChange={(val) => setFormData({ ...formData, date: val })}
                   min={new Date().toISOString().split("T")[0]}
-                  className="w-full px-4 py-3.5 text-[17px] bg-[#f5f5f7] rounded-xl border-0 focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
-                  required
                 />
 
                 {/* Holiday Alert */}
