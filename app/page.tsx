@@ -45,6 +45,11 @@ export default function HomePage() {
   const [timeRemaining, setTimeRemaining] = useState<string>("");
   const [workProgress, setWorkProgress] = useState(0);
   const [isOvertime, setIsOvertime] = useState(false);
+  
+  // Holiday states
+  const [todayHoliday, setTodayHoliday] = useState<any>(null);
+  const [upcomingHolidays, setUpcomingHolidays] = useState<any[]>([]);
+  const [showAllHolidays, setShowAllHolidays] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -154,8 +159,8 @@ export default function HomePage() {
     if (!employee) return;
     const today = new Date().toISOString().split("T")[0];
     
-    // Fetch attendance, active OT, and settings in parallel
-    const [attendanceRes, otRes, settingsRes] = await Promise.all([
+    // Fetch attendance, active OT, settings, and holidays in parallel
+    const [attendanceRes, otRes, settingsRes, holidaysRes] = await Promise.all([
       supabase
         .from("attendance_logs")
         .select("*")
@@ -175,6 +180,12 @@ export default function HomePage() {
         .from("system_settings")
         .select("setting_key, setting_value")
         .in("setting_key", ["work_start_time", "work_end_time", "work_hours_per_day"]),
+      supabase
+        .from("holidays")
+        .select("*")
+        .gte("date", today)
+        .order("date", { ascending: true })
+        .limit(10),
     ]);
 
     setTodayAttendance(attendanceRes.data);
@@ -191,6 +202,19 @@ export default function HomePage() {
         endTime: settings.work_end_time || "18:00",
         hoursPerDay: parseFloat(settings.work_hours_per_day || "8"),
       });
+    }
+    
+    // Parse holidays
+    if (holidaysRes.data) {
+      const holidays = holidaysRes.data;
+      
+      // Check if today is a holiday
+      const todayHol = holidays.find((h: any) => h.date === today);
+      setTodayHoliday(todayHol);
+      
+      // Get upcoming holidays (next 3, excluding today)
+      const upcoming = holidays.filter((h: any) => h.date > today).slice(0, 3);
+      setUpcomingHolidays(upcoming);
     }
   };
 
@@ -588,6 +612,72 @@ export default function HomePage() {
                 จบ OT
               </button>
             </Link>
+          </div>
+        )}
+        
+        {/* Today Holiday Banner */}
+        {todayHoliday && (
+          <div className="rounded-2xl p-5 mb-4 bg-gradient-to-br from-[#af52de] to-[#9b59b6]">
+            <div className="flex items-center gap-3">
+              <div className="text-[32px]">🎉</div>
+              <div className="flex-1">
+                <p className="text-[15px] font-medium text-white/80">วันนี้วันหยุด</p>
+                <p className="text-[20px] font-bold text-white">{todayHoliday.name}</p>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Upcoming Holidays Card */}
+        {upcomingHolidays.length > 0 && (
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#e8e8ed] mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-[#0071e3]" />
+                <h3 className="text-[16px] font-semibold text-[#1d1d1f]">วันหยุดถัดไป</h3>
+              </div>
+              <button
+                onClick={() => setShowAllHolidays(!showAllHolidays)}
+                className="text-[13px] text-[#0071e3] hover:underline"
+              >
+                {showAllHolidays ? "ซ่อน" : "ดูทั้งหมด"}
+              </button>
+            </div>
+            
+            <div className="space-y-3">
+              {upcomingHolidays.map((holiday: any) => {
+                const holidayDate = new Date(holiday.date);
+                const today = new Date();
+                const daysUntil = Math.ceil((holidayDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                
+                return (
+                  <div key={holiday.id} className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-xl">
+                    <div className="w-12 h-12 bg-[#af52de]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <span className="text-[20px]">🗓️</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[15px] font-medium text-[#1d1d1f] truncate">
+                        {holiday.name}
+                      </p>
+                      <p className="text-[13px] text-[#86868b]">
+                        {format(holidayDate, "d MMMM yyyy", { locale: require("date-fns/locale/th") })}
+                        {daysUntil > 0 && (
+                          <span className="text-[#af52de]"> • อีก {daysUntil} วัน</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {showAllHolidays && (
+              <Link href="/holidays">
+                <button className="w-full mt-3 py-2.5 text-[14px] text-[#0071e3] font-medium hover:bg-[#0071e3]/10 rounded-xl transition-colors">
+                  ดูปฏิทินวันหยุดทั้งหมด
+                </button>
+              </Link>
+            )}
           </div>
         )}
 
