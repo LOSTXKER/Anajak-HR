@@ -191,7 +191,7 @@ function CheckoutContent() {
         return;
       }
 
-      const now = new Date();
+      // คำนวณชั่วโมงทำงาน (ใช้ now จากข้างบน)
       const clockIn = new Date(todayLog.clock_in_time);
       const totalHours = (now.getTime() - clockIn.getTime()) / (1000 * 60 * 60);
 
