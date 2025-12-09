@@ -470,10 +470,10 @@ function AutoCheckoutContent() {
               </div>
               <TimeInput
                 value={settings.auto_checkout_time}
-                onChange={(e) =>
+                onChange={(val) =>
                   setSettings((prev) => ({
                     ...prev,
-                    auto_checkout_time: e.target.value,
+                    auto_checkout_time: val,
                   }))
                 }
                 className="w-32"

@@ -213,7 +213,7 @@ function NotificationSettingsContent() {
                   <TimeInput
                     label="เวลาส่งแจ้งเตือน"
                     value={settings.holidayNotificationTime}
-                    onChange={(e) => setSettings({ ...settings, holidayNotificationTime: e.target.value })}
+                    onChange={(val) => setSettings({ ...settings, holidayNotificationTime: val })}
                   />
                 </div>
 

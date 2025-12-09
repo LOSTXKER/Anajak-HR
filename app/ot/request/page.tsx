@@ -199,12 +199,12 @@ function OTRequestContent() {
                 <TimeInput
                   label="เริ่ม"
                   value={formData.startTime}
-                  onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                  onChange={(val) => setFormData({ ...formData, startTime: val })}
                 />
                 <TimeInput
                   label="สิ้นสุด"
                   value={formData.endTime}
-                  onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                  onChange={(val) => setFormData({ ...formData, endTime: val })}
                 />
               </div>
 

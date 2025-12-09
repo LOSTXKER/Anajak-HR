@@ -194,12 +194,12 @@ function SettingsContent() {
               <TimeInput
                 label="เวลาเข้างาน"
                 value={settings.workStartTime}
-                onChange={(e) => setSettings({ ...settings, workStartTime: e.target.value })}
+                onChange={(val) => setSettings({ ...settings, workStartTime: val })}
               />
               <TimeInput
                 label="เวลาเลิกงาน"
                 value={settings.workEndTime}
-                onChange={(e) => setSettings({ ...settings, workEndTime: e.target.value })}
+                onChange={(val) => setSettings({ ...settings, workEndTime: val })}
               />
             </div>
 

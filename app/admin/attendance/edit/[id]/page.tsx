@@ -311,13 +311,13 @@ function EditAttendanceContent() {
               <TimeInput
                 label="เวลาเช็คอิน"
                 value={clockIn}
-                onChange={(e) => setClockIn(e.target.value)}
+                onChange={setClockIn}
                 className="text-[17px] font-semibold"
               />
               <TimeInput
                 label="เวลาเช็คเอาท์"
                 value={clockOut}
-                onChange={(e) => setClockOut(e.target.value)}
+                onChange={setClockOut}
                 className="text-[17px] font-semibold"
               />
             </div>

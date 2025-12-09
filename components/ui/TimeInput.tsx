@@ -1,20 +1,23 @@
 "use client";
 
-import { InputHTMLAttributes, forwardRef, useState, useEffect } from "react";
+import { forwardRef, useState, useEffect } from "react";
 
-interface TimeInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'onChange'> {
+interface TimeInputProps {
   label?: string;
   error?: string;
   value?: string;
-  onChange?: (e: { target: { value: string } }) => void;
+  onChange?: (value: string) => void;
+  className?: string;
+  disabled?: boolean;
+  placeholder?: string;
 }
 
 export const TimeInput = forwardRef<HTMLInputElement, TimeInputProps>(
-  ({ label, error, value = "", onChange, className = "", disabled, ...props }, ref) => {
-    const [displayValue, setDisplayValue] = useState(value);
+  ({ label, error, value = "", onChange, className = "", disabled, placeholder = "HH:MM" }, ref) => {
+    const [displayValue, setDisplayValue] = useState(value || "");
 
     useEffect(() => {
-      setDisplayValue(value);
+      setDisplayValue(value || "");
     }, [value]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,7 +43,7 @@ export const TimeInput = forwardRef<HTMLInputElement, TimeInputProps>(
         // Normalize to HH:MM format
         const [hours, minutes] = newValue.split(':');
         const normalizedTime = `${hours.padStart(2, '0')}:${minutes}`;
-        onChange?.({ target: { value: normalizedTime } });
+        onChange?.(normalizedTime);
       }
     };
 
@@ -50,7 +53,7 @@ export const TimeInput = forwardRef<HTMLInputElement, TimeInputProps>(
         const [hours, minutes] = displayValue.split(':');
         const normalizedTime = `${hours.padStart(2, '0')}:${minutes}`;
         setDisplayValue(normalizedTime);
-        onChange?.({ target: { value: normalizedTime } });
+        onChange?.(normalizedTime);
       }
     };
 
@@ -66,7 +69,7 @@ export const TimeInput = forwardRef<HTMLInputElement, TimeInputProps>(
             ref={ref}
             type="text"
             inputMode="numeric"
-            placeholder="HH:MM"
+            placeholder={placeholder}
             maxLength={5}
             value={displayValue}
             onChange={handleChange}
@@ -83,7 +86,6 @@ export const TimeInput = forwardRef<HTMLInputElement, TimeInputProps>(
               ${disabled ? "opacity-50 cursor-not-allowed" : ""}
               ${className}
             `}
-            {...props}
           />
           <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-[#86868b] text-[13px]">
             น.
