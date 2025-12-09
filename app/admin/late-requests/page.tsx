@@ -66,12 +66,10 @@ function LateRequestsContent() {
       const startDate = format(startOfMonth(currentMonth), "yyyy-MM-dd");
       const endDate = format(endOfMonth(currentMonth), "yyyy-MM-dd");
 
+      // First fetch late requests
       let query = supabase
         .from("late_requests")
-        .select(`
-          *,
-          employees (name, email)
-        `)
+        .select("*")
         .gte("request_date", startDate)
         .lte("request_date", endDate)
         .order("created_at", { ascending: false });
@@ -80,13 +78,43 @@ function LateRequestsContent() {
         query = query.eq("status", statusFilter);
       }
 
-      const { data, error } = await query;
+      const { data: lateData, error: lateError } = await query;
 
-      if (error) throw error;
-      setRequests(data || []);
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลได้");
+      if (lateError) {
+        console.error("Late requests error:", lateError);
+        throw lateError;
+      }
+
+      if (!lateData || lateData.length === 0) {
+        setRequests([]);
+        return;
+      }
+
+      // Fetch employee info separately
+      const employeeIds = [...new Set(lateData.map(r => r.employee_id))];
+      const { data: employeesData, error: empError } = await supabase
+        .from("employees")
+        .select("id, name, email")
+        .in("id", employeeIds);
+
+      if (empError) {
+        console.error("Employees error:", empError);
+      }
+
+      // Map employees to requests
+      const employeeMap = new Map(
+        (employeesData || []).map(e => [e.id, { name: e.name, email: e.email }])
+      );
+
+      const requestsWithEmployees = lateData.map(req => ({
+        ...req,
+        employees: employeeMap.get(req.employee_id) || { name: "Unknown", email: "" }
+      }));
+
+      setRequests(requestsWithEmployees);
+    } catch (error: any) {
+      console.error("Error details:", JSON.stringify(error, null, 2));
+      toast.error("เกิดข้อผิดพลาด", error?.message || "ไม่สามารถโหลดข้อมูลได้");
     } finally {
       setLoading(false);
     }
