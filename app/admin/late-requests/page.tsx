@@ -203,9 +203,9 @@ function LateRequestsContent() {
 
       // Apply history filter
       if (historyFilter === "with_request") {
-        historyData = historyData.filter(h => h.has_approved_request);
+        historyData = historyData.filter((h: any) => h.has_approved_request);
       } else if (historyFilter === "no_request") {
-        historyData = historyData.filter(h => !h.has_approved_request);
+        historyData = historyData.filter((h: any) => !h.has_approved_request);
       }
 
       setLateHistory(historyData);
