@@ -16,9 +16,6 @@ import {
   X,
   FileText,
   Home,
-  Building2,
-  PartyPopper,
-  AlertTriangle,
   DollarSign,
   Activity,
 } from "lucide-react";
@@ -43,25 +40,21 @@ export function Sidebar() {
   const { employee, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pendingCounts, setPendingCounts] = useState({
-    approvals: 0,
+    employees: 0,
     ot: 0,
     leave: 0,
     wfh: 0,
-    anomalies: 0,
   });
 
-  // ดึงจำนวนคำขอที่รออนุมัติ
   useEffect(() => {
     fetchPendingCounts();
-    
-    // อัพเดททุก 30 วินาที
     const interval = setInterval(fetchPendingCounts, 30000);
     return () => clearInterval(interval);
   }, []);
 
   const fetchPendingCounts = async () => {
     try {
-      const [approvalsResult, otResult, leaveResult, wfhResult, anomaliesResult] = await Promise.all([
+      const [employeesResult, otResult, leaveResult, wfhResult] = await Promise.all([
         supabase
           .from("employees")
           .select("id", { count: "exact", head: true })
@@ -78,18 +71,13 @@ export function Sidebar() {
           .from("wfh_requests")
           .select("id", { count: "exact", head: true })
           .eq("status", "pending"),
-        supabase
-          .from("attendance_anomalies")
-          .select("id", { count: "exact", head: true })
-          .eq("status", "pending"),
       ]);
 
       setPendingCounts({
-        approvals: approvalsResult.count || 0,
+        employees: employeesResult.count || 0,
         ot: otResult.count || 0,
         leave: leaveResult.count || 0,
         wfh: wfhResult.count || 0,
-        anomalies: anomaliesResult.count || 0,
       });
     } catch (error) {
       console.error("Error fetching pending counts:", error);
@@ -105,40 +93,26 @@ export function Sidebar() {
       ],
     },
     {
-      title: "การเข้างาน",
-      items: [
-        { title: "บันทึกการเข้างาน", href: "/admin/attendance", icon: Clock },
-        { title: "ตรวจสอบความผิดปกติ", href: "/admin/anomalies", icon: AlertTriangle, badge: pendingCounts.anomalies },
-      ],
-    },
-    {
-      title: "คำขออนุมัติ",
-      items: [
-        { title: "อนุมัติบัญชี", href: "/admin/approvals", icon: Users, badge: pendingCounts.approvals },
-        { title: "คำขอ OT", href: "/admin/ot", icon: Calendar, badge: pendingCounts.ot },
-        { title: "คำขอลา", href: "/admin/leave", icon: FileText, badge: pendingCounts.leave },
-        { title: "คำขอ WFH", href: "/admin/wfh", icon: Home, badge: pendingCounts.wfh },
-      ],
-    },
-    {
       title: "จัดการข้อมูล",
       items: [
-        { title: "พนักงาน", href: "/admin/employees", icon: Users },
-        { title: "สาขา", href: "/admin/branches", icon: Building2 },
-        { title: "วันหยุด", href: "/admin/holidays", icon: PartyPopper },
+        { title: "พนักงาน", href: "/admin/employees", icon: Users, badge: pendingCounts.employees },
+        { title: "การเข้างาน", href: "/admin/attendance", icon: Clock },
+        { title: "OT", href: "/admin/ot", icon: Calendar, badge: pendingCounts.ot },
+        { title: "การลา", href: "/admin/leave", icon: FileText, badge: pendingCounts.leave },
+        { title: "WFH", href: "/admin/wfh", icon: Home, badge: pendingCounts.wfh },
       ],
     },
     {
-      title: "รายงาน & การเงิน",
+      title: "รายงาน & ตั้งค่า",
       items: [
+        { title: "เงินเดือน", href: "/admin/payroll", icon: DollarSign },
         { title: "รายงาน", href: "/admin/reports", icon: BarChart3 },
-        { title: "เงินเดือน (Payroll)", href: "/admin/payroll", icon: DollarSign },
-        { title: "ตั้งค่าระบบ", href: "/admin/settings", icon: Settings },
+        { title: "ตั้งค่า", href: "/admin/settings", icon: Settings },
       ],
     },
   ];
 
-  const totalPending = pendingCounts.approvals + pendingCounts.ot + pendingCounts.leave + pendingCounts.wfh;
+  const totalPending = pendingCounts.employees + pendingCounts.ot + pendingCounts.leave + pendingCounts.wfh;
 
   const handleSignOut = async () => {
     await signOut();
@@ -171,7 +145,7 @@ export function Sidebar() {
             {/* Section Items */}
             <div className="space-y-0.5">
               {section.items.map((item) => {
-                const isActive = pathname === item.href;
+                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
                 return (
                   <Link
                     key={item.href}

@@ -20,13 +20,13 @@ import {
   Trash2, 
   Edit2, 
   Play, 
-  Square, 
   Calendar,
   Search,
-  Filter,
   RotateCcw,
   Camera,
   X,
+  Plus,
+  User,
 } from "lucide-react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
@@ -66,9 +66,36 @@ function OTManagementContent() {
     status: "",
   });
 
+  // Add OT modal
+  const [addModal, setAddModal] = useState(false);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [addForm, setAddForm] = useState({
+    employeeId: "",
+    requestDate: format(new Date(), "yyyy-MM-dd"),
+    startTime: "18:00",
+    endTime: "21:00",
+    reason: "",
+    status: "approved",
+    otType: "normal",
+  });
+
   useEffect(() => {
     fetchOT();
+    fetchEmployees();
   }, [filter, dateFilter]);
+
+  const fetchEmployees = async () => {
+    try {
+      const { data } = await supabase
+        .from("employees")
+        .select("id, name, email")
+        .eq("account_status", "approved")
+        .order("name");
+      setEmployees(data || []);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+    }
+  };
 
   const fetchOT = async () => {
     setLoading(true);
@@ -233,6 +260,51 @@ function OTManagementContent() {
     }
   };
 
+  const handleAddOT = async () => {
+    if (!addForm.employeeId || !addForm.requestDate || !addForm.reason) {
+      toast.error("กรุณากรอกข้อมูล", "เลือกพนักงาน วันที่ และเหตุผล");
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const { error } = await supabase
+        .from("ot_requests")
+        .insert({
+          employee_id: addForm.employeeId,
+          request_date: addForm.requestDate,
+          requested_start_time: `${addForm.requestDate}T${addForm.startTime}:00`,
+          requested_end_time: `${addForm.requestDate}T${addForm.endTime}:00`,
+          approved_start_time: addForm.status === "approved" ? `${addForm.requestDate}T${addForm.startTime}:00` : null,
+          approved_end_time: addForm.status === "approved" ? `${addForm.requestDate}T${addForm.endTime}:00` : null,
+          reason: addForm.reason,
+          status: addForm.status,
+          ot_type: addForm.otType,
+          approved_by: addForm.status === "approved" ? employee?.id : null,
+        });
+
+      if (error) throw error;
+
+      toast.success("สำเร็จ", "เพิ่ม OT เรียบร้อยแล้ว");
+      setAddModal(false);
+      setAddForm({
+        employeeId: "",
+        requestDate: format(new Date(), "yyyy-MM-dd"),
+        startTime: "18:00",
+        endTime: "21:00",
+        reason: "",
+        status: "approved",
+        otType: "normal",
+      });
+      fetchOT();
+    } catch (error: any) {
+      console.error("Error adding OT:", error);
+      toast.error("เกิดข้อผิดพลาด", error?.message || "ไม่สามารถเพิ่ม OT ได้");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   // Filter by search term
   const filteredRequests = otRequests.filter((ot) => {
     if (!searchTerm) return true;
@@ -322,6 +394,10 @@ function OTManagementContent() {
               <X className="w-4 h-4" />
             </Button>
           )}
+          <Button onClick={() => setAddModal(true)}>
+            <Plus className="w-4 h-4" />
+            เพิ่ม OT
+          </Button>
         </div>
       </div>
 
@@ -635,6 +711,109 @@ function OTManagementContent() {
             </Button>
             <Button onClick={handleSaveEdit} loading={processing} className="flex-1">
               บันทึก
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Add OT Modal */}
+      <Modal
+        isOpen={addModal}
+        onClose={() => setAddModal(false)}
+        title="เพิ่ม OT ให้พนักงาน"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
+              <User className="w-4 h-4 inline mr-1" />
+              พนักงาน *
+            </label>
+            <select
+              value={addForm.employeeId}
+              onChange={(e) => setAddForm({ ...addForm, employeeId: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
+            >
+              <option value="">เลือกพนักงาน</option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.name} ({emp.email})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
+              <Calendar className="w-4 h-4 inline mr-1" />
+              วันที่ *
+            </label>
+            <input
+              type="date"
+              value={addForm.requestDate}
+              onChange={(e) => setAddForm({ ...addForm, requestDate: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เวลาเริ่ม</label>
+              <TimeInput
+                value={addForm.startTime}
+                onChange={(val) => setAddForm({ ...addForm, startTime: val })}
+              />
+            </div>
+            <div>
+              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เวลาจบ</label>
+              <TimeInput
+                value={addForm.endTime}
+                onChange={(val) => setAddForm({ ...addForm, endTime: val })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">ประเภท OT</label>
+              <select
+                value={addForm.otType}
+                onChange={(e) => setAddForm({ ...addForm, otType: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
+              >
+                <option value="normal">ปกติ (1.5x)</option>
+                <option value="holiday">วันหยุด (2x)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">สถานะ</label>
+              <select
+                value={addForm.status}
+                onChange={(e) => setAddForm({ ...addForm, status: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
+              >
+                <option value="approved">อนุมัติทันที</option>
+                <option value="pending">รออนุมัติ</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เหตุผล *</label>
+            <Input
+              value={addForm.reason}
+              onChange={(e) => setAddForm({ ...addForm, reason: e.target.value })}
+              placeholder="เช่น งานด่วน, ปิดงบ, ประชุมลูกค้า"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button variant="secondary" onClick={() => setAddModal(false)} className="flex-1">
+              ยกเลิก
+            </Button>
+            <Button onClick={handleAddOT} loading={processing} className="flex-1">
+              <Plus className="w-4 h-4" />
+              เพิ่ม OT
             </Button>
           </div>
         </div>

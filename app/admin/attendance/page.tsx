@@ -2,26 +2,74 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
-import { ChevronLeft, ChevronRight, Download, Clock, X, Camera, Image, Edit, AlertCircle } from "lucide-react";
+import { Input } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
+import { TimeInput } from "@/components/ui/TimeInput";
+import { useToast } from "@/components/ui/Toast";
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  Download, 
+  Clock, 
+  X, 
+  Camera, 
+  Edit, 
+  AlertCircle,
+  Plus,
+  User,
+  Calendar,
+  Sun,
+} from "lucide-react";
 import Link from "next/link";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { th } from "date-fns/locale";
 
 function AttendanceContent() {
+  const { employee: currentAdmin } = useAuth();
+  const toast = useToast();
   const [attendance, setAttendance] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
 
+  // Add attendance modal
+  const [addModal, setAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({
+    employeeId: "",
+    workDate: format(new Date(), "yyyy-MM-dd"),
+    clockInTime: "09:00",
+    clockOutTime: "18:00",
+    status: "present",
+    isLate: false,
+    note: "",
+  });
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     fetchAttendance();
+    fetchEmployees();
   }, [currentMonth]);
+
+  const fetchEmployees = async () => {
+    try {
+      const { data } = await supabase
+        .from("employees")
+        .select("id, name, email")
+        .eq("account_status", "approved")
+        .order("name");
+      setEmployees(data || []);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+    }
+  };
 
   const fetchAttendance = async () => {
     setLoading(true);
@@ -29,7 +77,6 @@ function AttendanceContent() {
       const startDate = format(startOfMonth(currentMonth), "yyyy-MM-dd");
       const endDate = format(endOfMonth(currentMonth), "yyyy-MM-dd");
 
-      // ดึงข้อมูลเฉพาะพนักงานที่ไม่ใช่ admin
       const { data } = await supabase
         .from("attendance_logs")
         .select(`*, employee:employees!employee_id (name, email, role)`)
@@ -42,6 +89,55 @@ function AttendanceContent() {
       console.error("Error:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddAttendance = async () => {
+    if (!addForm.employeeId || !addForm.workDate) {
+      toast.error("กรุณากรอกข้อมูล", "เลือกพนักงานและวันที่");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Calculate total hours
+      const clockIn = new Date(`${addForm.workDate}T${addForm.clockInTime}:00`);
+      const clockOut = new Date(`${addForm.workDate}T${addForm.clockOutTime}:00`);
+      const totalHours = (clockOut.getTime() - clockIn.getTime()) / (1000 * 60 * 60);
+
+      const { error } = await supabase
+        .from("attendance_logs")
+        .insert({
+          employee_id: addForm.employeeId,
+          work_date: addForm.workDate,
+          clock_in_time: clockIn.toISOString(),
+          clock_out_time: clockOut.toISOString(),
+          total_hours: totalHours > 0 ? totalHours : 0,
+          status: addForm.status,
+          is_late: addForm.isLate,
+          note: addForm.note || `เพิ่มโดย Admin`,
+          created_by: currentAdmin?.id,
+        });
+
+      if (error) throw error;
+
+      toast.success("สำเร็จ", "เพิ่มการเข้างานเรียบร้อยแล้ว");
+      setAddModal(false);
+      setAddForm({
+        employeeId: "",
+        workDate: format(new Date(), "yyyy-MM-dd"),
+        clockInTime: "09:00",
+        clockOutTime: "18:00",
+        status: "present",
+        isLate: false,
+        note: "",
+      });
+      fetchAttendance();
+    } catch (error: any) {
+      console.error("Error adding attendance:", error);
+      toast.error("เกิดข้อผิดพลาด", error?.message || "ไม่สามารถเพิ่มการเข้างานได้");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -66,14 +162,22 @@ function AttendanceContent() {
 
   const stats = {
     total: attendance.length,
-    normal: attendance.filter((a) => a.clock_in_time && !a.is_late).length,
+    normal: attendance.filter((a) => a.clock_in_time && !a.is_late && a.status !== "holiday").length,
     late: attendance.filter((a) => a.is_late).length,
+    holiday: attendance.filter((a) => a.status === "holiday").length,
     hours: attendance.reduce((sum, a) => sum + (a.total_hours || 0), 0),
+  };
+
+  const getStatusBadge = (log: any) => {
+    if (log.status === "holiday") {
+      return <Badge variant="info"><Sun className="w-3 h-3 mr-1" />วันหยุด</Badge>;
+    }
+    return <Badge variant={log.is_late ? "warning" : "success"}>{log.is_late ? "สาย" : "ปกติ"}</Badge>;
   };
 
   return (
     <AdminLayout title="ข้อมูลการเข้างาน">
-      {/* Month Navigation */}
+      {/* Header Actions */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <button
@@ -92,26 +196,33 @@ function AttendanceContent() {
             <ChevronRight className="w-5 h-5 text-[#6e6e73]" />
           </button>
         </div>
-        <Button variant="secondary" size="sm" onClick={exportCSV}>
-          <Download className="w-4 h-4" />
-          Export
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setAddModal(true)}>
+            <Plus className="w-4 h-4" />
+            เพิ่มการเข้างาน
+          </Button>
+          <Button variant="secondary" size="sm" onClick={exportCSV}>
+            <Download className="w-4 h-4" />
+            Export
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         {[
           { label: "รายการ", value: stats.total },
           { label: "ปกติ", value: stats.normal, color: "text-[#34c759]" },
           { label: "มาสาย", value: stats.late, color: "text-[#ff9500]" },
+          { label: "วันหยุด", value: stats.holiday, color: "text-[#af52de]" },
           { label: "ชั่วโมงรวม", value: stats.hours.toFixed(0), color: "text-[#0071e3]" },
         ].map((stat, i) => (
           <Card key={i} elevated>
             <div className="text-center py-2">
-              <p className={`text-[28px] font-semibold ${stat.color || "text-[#1d1d1f]"}`}>
+              <p className={`text-[24px] font-semibold ${stat.color || "text-[#1d1d1f]"}`}>
                 {stat.value}
               </p>
-              <p className="text-[13px] text-[#86868b]">{stat.label}</p>
+              <p className="text-[12px] text-[#86868b]">{stat.label}</p>
             </div>
           </Card>
         ))}
@@ -132,30 +243,14 @@ function AttendanceContent() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#e8e8ed]">
-                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">
-                    วันที่
-                  </th>
-                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">
-                    พนักงาน
-                  </th>
-                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">
-                    เข้างาน
-                  </th>
-                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">
-                    ออกงาน
-                  </th>
-                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">
-                    ชั่วโมง
-                  </th>
-                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">
-                    สถานะ
-                  </th>
-                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">
-                    รูปภาพ
-                  </th>
-                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">
-                    จัดการ
-                  </th>
+                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">วันที่</th>
+                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">พนักงาน</th>
+                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">เข้างาน</th>
+                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">ออกงาน</th>
+                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">ชั่วโมง</th>
+                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">สถานะ</th>
+                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">รูปภาพ</th>
+                  <th className="text-left px-6 py-4 text-[13px] font-semibold text-[#86868b] uppercase">จัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e8e8ed]">
@@ -169,25 +264,19 @@ function AttendanceContent() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <Avatar name={log.employee?.name || "?"} size="sm" />
-                        <span className="text-[14px] text-[#1d1d1f]">
-                          {log.employee?.name}
-                        </span>
+                        <span className="text-[14px] text-[#1d1d1f]">{log.employee?.name}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 text-[14px] text-[#6e6e73]">
                         <Clock className="w-4 h-4" />
-                        {log.clock_in_time
-                          ? format(new Date(log.clock_in_time), "HH:mm")
-                          : "-"}
+                        {log.clock_in_time ? format(new Date(log.clock_in_time), "HH:mm") : "-"}
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 text-[14px] text-[#6e6e73]">
                         <Clock className="w-4 h-4" />
-                        {log.clock_out_time
-                          ? format(new Date(log.clock_out_time), "HH:mm")
-                          : "-"}
+                        {log.clock_out_time ? format(new Date(log.clock_out_time), "HH:mm") : "-"}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -195,18 +284,13 @@ function AttendanceContent() {
                         {log.total_hours?.toFixed(1) || "0"} ชม.
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <Badge variant={log.is_late ? "warning" : "success"}>
-                        {log.is_late ? "สาย" : "ปกติ"}
-                      </Badge>
-                    </td>
+                    <td className="px-6 py-4">{getStatusBadge(log)}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         {log.clock_in_photo_url && (
                           <button
                             onClick={() => setViewingPhoto(log.clock_in_photo_url)}
-                            className="flex items-center gap-1 px-2 py-1 text-[12px] text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/20 transition-colors"
-                            title="รูปเช็คอิน"
+                            className="flex items-center gap-1 px-2 py-1 text-[12px] text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/20"
                           >
                             <Camera className="w-3 h-3" />
                             เข้า
@@ -215,8 +299,7 @@ function AttendanceContent() {
                         {log.clock_out_photo_url && (
                           <button
                             onClick={() => setViewingPhoto(log.clock_out_photo_url)}
-                            className="flex items-center gap-1 px-2 py-1 text-[12px] text-[#34c759] bg-[#34c759]/10 rounded-lg hover:bg-[#34c759]/20 transition-colors"
-                            title="รูปเช็คเอาท์"
+                            className="flex items-center gap-1 px-2 py-1 text-[12px] text-[#34c759] bg-[#34c759]/10 rounded-lg hover:bg-[#34c759]/20"
                           >
                             <Camera className="w-3 h-3" />
                             ออก
@@ -231,8 +314,7 @@ function AttendanceContent() {
                       <div className="flex items-center gap-2">
                         <Link
                           href={`/admin/attendance/edit/${log.id}`}
-                          className="flex items-center gap-1 px-3 py-1.5 text-[12px] text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/20 transition-colors"
-                          title="แก้ไขเวลา"
+                          className="flex items-center gap-1 px-3 py-1.5 text-[12px] text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/20"
                         >
                           <Edit className="w-3.5 h-3.5" />
                           แก้ไข
@@ -240,18 +322,14 @@ function AttendanceContent() {
                         {!log.clock_out_time && (
                           <span className="flex items-center gap-1 px-2 py-1 text-[11px] text-[#ff9500] bg-[#ff9500]/10 rounded-lg">
                             <AlertCircle className="w-3 h-3" />
-                            ไม่มีเช็คเอาท์
+                            ไม่เช็คเอาท์
                           </span>
                         )}
                         {log.auto_checkout && (
-                          <span className="px-2 py-1 text-[11px] text-[#0071e3] bg-[#0071e3]/10 rounded-lg">
-                            Auto
-                          </span>
+                          <span className="px-2 py-1 text-[11px] text-[#0071e3] bg-[#0071e3]/10 rounded-lg">Auto</span>
                         )}
                         {log.edited_at && (
-                          <span className="px-2 py-1 text-[11px] text-[#86868b] bg-[#f5f5f7] rounded-lg">
-                            แก้ไขแล้ว
-                          </span>
+                          <span className="px-2 py-1 text-[11px] text-[#86868b] bg-[#f5f5f7] rounded-lg">แก้ไขแล้ว</span>
                         )}
                       </div>
                     </td>
@@ -262,6 +340,107 @@ function AttendanceContent() {
           </div>
         )}
       </Card>
+
+      {/* Add Attendance Modal */}
+      <Modal
+        isOpen={addModal}
+        onClose={() => setAddModal(false)}
+        title="เพิ่มการเข้างาน"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
+              <User className="w-4 h-4 inline mr-1" />
+              พนักงาน *
+            </label>
+            <select
+              value={addForm.employeeId}
+              onChange={(e) => setAddForm({ ...addForm, employeeId: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
+            >
+              <option value="">เลือกพนักงาน</option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.name} ({emp.email})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
+              <Calendar className="w-4 h-4 inline mr-1" />
+              วันที่ *
+            </label>
+            <input
+              type="date"
+              value={addForm.workDate}
+              onChange={(e) => setAddForm({ ...addForm, workDate: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เวลาเข้างาน</label>
+              <TimeInput
+                value={addForm.clockInTime}
+                onChange={(val) => setAddForm({ ...addForm, clockInTime: val })}
+              />
+            </div>
+            <div>
+              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เวลาออกงาน</label>
+              <TimeInput
+                value={addForm.clockOutTime}
+                onChange={(val) => setAddForm({ ...addForm, clockOutTime: val })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">สถานะ</label>
+            <select
+              value={addForm.status}
+              onChange={(e) => setAddForm({ ...addForm, status: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
+            >
+              <option value="present">ปกติ</option>
+              <option value="holiday">วันหยุด (OT)</option>
+              <option value="wfh">WFH</option>
+            </select>
+          </div>
+
+          <label className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-xl cursor-pointer">
+            <input
+              type="checkbox"
+              checked={addForm.isLate}
+              onChange={(e) => setAddForm({ ...addForm, isLate: e.target.checked })}
+              className="w-5 h-5 rounded"
+            />
+            <span className="text-[15px] text-[#1d1d1f]">มาสาย</span>
+          </label>
+
+          <div>
+            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">หมายเหตุ</label>
+            <Input
+              value={addForm.note}
+              onChange={(e) => setAddForm({ ...addForm, note: e.target.value })}
+              placeholder="เช่น เพิ่มให้เพราะลืมเช็คอิน"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button variant="secondary" onClick={() => setAddModal(false)} className="flex-1">
+              ยกเลิก
+            </Button>
+            <Button onClick={handleAddAttendance} loading={saving} className="flex-1">
+              <Plus className="w-4 h-4" />
+              เพิ่ม
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Photo Modal */}
       {viewingPhoto && (
@@ -275,11 +454,7 @@ function AttendanceContent() {
           >
             <X className="w-5 h-5" />
           </button>
-          <img
-            src={viewingPhoto}
-            alt=""
-            className="max-w-full max-h-[90vh] rounded-2xl"
-          />
+          <img src={viewingPhoto} alt="" className="max-w-full max-h-[90vh] rounded-2xl" />
         </div>
       )}
     </AdminLayout>
