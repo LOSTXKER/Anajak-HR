@@ -27,7 +27,7 @@ import { th } from "date-fns/locale";
 
 interface ActiveOT {
   id: string;
-  employee: { id: string; name: string; email: string };
+  employee: { id: string; name: string; email: string; is_system_account?: boolean };
   request_date: string;
   actual_start_time: string;
   approved_end_time: string;
@@ -110,11 +110,20 @@ function MonitorContent() {
         pendingWFHResult,
         recentResult,
       ] = await Promise.all([
-        supabase.from("employees").select("id").neq("role", "admin"),
-        supabase.from("attendance_logs").select("*").eq("work_date", today),
+        // กรองเฉพาะพนักงานจริง (ไม่รวมบัญชีระบบ)
+        supabase
+          .from("employees")
+          .select("id")
+          .neq("role", "admin")
+          .or("is_system_account.is.null,is_system_account.eq.false"),
+        // ดึง attendance พร้อมข้อมูลพนักงาน
+        supabase
+          .from("attendance_logs")
+          .select("*, employee:employees!employee_id(id, is_system_account)")
+          .eq("work_date", today),
         supabase
           .from("ot_requests")
-          .select("*, employee:employees!employee_id(id, name, email)")
+          .select("*, employee:employees!employee_id(id, name, email, is_system_account)")
           .eq("status", "approved")
           .not("actual_start_time", "is", null)
           .is("actual_end_time", null),
@@ -123,17 +132,31 @@ function MonitorContent() {
         supabase.from("wfh_requests").select("id", { count: "exact" }).eq("status", "pending"),
         supabase
           .from("attendance_logs")
-          .select("*, employee:employees!employee_id(name)")
+          .select("*, employee:employees!employee_id(name, is_system_account)")
           .eq("work_date", today)
           .order("clock_in_time", { ascending: false })
-          .limit(10),
+          .limit(20), // Fetch more to filter
       ]);
 
       const totalEmployees = employeesResult.data?.length || 0;
-      const attendance = attendanceResult.data || [];
+      
+      // กรอง attendance เฉพาะพนักงานจริง (ไม่รวมบัญชีระบบ)
+      const attendance = (attendanceResult.data || []).filter(
+        a => !a.employee?.is_system_account
+      );
       const checkedIn = attendance.filter(a => a.clock_in_time).length;
       const checkedOut = attendance.filter(a => a.clock_out_time).length;
       const late = attendance.filter(a => a.is_late).length;
+
+      // กรอง OT เฉพาะพนักงานจริง
+      const activeOTFiltered = (activeOTResult.data || []).filter(
+        ot => !ot.employee?.is_system_account
+      );
+
+      // กรอง activity เฉพาะพนักงานจริง
+      const recentFiltered = (recentResult.data || [])
+        .filter(a => !a.employee?.is_system_account)
+        .slice(0, 10);
 
       setStats({
         totalEmployees,
@@ -141,14 +164,14 @@ function MonitorContent() {
         checkedOut,
         notCheckedIn: totalEmployees - checkedIn,
         late,
-        onOT: activeOTResult.data?.length || 0,
+        onOT: activeOTFiltered.length,
         pendingOT: pendingOTResult.count || 0,
         pendingLeave: pendingLeaveResult.count || 0,
         pendingWFH: pendingWFHResult.count || 0,
       });
 
-      setActiveOTs(activeOTResult.data || []);
-      setRecentActivity(recentResult.data || []);
+      setActiveOTs(activeOTFiltered);
+      setRecentActivity(recentFiltered);
     } catch (error) {
       console.error("Error fetching monitor data:", error);
     } finally {
