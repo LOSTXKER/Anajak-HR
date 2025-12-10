@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -20,8 +20,9 @@ import {
   Home,
   AlertTriangle,
   TrendingUp,
+  RefreshCw,
 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval } from "date-fns";
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, differenceInDays, isWeekend } from "date-fns";
 import { th } from "date-fns/locale";
 import {
   BarChart,
@@ -36,9 +37,57 @@ import {
   Area,
 } from "recharts";
 
+// Types
 interface Branch {
   id: string;
   name: string;
+}
+
+interface Employee {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  branch_id: string | null;
+}
+
+interface AttendanceLog {
+  id: string;
+  employee_id: string;
+  work_date: string;
+  clock_in_time: string | null;
+  clock_out_time: string | null;
+  total_hours: number | null;
+  is_late: boolean;
+  late_minutes?: number;
+  status: string;
+}
+
+interface OTRequest {
+  id: string;
+  employee_id: string;
+  request_date: string;
+  actual_ot_hours: number | null;
+  ot_amount: number | null;
+  status: string;
+  actual_end_time: string | null;
+}
+
+interface LeaveRequest {
+  id: string;
+  employee_id: string;
+  start_date: string;
+  end_date: string;
+  is_half_day: boolean;
+  status: string;
+}
+
+interface WFHRequest {
+  id: string;
+  employee_id: string;
+  date: string;
+  is_half_day: boolean;
+  status: string;
 }
 
 interface ReportData {
@@ -57,13 +106,30 @@ interface ReportData {
   totalOTAmount: number;
 }
 
+interface DailyStat {
+  date: string;
+  fullDate: string;
+  attendance: number;
+  late: number;
+  otHours: number;
+  leave: number;
+  wfh: number;
+}
+
+interface BranchStat {
+  name: string;
+  otHours: number;
+  lateDays: number;
+  wfhDays: number;
+}
+
 function ReportsContent() {
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [reportData, setReportData] = useState<ReportData[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [dailyStats, setDailyStats] = useState<any[]>([]); // For trend chart
-  const [branchStats, setBranchStats] = useState<any[]>([]); // For branch chart
+  const [dailyStats, setDailyStats] = useState<DailyStat[]>([]);
+  const [branchStats, setBranchStats] = useState<BranchStat[]>([]);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -80,23 +146,29 @@ function ReportsContent() {
     totalOTHours: 0,
   });
 
+  // Fetch branches first
   useEffect(() => {
+    const fetchBranches = async () => {
+      const { data } = await supabase
+        .from("branches")
+        .select("id, name")
+        .order("name");
+      setBranches(data || []);
+    };
     fetchBranches();
   }, []);
 
-  useEffect(() => {
-    fetchReportData();
-  }, [currentMonth]);
+  // Get branch name helper - memoized
+  const getBranchName = useCallback((branchId: string | null): string => {
+    if (!branchId) return "ไม่ระบุสาขา";
+    const branch = branches.find((b) => b.id === branchId);
+    return branch?.name || "ไม่ระบุสาขา";
+  }, [branches]);
 
-  const fetchBranches = async () => {
-    const { data } = await supabase
-      .from("branches")
-      .select("id, name")
-      .order("name");
-    setBranches(data || []);
-  };
-
-  const fetchReportData = async () => {
+  // Fetch report data when month changes or branches are loaded
+  const fetchReportData = useCallback(async () => {
+    if (branches.length === 0) return; // Wait for branches to load
+    
     setLoading(true);
     try {
       const startDate = startOfMonth(currentMonth);
@@ -105,92 +177,132 @@ function ReportsContent() {
       const endStr = format(endDate, "yyyy-MM-dd");
 
       // 1. Fetch Employees
-      const { data: employees } = await supabase
+      const { data: employees, error: empError } = await supabase
         .from("employees")
         .select("id, name, email, role, branch_id")
         .eq("account_status", "approved")
         .neq("is_system_account", true);
 
-      if (!employees) {
+      if (empError) {
+        console.error("Error fetching employees:", empError);
+      }
+
+      if (!employees || employees.length === 0) {
         setReportData([]);
+        setDailyStats([]);
+        setBranchStats([]);
+        setSummary({
+          totalEmployees: 0,
+          totalWorkDays: 0,
+          totalWorkHours: 0,
+          totalLateDays: 0,
+          totalLeaveDays: 0,
+          totalWFHDays: 0,
+          totalOTHours: 0,
+        });
         setLoading(false);
         return;
       }
 
       // 2. Batch Fetch All Logs in Range
       const [
-        { data: attendanceLogs },
-        { data: otRequests },
-        { data: leaveRequests },
-        { data: wfhRequests },
+        { data: attendanceLogs, error: attError },
+        { data: otRequests, error: otError },
+        { data: leaveRequests, error: leaveError },
+        { data: wfhRequests, error: wfhError },
       ] = await Promise.all([
         supabase
           .from("attendance_logs")
-          .select("*")
+          .select("id, employee_id, work_date, clock_in_time, clock_out_time, total_hours, is_late, late_minutes, status")
           .gte("work_date", startStr)
           .lte("work_date", endStr),
         supabase
           .from("ot_requests")
-          .select("*")
+          .select("id, employee_id, request_date, actual_ot_hours, ot_amount, status, actual_end_time")
           .eq("status", "approved")
-          .not("actual_end_time", "is", null) // Only completed OT
+          .not("actual_end_time", "is", null)
           .gte("request_date", startStr)
           .lte("request_date", endStr),
         supabase
           .from("leave_requests")
-          .select("*")
+          .select("id, employee_id, start_date, end_date, is_half_day, status")
           .eq("status", "approved")
-          .gte("start_date", startStr)
-          .lte("end_date", endStr),
+          .or(`start_date.lte.${endStr},end_date.gte.${startStr}`),
         supabase
           .from("wfh_requests")
-          .select("*")
+          .select("id, employee_id, date, is_half_day, status")
           .eq("status", "approved")
-          .gte("work_date", startStr)
-          .lte("work_date", endStr),
+          .gte("date", startStr)
+          .lte("date", endStr),
       ]);
 
+      if (attError) console.error("Attendance error:", attError);
+      if (otError) console.error("OT error:", otError);
+      if (leaveError) console.error("Leave error:", leaveError);
+      if (wfhError) console.error("WFH error:", wfhError);
+
+      const safeAttendance = (attendanceLogs || []) as AttendanceLog[];
+      const safeOT = (otRequests || []) as OTRequest[];
+      const safeLeave = (leaveRequests || []) as LeaveRequest[];
+      const safeWFH = (wfhRequests || []) as WFHRequest[];
+
       // 3. Process Per Employee
-      const processedReports = employees.map((emp: { id: string; full_name: string; employee_code: string; position: string; branch_id: string; base_salary: number }) => {
+      const processedReports: ReportData[] = employees.map((emp: Employee) => {
         // Filter logs for this employee
-        const userAttendance = attendanceLogs?.filter((a: any) => a.employee_id === emp.id) || [];
-        const userOt = otRequests?.filter((o: any) => o.employee_id === emp.id) || [];
-        const userLeave = leaveRequests?.filter((l: any) => l.employee_id === emp.id) || [];
-        const userWfh = wfhRequests?.filter((w: any) => w.employee_id === emp.id) || [];
+        const userAttendance = safeAttendance.filter((a) => a.employee_id === emp.id);
+        const userOt = safeOT.filter((o) => o.employee_id === emp.id);
+        const userLeave = safeLeave.filter((l) => l.employee_id === emp.id);
+        const userWfh = safeWFH.filter((w) => w.employee_id === emp.id);
 
         // Calculate Stats
-        const totalWorkDays = userAttendance.filter((a: any) => a.status !== "holiday").length;
-        const totalWorkHours = userAttendance.reduce((sum: number, a: any) => sum + (a.total_hours || 0), 0);
-        const totalLateDays = userAttendance.filter((a: any) => a.is_late).length;
+        const totalWorkDays = userAttendance.filter((a) => a.status === "present" || a.status === "wfh").length;
+        const totalWorkHours = userAttendance.reduce((sum, a) => sum + (a.total_hours || 0), 0);
+        const totalLateDays = userAttendance.filter((a) => a.is_late).length;
         const totalLateMinutes = userAttendance.reduce(
-          (sum: number, a: any) => sum + (a.is_late ? a.late_minutes || 0 : 0),
+          (sum, a) => sum + (a.is_late ? (a.late_minutes || 0) : 0),
           0
         );
 
+        // Calculate leave days - considering date range overlap with current month
         let totalLeaveDays = 0;
-        userLeave.forEach((l: any) => {
+        userLeave.forEach((l) => {
           if (l.is_half_day) {
             totalLeaveDays += 0.5;
           } else {
-            const start = new Date(Math.max(new Date(l.start_date).getTime(), startDate.getTime()));
-            const end = new Date(Math.min(new Date(l.end_date).getTime(), endDate.getTime()));
-            // Simple day diff for now
-            const diffTime = Math.abs(end.getTime() - start.getTime());
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-            totalLeaveDays += diffDays;
+            // Calculate overlap with current month
+            const leaveStart = new Date(l.start_date);
+            const leaveEnd = new Date(l.end_date);
+            const effectiveStart = leaveStart < startDate ? startDate : leaveStart;
+            const effectiveEnd = leaveEnd > endDate ? endDate : leaveEnd;
+            
+            // Count only weekdays
+            let days = 0;
+            const current = new Date(effectiveStart);
+            while (current <= effectiveEnd) {
+              if (!isWeekend(current)) {
+                days++;
+              }
+              current.setDate(current.getDate() + 1);
+            }
+            totalLeaveDays += days;
           }
         });
 
+        // Calculate WFH days
         let totalWFHDays = 0;
-        userWfh.forEach((w: any) => {
+        userWfh.forEach((w) => {
           totalWFHDays += w.is_half_day ? 0.5 : 1;
         });
 
-        const totalOTHours = userOt.reduce((sum: number, o: any) => sum + (o.actual_ot_hours || 0), 0);
-        const totalOTAmount = userOt.reduce((sum: number, o: any) => sum + (o.ot_amount || 0), 0);
+        const totalOTHours = userOt.reduce((sum, o) => sum + (o.actual_ot_hours || 0), 0);
+        const totalOTAmount = userOt.reduce((sum, o) => sum + (o.ot_amount || 0), 0);
 
         return {
-          ...emp,
+          id: emp.id,
+          name: emp.name,
+          email: emp.email,
+          role: emp.role,
+          branch_id: emp.branch_id,
           totalWorkDays,
           totalWorkHours,
           totalLateDays,
@@ -206,20 +318,19 @@ function ReportsContent() {
 
       // 4. Process Daily Stats (For Trend Chart)
       const daysInMonth = eachDayOfInterval({ start: startDate, end: endDate });
-      const dailyData = daysInMonth.map((day) => {
+      const dailyData: DailyStat[] = daysInMonth.map((day) => {
         const dateStr = format(day, "yyyy-MM-dd");
-        const dayAttendance = attendanceLogs?.filter((a: any) => a.work_date === dateStr) || [];
-        const dayLate = dayAttendance.filter((a: any) => a.is_late).length;
-        const dayOt = otRequests?.filter((o: any) => o.request_date === dateStr) || [];
-        const dayOtHours = dayOt.reduce((sum: number, o: any) => sum + (o.actual_ot_hours || 0), 0);
+        const dayAttendance = safeAttendance.filter((a) => a.work_date === dateStr);
+        const dayLate = dayAttendance.filter((a) => a.is_late).length;
+        const dayOt = safeOT.filter((o) => o.request_date === dateStr);
+        const dayOtHours = dayOt.reduce((sum, o) => sum + (o.actual_ot_hours || 0), 0);
 
         // Count leaves covering this day
-        // Need to check range for each leave
-        const dayLeave = leaveRequests?.filter(
-          (l: any) => l.start_date <= dateStr && l.end_date >= dateStr
-        ).length || 0;
+        const dayLeave = safeLeave.filter(
+          (l) => l.start_date <= dateStr && l.end_date >= dateStr
+        ).length;
 
-        const dayWfh = wfhRequests?.filter((w: any) => w.work_date === dateStr).length || 0;
+        const dayWfh = safeWFH.filter((w) => w.date === dateStr).length;
 
         return {
           date: format(day, "d MMM", { locale: th }),
@@ -234,13 +345,13 @@ function ReportsContent() {
       setDailyStats(dailyData);
 
       // 5. Calculate Branch Stats (For Bar Chart)
-      const branchMap = new Map();
-      processedReports.forEach((r: any) => {
+      const branchMap = new Map<string, BranchStat>();
+      processedReports.forEach((r) => {
         const branchName = getBranchName(r.branch_id);
         if (!branchMap.has(branchName)) {
           branchMap.set(branchName, { name: branchName, otHours: 0, lateDays: 0, wfhDays: 0 });
         }
-        const b = branchMap.get(branchName);
+        const b = branchMap.get(branchName)!;
         b.otHours += r.totalOTHours;
         b.lateDays += r.totalLateDays;
         b.wfhDays += r.totalWFHDays;
@@ -250,35 +361,36 @@ function ReportsContent() {
       // 6. Summary
       setSummary({
         totalEmployees: processedReports.length,
-        totalWorkDays: processedReports.reduce((sum: number, r: any) => sum + r.totalWorkDays, 0),
-        totalWorkHours: processedReports.reduce((sum: number, r: any) => sum + r.totalWorkHours, 0),
-        totalLateDays: processedReports.reduce((sum: number, r: any) => sum + r.totalLateDays, 0),
-        totalLeaveDays: processedReports.reduce((sum: number, r: any) => sum + r.totalLeaveDays, 0),
-        totalWFHDays: processedReports.reduce((sum: number, r: any) => sum + r.totalWFHDays, 0),
-        totalOTHours: processedReports.reduce((sum: number, r: any) => sum + r.totalOTHours, 0),
+        totalWorkDays: processedReports.reduce((sum, r) => sum + r.totalWorkDays, 0),
+        totalWorkHours: processedReports.reduce((sum, r) => sum + r.totalWorkHours, 0),
+        totalLateDays: processedReports.reduce((sum, r) => sum + r.totalLateDays, 0),
+        totalLeaveDays: processedReports.reduce((sum, r) => sum + r.totalLeaveDays, 0),
+        totalWFHDays: processedReports.reduce((sum, r) => sum + r.totalWFHDays, 0),
+        totalOTHours: processedReports.reduce((sum, r) => sum + r.totalOTHours, 0),
       });
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error fetching report data:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentMonth, branches, getBranchName]);
 
-  // Filter data
-  const filteredData = reportData.filter((row) => {
-    const matchSearch = row.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      row.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchBranch = selectedBranch === "all" ||
-      (selectedBranch === "none" && !row.branch_id) ||
-      row.branch_id === selectedBranch;
-    const matchRole = selectedRole === "all" || row.role === selectedRole;
-    return matchSearch && matchBranch && matchRole;
-  });
+  useEffect(() => {
+    fetchReportData();
+  }, [fetchReportData]);
 
-  const getBranchName = (branchId: string | null) => {
-    if (!branchId) return "-";
-    return branches.find((b: any) => b.id === branchId)?.name || "-";
-  };
+  // Filter data - memoized
+  const filteredData = useMemo(() => {
+    return reportData.filter((row) => {
+      const matchSearch = row.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        row.email.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchBranch = selectedBranch === "all" ||
+        (selectedBranch === "none" && !row.branch_id) ||
+        row.branch_id === selectedBranch;
+      const matchRole = selectedRole === "all" || row.role === selectedRole;
+      return matchSearch && matchBranch && matchRole;
+    });
+  }, [reportData, searchTerm, selectedBranch, selectedRole]);
 
   const exportToCSV = () => {
     if (!filteredData.length) return;
@@ -319,6 +431,14 @@ function ReportsContent() {
     link.click();
   };
 
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case "admin": return "Admin";
+      case "supervisor": return "Supervisor";
+      default: return "พนักงาน";
+    }
+  };
+
   return (
     <AdminLayout title="รายงานสรุป">
       {/* Controls */}
@@ -342,10 +462,15 @@ function ReportsContent() {
               <ChevronRight className="w-5 h-5 text-[#6e6e73]" />
             </button>
           </div>
-          <Button variant="secondary" size="sm" onClick={exportToCSV} disabled={!filteredData.length}>
-            <Download className="w-4 h-4" />
-            Export CSV
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="text" size="sm" onClick={fetchReportData} disabled={loading}>
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+            <Button variant="secondary" size="sm" onClick={exportToCSV} disabled={!filteredData.length}>
+              <Download className="w-4 h-4" />
+              Export CSV
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -395,8 +520,8 @@ function ReportsContent() {
           { label: "วันทำงาน", value: summary.totalWorkDays, icon: Calendar, color: "text-[#0071e3]", bg: "bg-[#0071e3]/10" },
           { label: "ชั่วโมง", value: summary.totalWorkHours.toFixed(0), icon: Clock, color: "text-[#34c759]", bg: "bg-[#34c759]/10" },
           { label: "มาสาย", value: summary.totalLateDays, icon: AlertTriangle, color: "text-[#ff3b30]", bg: "bg-[#ff3b30]/10" },
-          { label: "ลางาน", value: summary.totalLeaveDays, icon: Calendar, color: "text-[#ff9500]", bg: "bg-[#ff9500]/10" },
-          { label: "WFH", value: summary.totalWFHDays, icon: Home, color: "text-[#af52de]", bg: "bg-[#af52de]/10" },
+          { label: "ลางาน", value: summary.totalLeaveDays.toFixed(1), icon: Calendar, color: "text-[#ff9500]", bg: "bg-[#ff9500]/10" },
+          { label: "WFH", value: summary.totalWFHDays.toFixed(1), icon: Home, color: "text-[#af52de]", bg: "bg-[#af52de]/10" },
           { label: "OT (ชม.)", value: summary.totalOTHours.toFixed(0), icon: TrendingUp, color: "text-[#ff9500]", bg: "bg-[#ff9500]/10" },
         ].map((stat, i) => (
           <Card key={i} elevated>
@@ -422,46 +547,52 @@ function ReportsContent() {
             <p className="text-[12px] text-[#86868b]">เข้างาน, ลา, และ OT ตลอดทั้งเดือน</p>
           </div>
           <div className="h-[250px] w-full text-[11px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={dailyStats}>
-                <defs>
-                  <linearGradient id="colorAttendance" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0071e3" stopOpacity={0.1} />
-                    <stop offset="95%" stopColor="#0071e3" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorOt" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ff9500" stopOpacity={0.1} />
-                    <stop offset="95%" stopColor="#ff9500" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: "#86868b" }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: "#86868b" }} />
-                <Tooltip
-                  contentStyle={{ borderRadius: "10px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
-                  itemStyle={{ fontSize: "12px" }}
-                />
-                <Legend iconType="circle" />
-                <Area
-                  type="monotone"
-                  dataKey="attendance"
-                  name="เข้างาน"
-                  stroke="#0071e3"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorAttendance)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="otHours"
-                  name="OT (ชม.)"
-                  stroke="#ff9500"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorOt)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {dailyStats.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={dailyStats}>
+                  <defs>
+                    <linearGradient id="colorAttendance" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0071e3" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#0071e3" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorOt" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#ff9500" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#ff9500" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: "#86868b" }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "#86868b" }} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: "10px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+                    itemStyle={{ fontSize: "12px" }}
+                  />
+                  <Legend iconType="circle" />
+                  <Area
+                    type="monotone"
+                    dataKey="attendance"
+                    name="เข้างาน"
+                    stroke="#0071e3"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorAttendance)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="otHours"
+                    name="OT (ชม.)"
+                    stroke="#ff9500"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorOt)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-[#86868b]">
+                ไม่มีข้อมูล
+              </div>
+            )}
           </div>
         </Card>
 
@@ -472,20 +603,26 @@ function ReportsContent() {
             <p className="text-[12px] text-[#86868b]">เปรียบเทียบชั่วโมง OT และจำนวนวันสาย</p>
           </div>
           <div className="h-[250px] w-full text-[11px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={branchStats} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e5e7eb" />
-                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: "#86868b" }} />
-                <YAxis dataKey="name" type="category" width={100} axisLine={false} tickLine={false} tick={{ fill: "#1d1d1f", fontSize: "11px" }} />
-                <Tooltip
-                  cursor={{ fill: "transparent" }}
-                  contentStyle={{ borderRadius: "10px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
-                />
-                <Legend iconType="circle" />
-                <Bar dataKey="otHours" name="OT (ชม.)" fill="#ff9500" radius={[0, 4, 4, 0]} barSize={20} />
-                <Bar dataKey="lateDays" name="สาย (วัน)" fill="#ff3b30" radius={[0, 4, 4, 0]} barSize={20} />
-              </BarChart>
-            </ResponsiveContainer>
+            {branchStats.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={branchStats} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e5e7eb" />
+                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: "#86868b" }} />
+                  <YAxis dataKey="name" type="category" width={100} axisLine={false} tickLine={false} tick={{ fill: "#1d1d1f", fontSize: "11px" }} />
+                  <Tooltip
+                    cursor={{ fill: "transparent" }}
+                    contentStyle={{ borderRadius: "10px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+                  />
+                  <Legend iconType="circle" />
+                  <Bar dataKey="otHours" name="OT (ชม.)" fill="#ff9500" radius={[0, 4, 4, 0]} barSize={20} />
+                  <Bar dataKey="lateDays" name="สาย (วัน)" fill="#ff3b30" radius={[0, 4, 4, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-[#86868b]">
+                ไม่มีข้อมูล
+              </div>
+            )}
           </div>
         </Card>
       </div>
@@ -501,6 +638,7 @@ function ReportsContent() {
             {[...filteredData]
               .sort((a, b) => b.totalOTHours - a.totalOTHours)
               .slice(0, 5)
+              .filter(r => r.totalOTHours > 0)
               .map((row, i) => (
                 <div key={row.id} className="flex items-center gap-3 px-4 py-2.5">
                   <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[12px] font-bold ${i === 0 ? "bg-[#ff9500] text-white" :
@@ -596,9 +734,7 @@ function ReportsContent() {
                         <Avatar name={row.name} size="sm" />
                         <div>
                           <p className="text-[13px] font-medium text-[#1d1d1f]">{row.name}</p>
-                          <p className="text-[11px] text-[#86868b]">
-                            {row.role === "admin" ? "Admin" : row.role === "supervisor" ? "Supervisor" : "Staff"}
-                          </p>
+                          <p className="text-[11px] text-[#86868b]">{getRoleLabel(row.role)}</p>
                         </div>
                       </div>
                     </td>
