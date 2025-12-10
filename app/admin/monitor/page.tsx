@@ -99,6 +99,8 @@ function MonitorContent() {
     setRefreshing(true);
     try {
       const today = format(new Date(), "yyyy-MM-dd");
+      const dayOfWeek = new Date().getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
       // Fetch all data in parallel
       const [
@@ -109,6 +111,7 @@ function MonitorContent() {
         pendingLeaveResult,
         pendingWFHResult,
         recentResult,
+        holidayResult,
       ] = await Promise.all([
         // กรองเฉพาะพนักงานจริง (ไม่รวมบัญชีระบบ)
         supabase
@@ -136,7 +139,15 @@ function MonitorContent() {
           .eq("work_date", today)
           .order("clock_in_time", { ascending: false })
           .limit(20), // Fetch more to filter
+        supabase
+          .from("holidays")
+          .select("id")
+          .eq("date", today)
+          .limit(1),
       ]);
+
+      const isHoliday = (holidayResult.data?.length || 0) > 0;
+      const isNonWorkingDay = isWeekend || isHoliday;
 
       const totalEmployees = employeesResult.data?.length || 0;
 
@@ -158,11 +169,14 @@ function MonitorContent() {
         .filter((a: any) => !a.employee?.is_system_account)
         .slice(0, 10);
 
+      // วันหยุด/สุดสัปดาห์ ไม่นับ "ยังไม่เข้างาน"
+      const notCheckedIn = isNonWorkingDay ? 0 : totalEmployees - checkedIn;
+
       setStats({
         totalEmployees,
         checkedIn,
         checkedOut,
-        notCheckedIn: totalEmployees - checkedIn,
+        notCheckedIn,
         late,
         onOT: activeOTFiltered.length,
         pendingOT: pendingOTResult.count || 0,

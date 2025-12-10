@@ -86,6 +86,17 @@ function AdminDashboardContent() {
     setLoading(true);
     try {
       const today = format(new Date(), "yyyy-MM-dd");
+      const dayOfWeek = new Date().getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+      // ตรวจสอบว่าวันนี้เป็นวันหยุดหรือไม่
+      const { data: holidayData } = await supabase
+        .from("holidays")
+        .select("id")
+        .eq("date", today)
+        .limit(1);
+      const isHoliday = (holidayData?.length || 0) > 0;
+      const isNonWorkingDay = isWeekend || isHoliday;
 
       // นับเฉพาะพนักงานที่ไม่ใช่ admin
       const { count: totalEmployees } = await supabase
@@ -134,11 +145,14 @@ function AdminDashboardContent() {
         .limit(5);
 
       const present = attendance?.filter((a: any) => a.clock_in_time)?.length || 0;
+      
+      // วันหยุด/สุดสัปดาห์ ไม่นับขาดงาน
+      const absent = isNonWorkingDay ? 0 : (totalEmployees || 0) - present;
 
       setStats({
         totalEmployees: totalEmployees || 0,
         present,
-        absent: (totalEmployees || 0) - present,
+        absent,
         pendingOT: otRequests?.length || 0,
         pendingLeave: leaveRequests?.length || 0,
         pendingWFH: wfhRequests?.length || 0,
