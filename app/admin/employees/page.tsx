@@ -83,11 +83,10 @@ function EmployeesContent() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch employees (exclude admin accounts)
+      // Fetch all employees including admin
       const { data: empData } = await supabase
         .from("employees")
         .select("*, branch:branches(name)")
-        .neq("role", "admin")
         .order("name");
 
       setEmployees(empData || []);
@@ -159,13 +158,13 @@ function EmployeesContent() {
     }
   };
 
-  // Stats
+  // Stats (pending excludes admin - admin doesn't need approval)
   const stats = useMemo(() => {
     const total = employees.length;
     const approved = employees.filter((e) => e.account_status === "approved").length;
-    const pending = employees.filter((e) => e.account_status === "pending").length;
-    const supervisors = employees.filter((e) => e.role === "supervisor").length;
-    return { total, approved, pending, supervisors };
+    const pending = employees.filter((e) => e.account_status === "pending" && e.role !== "admin").length;
+    const admins = employees.filter((e) => e.role === "admin").length;
+    return { total, approved, pending, admins };
   }, [employees]);
 
   const handleEdit = (emp: Employee) => {
@@ -226,6 +225,7 @@ function EmployeesContent() {
 
   const getRoleBadge = (role: string) => {
     switch (role) {
+      case "admin": return <Badge variant="danger">👑 Admin</Badge>;
       case "supervisor": return <Badge variant="primary">👨‍💼 Supervisor</Badge>;
       default: return <Badge variant="default">👤 Staff</Badge>;
     }
@@ -290,12 +290,12 @@ function EmployeesContent() {
         </Card>
         <Card elevated>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#af52de]/10 rounded-xl flex items-center justify-center">
-              <Shield className="w-5 h-5 text-[#af52de]" />
+            <div className="w-10 h-10 bg-[#ff3b30]/10 rounded-xl flex items-center justify-center">
+              <Shield className="w-5 h-5 text-[#ff3b30]" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-[#af52de]">{stats.supervisors}</p>
-              <p className="text-xs text-[#86868b]">Supervisor</p>
+              <p className="text-2xl font-bold text-[#ff3b30]">{stats.admins}</p>
+              <p className="text-xs text-[#86868b]">Admin</p>
             </div>
           </div>
         </Card>
@@ -353,8 +353,9 @@ function EmployeesContent() {
             onChange={setFilterRole}
             options={[
               { value: "all", label: "ทุกตำแหน่ง" },
-              { value: "supervisor", label: "Supervisor" },
-              { value: "staff", label: "Staff" },
+              { value: "admin", label: "👑 Admin" },
+              { value: "supervisor", label: "👨‍💼 Supervisor" },
+              { value: "staff", label: "👤 Staff" },
             ]}
           />
         </div>
@@ -441,7 +442,8 @@ function EmployeesContent() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {emp.account_status === "pending" && (
+                          {/* Admin doesn't need approval */}
+                          {emp.account_status === "pending" && emp.role !== "admin" && (
                             <>
                               <button
                                 onClick={() => setApprovalModal({ emp, action: "approve" })}
@@ -527,10 +529,14 @@ function EmployeesContent() {
                 label="ตำแหน่ง"
                 value={editForm.role}
                 onChange={(v) => setEditForm({ ...editForm, role: v })}
-                options={[
-                  { value: "staff", label: "Staff" },
-                  { value: "supervisor", label: "Supervisor" },
-                ]}
+                options={
+                  editModal?.role === "admin"
+                    ? [{ value: "admin", label: "👑 Admin" }]
+                    : [
+                        { value: "staff", label: "👤 Staff" },
+                        { value: "supervisor", label: "👨‍💼 Supervisor" },
+                      ]
+                }
               />
             </div>
 
