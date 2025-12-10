@@ -376,6 +376,13 @@ function SettingsContent() {
                 description="กำหนดอัตราหัก/เพิ่ม สำหรับคำนวณเงินเดือน"
               />
               <SettingLink
+                href="/admin/settings/leave-quota"
+                icon={Calendar}
+                color="text-[#5ac8fa]"
+                title="โควต้าวันลา (Leave Quota)"
+                description="กำหนดจำนวนวันลาพักร้อน, ป่วย, กิจส่วนตัว"
+              />
+              <SettingLink
                 href="/admin/settings/working-days"
                 icon={Calendar}
                 color="text-[#0071e3]"

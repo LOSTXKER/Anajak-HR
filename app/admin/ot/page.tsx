@@ -87,8 +87,37 @@ function OTManagementContent() {
   const [editForm, setEditForm] = useState({
     requestDate: "", startTime: "", endTime: "",
     actualStartTime: "", actualEndTime: "",
-    actualOtHours: "", otAmount: "", status: "",
+    actualOtHours: "", otAmount: "", status: "", otRate: 1.5,
   });
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; ot: OTRequest | null }>({ open: false, ot: null });
+
+  // Auto-calculate OT hours and amount when actual times change
+  useEffect(() => {
+    if (editForm.actualStartTime && editForm.actualEndTime && editForm.requestDate) {
+      const start = new Date(`${editForm.requestDate}T${editForm.actualStartTime}:00`);
+      const end = new Date(`${editForm.requestDate}T${editForm.actualEndTime}:00`);
+      const diffMs = end.getTime() - start.getTime();
+      const hours = Math.max(0, diffMs / (1000 * 60 * 60));
+      setEditForm(prev => ({ ...prev, actualOtHours: hours.toFixed(2) }));
+    }
+  }, [editForm.actualStartTime, editForm.actualEndTime, editForm.requestDate]);
+
+  // Auto-calculate amount when hours or rate change
+  useEffect(() => {
+    if (editForm.actualOtHours && editModal.ot) {
+      const hours = parseFloat(editForm.actualOtHours);
+      const rate = editModal.ot.ot_rate || 1.5;
+      // Get employee salary for calculation (simplified)
+      supabase.from("employees").select("base_salary").eq("id", editModal.ot.employee_id).single()
+        .then(({ data }) => {
+          if (data?.base_salary) {
+            const hourlyRate = data.base_salary / 30 / 8;
+            const amount = hours * hourlyRate * rate;
+            setEditForm(prev => ({ ...prev, otAmount: amount.toFixed(2) }));
+          }
+        });
+    }
+  }, [editForm.actualOtHours, editModal.ot]);
 
   // Add form
   const [addForm, setAddForm] = useState({
@@ -197,8 +226,27 @@ function OTManagementContent() {
       actualOtHours: ot.actual_ot_hours?.toString() || "",
       otAmount: ot.ot_amount?.toString() || "",
       status: ot.status,
+      otRate: ot.ot_rate || 1.5,
     });
     setEditModal({ open: true, ot });
+  };
+
+  // Delete OT
+  const handleDeleteOT = async () => {
+    if (!deleteModal.ot) return;
+    setProcessing(true);
+    try {
+      const { error } = await supabase.from("ot_requests").delete().eq("id", deleteModal.ot.id);
+      if (error) throw error;
+
+      toast.success("สำเร็จ", "ลบ OT เรียบร้อยแล้ว");
+      setDeleteModal({ open: false, ot: null });
+      fetchOT();
+    } catch (error: any) {
+      toast.error("เกิดข้อผิดพลาด", error?.message);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -517,11 +565,26 @@ function OTManagementContent() {
             { value: "rejected", label: "ปฏิเสธ" }, { value: "completed", label: "เสร็จสิ้น" }, { value: "cancelled", label: "ยกเลิก" },
           ]} />
           <div className="flex gap-3 pt-2">
+            <Button variant="danger" onClick={() => { setEditModal({ open: false, ot: null }); setDeleteModal({ open: true, ot: editModal.ot }); }}>
+              <Trash2 className="w-4 h-4" />
+            </Button>
             <Button variant="secondary" onClick={() => setEditModal({ open: false, ot: null })} className="flex-1">ยกเลิก</Button>
             <Button onClick={handleSaveEdit} loading={processing} className="flex-1">บันทึก</Button>
           </div>
         </div>
       </Modal>
+
+      {/* Delete Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, ot: null })}
+        onConfirm={handleDeleteOT}
+        title="ลบ OT"
+        message={`ลบข้อมูล OT ของ "${deleteModal.ot?.employee?.name}" อย่างถาวร? การกระทำนี้ไม่สามารถย้อนกลับได้`}
+        type="danger"
+        confirmText="ลบถาวร"
+        loading={processing}
+      />
 
       {/* Add Modal */}
       <Modal isOpen={addModal} onClose={() => setAddModal(false)} title="เพิ่ม OT" size="md">
