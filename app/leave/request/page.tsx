@@ -34,6 +34,11 @@ function LeaveRequestContent() {
     personal: 0,
     annual: 0,
   });
+  const [leaveQuota, setLeaveQuota] = useState({
+    annual: 10,
+    sick: 30,
+    personal: 3,
+  });
 
   const [formData, setFormData] = useState({
     leaveType: "sick",
@@ -45,8 +50,32 @@ function LeaveRequestContent() {
   });
 
   useEffect(() => {
-    if (employee) fetchLeaveSummary();
+    if (employee) {
+      fetchLeaveSummary();
+      fetchLeaveQuota();
+    }
   }, [employee]);
+
+  const fetchLeaveQuota = async () => {
+    if (!employee) return;
+    try {
+      const { data } = await supabase
+        .from("employees")
+        .select("annual_leave_quota, sick_leave_quota, personal_leave_quota")
+        .eq("id", employee.id)
+        .single();
+
+      if (data) {
+        setLeaveQuota({
+          annual: data.annual_leave_quota || 10,
+          sick: data.sick_leave_quota || 30,
+          personal: data.personal_leave_quota || 3,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching leave quota:", error);
+    }
+  };
 
   const fetchLeaveSummary = async () => {
     if (!employee) return;
@@ -237,27 +266,36 @@ function LeaveRequestContent() {
             </h3>
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <div className="text-center py-3 bg-[#f5f5f7] rounded-xl">
+            <div className="text-center py-3 bg-[#ff3b30]/10 rounded-xl border border-[#ff3b30]/20">
               <p className="text-[24px] font-semibold text-[#ff3b30]">
-                {leaveSummary.sick}
+                {leaveQuota.sick - leaveSummary.sick}
               </p>
-              <p className="text-[12px] text-[#86868b]">ลาป่วย (วัน)</p>
+              <p className="text-[12px] text-[#86868b]">ลาป่วยเหลือ (วัน)</p>
+              <p className="text-[11px] text-[#ff3b30] mt-1">
+                ใช้ {leaveSummary.sick} / {leaveQuota.sick}
+              </p>
             </div>
-            <div className="text-center py-3 bg-[#f5f5f7] rounded-xl">
+            <div className="text-center py-3 bg-[#ff9500]/10 rounded-xl border border-[#ff9500]/20">
               <p className="text-[24px] font-semibold text-[#ff9500]">
-                {leaveSummary.personal}
+                {leaveQuota.personal - leaveSummary.personal}
               </p>
-              <p className="text-[12px] text-[#86868b]">ลากิจ (วัน)</p>
+              <p className="text-[12px] text-[#86868b]">ลากิจเหลือ (วัน)</p>
+              <p className="text-[11px] text-[#ff9500] mt-1">
+                ใช้ {leaveSummary.personal} / {leaveQuota.personal}
+              </p>
             </div>
-            <div className="text-center py-3 bg-[#f5f5f7] rounded-xl">
+            <div className="text-center py-3 bg-[#34c759]/10 rounded-xl border border-[#34c759]/20">
               <p className="text-[24px] font-semibold text-[#34c759]">
-                {leaveSummary.annual}
+                {leaveQuota.annual - leaveSummary.annual}
               </p>
-              <p className="text-[12px] text-[#86868b]">ลาพักร้อน (วัน)</p>
+              <p className="text-[12px] text-[#86868b]">พักร้อนเหลือ (วัน)</p>
+              <p className="text-[11px] text-[#34c759] mt-1">
+                ใช้ {leaveSummary.annual} / {leaveQuota.annual}
+              </p>
             </div>
           </div>
           <p className="text-[13px] text-[#86868b] text-center mt-3">
-            วันที่ใช้ไปแล้วในปี {new Date().getFullYear()}
+            สิทธิ์การลาประจำปี {new Date().getFullYear()}
           </p>
         </Card>
 

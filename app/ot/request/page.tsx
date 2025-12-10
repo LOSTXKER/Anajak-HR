@@ -35,6 +35,7 @@ function OTRequestContent() {
     startTime: "18:00",
     endTime: "21:00",
     reason: "",
+    otType: "normal", // "normal" | "pre_shift"
   });
 
   // Check day type (holiday, weekend, or workday)
@@ -93,6 +94,7 @@ function OTRequestContent() {
 
       const { error: insertError } = await supabase.from("ot_requests").insert({
         employee_id: employee.id,
+        ot_type: formData.otType,
         request_date: formData.date,
         requested_start_time: startDateTime.toISOString(),
         requested_end_time: endDateTime.toISOString(),
@@ -156,6 +158,48 @@ function OTRequestContent() {
         <form onSubmit={handleSubmit}>
           <Card elevated>
             <div className="space-y-5">
+              {/* OT Type */}
+              <div>
+                <label className="flex items-center gap-2 text-[15px] font-medium text-[#1d1d1f] mb-3">
+                  <Clock className="w-4 h-4 text-[#86868b]" />
+                  ประเภท OT
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData({ ...formData, otType: "normal", startTime: "18:00", endTime: "21:00" });
+                    }}
+                    className={`px-4 py-3 rounded-xl text-[15px] font-medium transition-all ${
+                      formData.otType === "normal"
+                        ? "bg-[#0071e3] text-white ring-4 ring-[#0071e3]/20"
+                        : "bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e8e8ed]"
+                    }`}
+                  >
+                    <div>
+                      <p className="font-semibold">OT ปกติ</p>
+                      <p className="text-xs opacity-70 mt-1">หลังเวลางาน</p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData({ ...formData, otType: "pre_shift", startTime: "06:00", endTime: "09:00" });
+                    }}
+                    className={`px-4 py-3 rounded-xl text-[15px] font-medium transition-all ${
+                      formData.otType === "pre_shift"
+                        ? "bg-[#ff9500] text-white ring-4 ring-[#ff9500]/20"
+                        : "bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e8e8ed]"
+                    }`}
+                  >
+                    <div>
+                      <p className="font-semibold">Pre-shift OT</p>
+                      <p className="text-xs opacity-70 mt-1">ก่อนเวลางาน</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               {/* Date */}
               <div>
                 <label className="flex items-center gap-2 text-[15px] font-medium text-[#1d1d1f] mb-2">
