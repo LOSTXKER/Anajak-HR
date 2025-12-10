@@ -187,6 +187,16 @@ function EmployeesContent() {
 
   const handleSave = async () => {
     if (!editModal) return;
+
+    // Check if trying to demote the last admin
+    if (editModal.role === "admin" && editForm.role !== "admin") {
+      const adminCount = employees.filter(e => e.role === "admin").length;
+      if (adminCount <= 1) {
+        toast.error("ไม่สามารถเปลี่ยนได้", "นี่คือ Admin คนสุดท้ายในระบบ ต้องมี Admin อย่างน้อย 1 คน");
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const { error } = await supabase
@@ -545,15 +555,24 @@ function EmployeesContent() {
                 label="ตำแหน่ง"
                 value={editForm.role}
                 onChange={(v) => setEditForm({ ...editForm, role: v })}
-                options={
-                  editModal?.role === "admin"
-                    ? [{ value: "admin", label: "👑 Admin" }]
-                    : [
-                        { value: "staff", label: "👤 Staff" },
-                        { value: "supervisor", label: "👨‍💼 Supervisor" },
-                      ]
-                }
+                options={[
+                  { value: "staff", label: "👤 Staff" },
+                  { value: "supervisor", label: "👨‍💼 Supervisor" },
+                  { value: "admin", label: "👑 Admin" },
+                ]}
               />
+              {editModal?.role === "admin" && editForm.role !== "admin" && (
+                <div className="p-3 bg-[#fff7ed] border border-[#fed7aa] rounded-lg">
+                  <p className="text-[13px] text-[#9a3412] font-medium">
+                    ⚠️ กำลังลดสิทธิ์จาก Admin เป็น {editForm.role === "staff" ? "Staff" : "Supervisor"}
+                  </p>
+                  {employees.filter(e => e.role === "admin").length <= 1 && (
+                    <p className="text-[12px] text-[#ff3b30] mt-1 font-semibold">
+                      ❌ ไม่สามารถเปลี่ยนได้! นี่คือ Admin คนสุดท้ายในระบบ
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <Input
