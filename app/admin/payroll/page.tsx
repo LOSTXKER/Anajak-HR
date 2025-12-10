@@ -340,9 +340,10 @@ function PayrollContent() {
 
       const { data } = await supabase
         .from("ot_requests")
-        .select("id, request_date, actual_ot_hours, ot_amount, ot_rate, ot_type")
+        .select("id, request_date, actual_ot_hours, ot_amount, ot_rate, ot_type, status")
         .eq("employee_id", emp.id)
-        .eq("status", "completed")
+        .in("status", ["approved", "completed"])
+        .not("actual_ot_hours", "is", null)
         .gte("request_date", startDate)
         .lte("request_date", endDate)
         .order("request_date");
