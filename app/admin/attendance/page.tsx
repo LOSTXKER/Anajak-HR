@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/ui/Modal";
 import { TimeInput } from "@/components/ui/TimeInput";
@@ -20,7 +21,6 @@ import {
   Download,
   Clock,
   Camera,
-  Edit,
   Plus,
   Users,
   AlertTriangle,
@@ -28,16 +28,15 @@ import {
   Home,
   Calendar,
   X,
-  Sun,
   DollarSign,
   Timer,
   UserX,
-  Briefcase,
-  MapPin,
-  Info,
+  Search,
+  Filter,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
-import { format, addDays, subDays, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
+import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, addDays, subDays, isToday, isSameDay } from "date-fns";
 import { th } from "date-fns/locale";
 
 // Types
@@ -54,8 +53,10 @@ interface Branch {
   name: string;
 }
 
-interface AttendanceRecord {
+interface AttendanceRow {
   id: string;
+  employee: Employee;
+  workDate: string;
   clockIn: string | null;
   clockOut: string | null;
   workHours: number | null;
@@ -63,117 +64,41 @@ interface AttendanceRecord {
   lateMinutes: number;
   status: string;
   autoCheckout: boolean;
-  editedAt: string | null;
   clockInPhotoUrl: string | null;
   clockOutPhotoUrl: string | null;
+  // Related data
+  otCount: number;
+  otHours: number;
+  otAmount: number;
+  leaveType: string | null;
+  isWFH: boolean;
+  lateRequestStatus: string | null;
 }
-
-interface OTRecord {
-  id: string;
-  requestDate: string;
-  otType: string;
-  startTime: string | null;
-  endTime: string | null;
-  approvedHours: number | null;
-  actualHours: number | null;
-  amount: number | null;
-  rate: number | null;
-  status: string;
-}
-
-interface LeaveRecord {
-  id: string;
-  leaveType: string;
-  startDate: string;
-  endDate: string;
-  isHalfDay: boolean;
-  reason: string;
-  status: string;
-}
-
-interface WFHRecord {
-  id: string;
-  date: string;
-  isHalfDay: boolean;
-  reason: string;
-  status: string;
-}
-
-interface LateRequestRecord {
-  id: string;
-  requestDate: string;
-  clockInTime: string;
-  reason: string;
-  status: string;
-}
-
-interface DaySummary {
-  employee: Employee;
-  attendance: AttendanceRecord | null;
-  ot: OTRecord[];
-  leave: LeaveRecord | null;
-  wfh: WFHRecord | null;
-  lateRequest: LateRequestRecord | null;
-}
-
-interface AttendanceLog {
-  id: string;
-  employee_id: string;
-  work_date: string;
-  clock_in_time: string | null;
-  clock_out_time: string | null;
-  clock_in_photo_url: string | null;
-  clock_out_photo_url: string | null;
-  total_hours: number | null;
-  is_late: boolean;
-  late_minutes: number;
-  status: string;
-  auto_checkout: boolean;
-  edited_at: string | null;
-  employee: Employee;
-}
-
-interface HistoryLogWithDetails extends AttendanceLog {
-  ot: OTRecord[];
-  leave: LeaveRecord | null;
-  wfh: WFHRecord | null;
-  lateRequest: LateRequestRecord | null;
-}
-
-type ViewMode = "daily" | "history";
 
 function AttendanceContent() {
   const { employee: currentAdmin } = useAuth();
   const toast = useToast();
 
-  // View state
-  const [viewMode, setViewMode] = useState<ViewMode>("daily");
+  // Date state - single date or range
+  const [dateMode, setDateMode] = useState<"single" | "range">("single");
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
+  const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
+
+  // Filter state
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterBranch, setFilterBranch] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
 
   // Data state
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [attendanceRows, setAttendanceRows] = useState<AttendanceRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Daily view state
-  const [daySummaries, setDaySummaries] = useState<DaySummary[]>([]);
-
-  // History view state
-  const [historyLogs, setHistoryLogs] = useState<HistoryLogWithDetails[]>([]);
-  const [filterEmployee, setFilterEmployee] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [filterBranch, setFilterBranch] = useState("");
-
-  // Modals
+  // Modal state
+  const [photoModal, setPhotoModal] = useState<{ url: string; type: string } | null>(null);
   const [addModal, setAddModal] = useState(false);
-  const [photoModal, setPhotoModal] = useState<string | null>(null);
-  const [detailModal, setDetailModal] = useState<{
-    type: "ot" | "leave" | "wfh" | "late";
-    employee: Employee;
-    data: any;
-  } | null>(null);
-
   const [addForm, setAddForm] = useState({
     employeeId: "",
     workDate: format(new Date(), "yyyy-MM-dd"),
@@ -181,7 +106,6 @@ function AttendanceContent() {
     clockOutTime: "18:00",
     status: "present",
     isLate: false,
-    note: "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -203,271 +127,205 @@ function AttendanceContent() {
     fetchBaseData();
   }, []);
 
-  // Fetch daily summary
-  const fetchDailySummary = useCallback(async () => {
-    if (viewMode !== "daily" || employees.length === 0) return;
+  // Fetch attendance data
+  const fetchAttendance = useCallback(async () => {
+    if (employees.length === 0) return;
 
     setLoading(true);
-    const dateStr = format(selectedDate, "yyyy-MM-dd");
-
     try {
+      const fromDate = dateMode === "single" ? format(selectedDate, "yyyy-MM-dd") : startDate;
+      const toDate = dateMode === "single" ? format(selectedDate, "yyyy-MM-dd") : endDate;
+
+      // Fetch all related data
       const [attRes, otRes, leaveRes, wfhRes, lateReqRes] = await Promise.all([
-        supabase.from("attendance_logs").select("*").eq("work_date", dateStr),
+        supabase
+          .from("attendance_logs")
+          .select("*, employee:employees!employee_id(id, name, email, branch_id, role)")
+          .gte("work_date", fromDate)
+          .lte("work_date", toDate)
+          .order("work_date", { ascending: false }),
         supabase
           .from("ot_requests")
           .select("*")
-          .eq("request_date", dateStr)
+          .gte("request_date", fromDate)
+          .lte("request_date", toDate)
           .in("status", ["approved", "started", "completed"]),
         supabase
           .from("leave_requests")
           .select("*")
           .eq("status", "approved")
-          .lte("start_date", dateStr)
-          .gte("end_date", dateStr),
-        supabase.from("wfh_requests").select("*").eq("status", "approved").eq("date", dateStr),
-        supabase.from("late_requests").select("*").eq("request_date", dateStr),
-      ]);
-
-      const summaries: DaySummary[] = employees.map((emp) => {
-        const att = (attRes.data || []).find((a: any) => a.employee_id === emp.id);
-        const empOt = (otRes.data || []).filter((o: any) => o.employee_id === emp.id);
-        const empLeave = (leaveRes.data || []).find((l: any) => l.employee_id === emp.id);
-        const empWfh = (wfhRes.data || []).find((w: any) => w.employee_id === emp.id);
-        const empLateReq = (lateReqRes.data || []).find((lr: any) => lr.employee_id === emp.id);
-
-        return {
-          employee: emp,
-          attendance: att
-            ? {
-                id: att.id,
-                clockIn: att.clock_in_time,
-                clockOut: att.clock_out_time,
-                workHours: att.total_hours,
-                isLate: att.is_late,
-                lateMinutes: att.late_minutes || 0,
-                status: att.status,
-                autoCheckout: att.auto_checkout || false,
-                editedAt: att.edited_at,
-                clockInPhotoUrl: att.clock_in_photo_url,
-                clockOutPhotoUrl: att.clock_out_photo_url,
-              }
-            : null,
-          ot: empOt.map((o: any) => ({
-            id: o.id,
-            requestDate: o.request_date,
-            otType: o.ot_type,
-            startTime: o.actual_start_time,
-            endTime: o.actual_end_time,
-            approvedHours: o.approved_ot_hours,
-            actualHours: o.actual_ot_hours,
-            amount: o.ot_amount,
-            rate: o.ot_rate,
-            status: o.status,
-          })),
-          leave: empLeave
-            ? {
-                id: empLeave.id,
-                leaveType: empLeave.leave_type,
-                startDate: empLeave.start_date,
-                endDate: empLeave.end_date,
-                isHalfDay: empLeave.is_half_day,
-                reason: empLeave.reason,
-                status: empLeave.status,
-              }
-            : null,
-          wfh: empWfh
-            ? {
-                id: empWfh.id,
-                date: empWfh.date,
-                isHalfDay: empWfh.is_half_day,
-                reason: empWfh.reason,
-                status: empWfh.status,
-              }
-            : null,
-          lateRequest: empLateReq
-            ? {
-                id: empLateReq.id,
-                requestDate: empLateReq.request_date,
-                clockInTime: empLateReq.actual_clock_in_time,
-                reason: empLateReq.reason,
-                status: empLateReq.status,
-              }
-            : null,
-        };
-      });
-
-      setDaySummaries(summaries);
-    } catch (error) {
-      console.error("Error fetching daily summary:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [viewMode, selectedDate, employees]);
-
-  // Fetch history
-  const fetchHistory = useCallback(async () => {
-    if (viewMode !== "history") return;
-
-    setLoading(true);
-    try {
-      const startDate = format(startOfMonth(currentMonth), "yyyy-MM-dd");
-      const endDate = format(endOfMonth(currentMonth), "yyyy-MM-dd");
-
-      let query = supabase
-        .from("attendance_logs")
-        .select("*, employee:employees!employee_id(id, name, email, branch_id, role)")
-        .gte("work_date", startDate)
-        .lte("work_date", endDate)
-        .order("work_date", { ascending: false });
-
-      if (filterEmployee) query = query.eq("employee_id", filterEmployee);
-      if (filterStatus === "late") query = query.eq("is_late", true);
-      else if (filterStatus === "normal") query = query.eq("is_late", false).neq("status", "holiday");
-      else if (filterStatus === "holiday") query = query.eq("status", "holiday");
-      else if (filterStatus === "no_checkout") query = query.is("clock_out_time", null);
-
-      const { data } = await query;
-
-      let logs = (data || []) as AttendanceLog[];
-      if (filterBranch) {
-        logs = logs.filter((l) => l.employee?.branch_id === filterBranch);
-      }
-
-      // Fetch OT, Leave, WFH data for the month
-      const [otRes, leaveRes, wfhRes, lateReqRes] = await Promise.all([
-        supabase
-          .from("ot_requests")
-          .select("*")
-          .gte("request_date", startDate)
-          .lte("request_date", endDate)
-          .in("status", ["approved", "started", "completed"]),
-        supabase
-          .from("leave_requests")
-          .select("*")
-          .eq("status", "approved")
-          .or(`start_date.lte.${endDate},end_date.gte.${startDate}`),
+          .lte("start_date", toDate)
+          .gte("end_date", fromDate),
         supabase
           .from("wfh_requests")
           .select("*")
           .eq("status", "approved")
-          .gte("date", startDate)
-          .lte("date", endDate),
+          .gte("date", fromDate)
+          .lte("date", toDate),
         supabase
           .from("late_requests")
           .select("*")
-          .gte("request_date", startDate)
-          .lte("request_date", endDate),
+          .gte("request_date", fromDate)
+          .lte("request_date", toDate),
       ]);
 
-      // Map logs with OT/Leave/WFH data
-      const logsWithDetails: HistoryLogWithDetails[] = logs.map((log) => {
-        const dateStr = log.work_date;
-        const empOt = (otRes.data || []).filter(
-          (o: any) => o.employee_id === log.employee_id && o.request_date === dateStr
-        );
-        const empLeave = (leaveRes.data || []).find(
-          (l: any) =>
-            l.employee_id === log.employee_id && l.start_date <= dateStr && l.end_date >= dateStr
-        );
-        const empWfh = (wfhRes.data || []).find(
-          (w: any) => w.employee_id === log.employee_id && w.date === dateStr
-        );
-        const empLateReq = (lateReqRes.data || []).find(
-          (lr: any) => lr.employee_id === log.employee_id && lr.request_date === dateStr
-        );
+      const attData = attRes.data || [];
+      const otData = otRes.data || [];
+      const leaveData = leaveRes.data || [];
+      const wfhData = wfhRes.data || [];
+      const lateReqData = lateReqRes.data || [];
 
-        return {
-          ...log,
-          ot: empOt.map((o: any) => ({
-            id: o.id,
-            requestDate: o.request_date,
-            otType: o.ot_type,
-            startTime: o.actual_start_time,
-            endTime: o.actual_end_time,
-            approvedHours: o.approved_ot_hours,
-            actualHours: o.actual_ot_hours,
-            amount: o.ot_amount,
-            rate: o.ot_rate,
-            status: o.status,
-          })),
-          leave: empLeave
-            ? {
-                id: empLeave.id,
-                leaveType: empLeave.leave_type,
-                startDate: empLeave.start_date,
-                endDate: empLeave.end_date,
-                isHalfDay: empLeave.is_half_day,
-                reason: empLeave.reason,
-                status: empLeave.status,
-              }
-            : null,
-          wfh: empWfh
-            ? {
-                id: empWfh.id,
-                date: empWfh.date,
-                isHalfDay: empWfh.is_half_day,
-                reason: empWfh.reason,
-                status: empWfh.status,
-              }
-            : null,
-          lateRequest: empLateReq
-            ? {
-                id: empLateReq.id,
-                requestDate: empLateReq.request_date,
-                clockInTime: empLateReq.actual_clock_in_time,
-                reason: empLateReq.reason,
-                status: empLateReq.status,
-              }
-            : null,
-        };
-      });
+      // For single date mode, show all employees even without attendance
+      if (dateMode === "single") {
+        const dateStr = format(selectedDate, "yyyy-MM-dd");
+        const rows: AttendanceRow[] = employees.map((emp) => {
+          const att = attData.find((a: any) => a.employee_id === emp.id);
+          const empOt = otData.filter((o: any) => o.employee_id === emp.id);
+          const empLeave = leaveData.find(
+            (l: any) => l.employee_id === emp.id && l.start_date <= dateStr && l.end_date >= dateStr
+          );
+          const empWfh = wfhData.find((w: any) => w.employee_id === emp.id && w.date === dateStr);
+          const empLateReq = lateReqData.find((lr: any) => lr.employee_id === emp.id);
 
-      setHistoryLogs(logsWithDetails);
-    } catch (error) {
-      console.error("Error fetching history:", error);
+          return {
+            id: att?.id || `${emp.id}-${dateStr}`,
+            employee: emp,
+            workDate: dateStr,
+            clockIn: att?.clock_in_time || null,
+            clockOut: att?.clock_out_time || null,
+            workHours: att?.total_hours || null,
+            isLate: att?.is_late || false,
+            lateMinutes: att?.late_minutes || 0,
+            status: att?.status || (empLeave ? "leave" : empWfh ? "wfh" : "absent"),
+            autoCheckout: att?.auto_checkout || false,
+            clockInPhotoUrl: att?.clock_in_photo_url || null,
+            clockOutPhotoUrl: att?.clock_out_photo_url || null,
+            otCount: empOt.length,
+            otHours: empOt.reduce((sum: number, o: any) => sum + (o.actual_ot_hours || 0), 0),
+            otAmount: empOt.reduce((sum: number, o: any) => sum + (o.ot_amount || 0), 0),
+            leaveType: empLeave?.leave_type || null,
+            isWFH: !!empWfh,
+            lateRequestStatus: empLateReq?.status || null,
+          };
+        });
+        setAttendanceRows(rows);
+      } else {
+        // Range mode - show only actual attendance records
+        const rows: AttendanceRow[] = attData.map((att: any) => {
+          const emp = att.employee || employees.find((e) => e.id === att.employee_id);
+          const dateStr = att.work_date;
+          const empOt = otData.filter((o: any) => o.employee_id === att.employee_id && o.request_date === dateStr);
+          const empLeave = leaveData.find(
+            (l: any) => l.employee_id === att.employee_id && l.start_date <= dateStr && l.end_date >= dateStr
+          );
+          const empWfh = wfhData.find((w: any) => w.employee_id === att.employee_id && w.date === dateStr);
+          const empLateReq = lateReqData.find(
+            (lr: any) => lr.employee_id === att.employee_id && lr.request_date === dateStr
+          );
+
+          return {
+            id: att.id,
+            employee: emp || { id: att.employee_id, name: "Unknown", email: "", branch_id: null, role: "staff" },
+            workDate: dateStr,
+            clockIn: att.clock_in_time,
+            clockOut: att.clock_out_time,
+            workHours: att.total_hours,
+            isLate: att.is_late,
+            lateMinutes: att.late_minutes || 0,
+            status: att.status,
+            autoCheckout: att.auto_checkout || false,
+            clockInPhotoUrl: att.clock_in_photo_url,
+            clockOutPhotoUrl: att.clock_out_photo_url,
+            otCount: empOt.length,
+            otHours: empOt.reduce((sum: number, o: any) => sum + (o.actual_ot_hours || 0), 0),
+            otAmount: empOt.reduce((sum: number, o: any) => sum + (o.ot_amount || 0), 0),
+            leaveType: empLeave?.leave_type || null,
+            isWFH: !!empWfh,
+            lateRequestStatus: empLateReq?.status || null,
+          };
+        });
+        setAttendanceRows(rows);
+      }
+    } catch (error: any) {
+      console.error("Error fetching attendance:", error);
+      toast.error("เกิดข้อผิดพลาด", error?.message || "ไม่สามารถโหลดข้อมูลได้");
     } finally {
       setLoading(false);
     }
-  }, [viewMode, currentMonth, filterEmployee, filterStatus, filterBranch]);
+  }, [employees, dateMode, selectedDate, startDate, endDate, toast]);
 
-  // Effects
   useEffect(() => {
-    if (viewMode === "daily") fetchDailySummary();
-    else fetchHistory();
-  }, [viewMode, fetchDailySummary, fetchHistory]);
+    if (employees.length > 0) fetchAttendance();
+  }, [employees, dateMode, selectedDate, startDate, endDate, fetchAttendance]);
+
+  // Filtered rows
+  const filteredRows = useMemo(() => {
+    return attendanceRows.filter((row) => {
+      // Search filter
+      if (searchTerm && !row.employee.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return false;
+      }
+      // Branch filter
+      if (filterBranch !== "all" && row.employee.branch_id !== filterBranch) {
+        return false;
+      }
+      // Status filter
+      if (filterStatus !== "all") {
+        if (filterStatus === "present" && row.status !== "present") return false;
+        if (filterStatus === "late" && !row.isLate) return false;
+        if (filterStatus === "absent" && row.status !== "absent") return false;
+        if (filterStatus === "leave" && !row.leaveType) return false;
+        if (filterStatus === "wfh" && !row.isWFH) return false;
+        if (filterStatus === "ot" && row.otCount === 0) return false;
+      }
+      return true;
+    });
+  }, [attendanceRows, searchTerm, filterBranch, filterStatus]);
 
   // Stats
-  const dailyStats = useMemo(() => {
-    const present = daySummaries.filter((s) => s.attendance && !s.leave).length;
-    const late = daySummaries.filter((s) => s.attendance?.isLate).length;
-    const leave = daySummaries.filter((s) => s.leave).length;
-    const wfh = daySummaries.filter((s) => s.wfh).length;
-    const absent = employees.length - present - leave;
-    const totalOT = daySummaries.reduce((sum, s) => {
-      const hours = s.ot.reduce((h, o) => h + (o.actualHours || o.approvedHours || 0), 0);
-      return sum + hours;
-    }, 0);
-    const totalOTAmount = daySummaries.reduce((sum, s) => {
-      const amount = s.ot.reduce((a, o) => a + (o.amount || 0), 0);
-      return sum + amount;
-    }, 0);
-    const lateRequests = daySummaries.filter((s) => s.lateRequest).length;
+  const stats = useMemo(() => {
+    const total = filteredRows.length;
+    const present = filteredRows.filter((r) => r.status === "present" && !r.isLate).length;
+    const late = filteredRows.filter((r) => r.isLate).length;
+    const absent = filteredRows.filter((r) => r.status === "absent").length;
+    const leave = filteredRows.filter((r) => r.leaveType).length;
+    const wfh = filteredRows.filter((r) => r.isWFH).length;
+    const otHours = filteredRows.reduce((sum, r) => sum + r.otHours, 0);
+    const otAmount = filteredRows.reduce((sum, r) => sum + r.otAmount, 0);
+    return { total, present, late, absent, leave, wfh, otHours, otAmount };
+  }, [filteredRows]);
 
-    return { total: employees.length, present, late, leave, wfh, absent, totalOT, totalOTAmount, lateRequests };
-  }, [daySummaries, employees.length]);
+  // Date navigation
+  const goToPrevDay = () => setSelectedDate(subDays(selectedDate, 1));
+  const goToNextDay = () => setSelectedDate(addDays(selectedDate, 1));
+  const goToToday = () => setSelectedDate(new Date());
 
-  // Add attendance
+  // Add manual attendance
   const handleAddAttendance = async () => {
-    if (!addForm.employeeId || !addForm.workDate) {
-      toast.error("กรุณากรอกข้อมูล", "เลือกพนักงานและวันที่");
+    if (!addForm.employeeId) {
+      toast.error("กรุณาเลือกพนักงาน");
       return;
     }
 
     setSaving(true);
     try {
+      // Check if already exists
+      const { data: existing } = await supabase
+        .from("attendance_logs")
+        .select("id")
+        .eq("employee_id", addForm.employeeId)
+        .eq("work_date", addForm.workDate)
+        .single();
+
+      if (existing) {
+        toast.error("มีข้อมูลการเข้างานวันนี้แล้ว");
+        setSaving(false);
+        return;
+      }
+
       const clockIn = new Date(`${addForm.workDate}T${addForm.clockInTime}:00`);
       const clockOut = new Date(`${addForm.workDate}T${addForm.clockOutTime}:00`);
-      const totalHours = Math.max(0, (clockOut.getTime() - clockIn.getTime()) / (1000 * 60 * 60));
+      const totalHours = (clockOut.getTime() - clockIn.getTime()) / (1000 * 60 * 60);
 
       const { error } = await supabase.from("attendance_logs").insert({
         employee_id: addForm.employeeId,
@@ -475,14 +333,17 @@ function AttendanceContent() {
         clock_in_time: clockIn.toISOString(),
         clock_out_time: clockOut.toISOString(),
         total_hours: totalHours,
-        status: addForm.status,
         is_late: addForm.isLate,
-        note: addForm.note || `เพิ่มโดย Admin`,
+        late_minutes: 0,
+        status: addForm.status,
+        auto_checkout: false,
+        edited_at: new Date().toISOString(),
+        edited_by: currentAdmin?.id,
       });
 
       if (error) throw error;
 
-      toast.success("สำเร็จ", "เพิ่มการเข้างานเรียบร้อย");
+      toast.success("เพิ่มข้อมูลสำเร็จ");
       setAddModal(false);
       setAddForm({
         employeeId: "",
@@ -491,988 +352,393 @@ function AttendanceContent() {
         clockOutTime: "18:00",
         status: "present",
         isLate: false,
-        note: "",
       });
-      if (viewMode === "daily") fetchDailySummary();
-      else fetchHistory();
+      fetchAttendance();
     } catch (error: any) {
-      toast.error("เกิดข้อผิดพลาด", error?.message || "ไม่สามารถเพิ่มได้");
+      toast.error("เกิดข้อผิดพลาด", error?.message);
     } finally {
       setSaving(false);
     }
   };
 
-  // Export CSV
-  const exportCSV = () => {
-    if (!historyLogs.length) return;
-    const headers = ["วันที่", "ชื่อ", "เข้างาน", "ออกงาน", "ชั่วโมง", "สถานะ", "สาขา"];
-    const rows = historyLogs.map((l) => [
-      format(new Date(l.work_date), "dd/MM/yyyy"),
-      l.employee?.name || "-",
-      l.clock_in_time ? format(new Date(l.clock_in_time), "HH:mm") : "-",
-      l.clock_out_time ? format(new Date(l.clock_out_time), "HH:mm") : "-",
-      l.total_hours?.toFixed(1) || "0",
-      l.is_late ? "สาย" : "ปกติ",
-      branches.find((b) => b.id === l.employee?.branch_id)?.name || "-",
-    ]);
-    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `attendance-${format(currentMonth, "yyyy-MM")}.csv`;
-    link.click();
-  };
-
-  // Get status badge
-  const getStatusBadge = (summary: DaySummary) => {
-    if (summary.leave)
-      return (
-        <Badge variant="info">
-          <Calendar className="w-3 h-3 mr-1" />
-          {summary.leave.isHalfDay ? "ลาครึ่งวัน" : "ลา"}
-        </Badge>
-      );
-    if (summary.wfh)
-      return (
-        <Badge variant="success">
-          <Home className="w-3 h-3 mr-1" />
-          {summary.wfh.isHalfDay ? "WFH ½" : "WFH"}
-        </Badge>
-      );
-    if (summary.attendance) {
-      if (summary.attendance.isLate && summary.lateRequest?.status === "approved")
-        return (
-          <Badge variant="success">
-            <CheckCircle2 className="w-3 h-3 mr-1" />
-            อนุมัติสาย
-          </Badge>
-        );
-      if (summary.attendance.isLate)
-        return (
-          <Badge variant="warning">
-            <AlertTriangle className="w-3 h-3 mr-1" />
-            สาย {summary.attendance.lateMinutes}น.
-          </Badge>
-        );
-      if (summary.attendance.status === "holiday")
-        return (
-          <Badge variant="info">
-            <Sun className="w-3 h-3 mr-1" />
-            วันหยุด
-          </Badge>
-        );
-      return (
-        <Badge variant="success">
-          <CheckCircle2 className="w-3 h-3 mr-1" />
-          ปกติ
-        </Badge>
-      );
+  // Status badge
+  const getStatusBadge = (row: AttendanceRow) => {
+    if (row.leaveType) {
+      const leaveLabels: Record<string, string> = {
+        sick: "ลาป่วย",
+        personal: "ลากิจ",
+        annual: "ลาพักร้อน",
+      };
+      return <Badge variant="info">{leaveLabels[row.leaveType] || "ลา"}</Badge>;
     }
-    return (
-      <Badge variant="default">
-        <UserX className="w-3 h-3 mr-1" />
-        ขาด
-      </Badge>
-    );
-  };
-
-  // Get OT status color
-  const getOTStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "text-[#34c759]";
-      case "started":
-        return "text-[#0071e3]";
-      case "approved":
-        return "text-[#ff9500]";
-      default:
-        return "text-[#86868b]";
+    if (row.isWFH) return <Badge variant="default">WFH</Badge>;
+    if (row.status === "absent") return <Badge variant="danger">ขาด</Badge>;
+    if (row.isLate) {
+      if (row.lateRequestStatus === "approved") {
+        return <Badge variant="warning">สาย (อนุมัติ)</Badge>;
+      }
+      return <Badge variant="warning">สาย {row.lateMinutes}น.</Badge>;
     }
-  };
-
-  // Get OT type label
-  const getOTTypeLabel = (type: string) => {
-    switch (type) {
-      case "weekday":
-        return "วันทำงาน";
-      case "weekend":
-        return "วันหยุด";
-      case "holiday":
-        return "วันหยุดนักขัตฤกษ์";
-      default:
-        return type;
-    }
-  };
-
-  // Get leave type label
-  const getLeaveTypeLabel = (type: string) => {
-    switch (type) {
-      case "sick":
-        return "ลาป่วย";
-      case "personal":
-        return "ลากิจ";
-      case "annual":
-        return "ลาพักร้อน";
-      case "maternity":
-        return "ลาคลอด";
-      default:
-        return type;
-    }
+    if (row.status === "present") return <Badge variant="success">ปกติ</Badge>;
+    return <Badge variant="default">{row.status}</Badge>;
   };
 
   return (
-    <AdminLayout title="การเข้างาน">
-      {/* View Toggle & Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        {/* View Mode Toggle */}
-        <div className="flex p-1 bg-[#f5f5f7] rounded-xl">
+    <AdminLayout title="การเข้างาน" subtitle="ดูและจัดการข้อมูลการเข้างานพนักงาน">
+      {/* Header Controls */}
+      <div className="flex flex-col lg:flex-row gap-4 mb-6">
+        {/* Date Mode Toggle */}
+        <div className="flex items-center gap-2 bg-white border border-[#e8e8ed] rounded-xl p-1">
           <button
-            onClick={() => setViewMode("daily")}
+            onClick={() => setDateMode("single")}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              viewMode === "daily" ? "bg-white shadow-sm text-[#1d1d1f]" : "text-[#86868b]"
+              dateMode === "single" ? "bg-[#0071e3] text-white" : "text-[#86868b] hover:text-[#1d1d1f]"
             }`}
           >
-            <Calendar className="w-4 h-4 inline mr-1.5" />
             รายวัน
           </button>
           <button
-            onClick={() => setViewMode("history")}
+            onClick={() => setDateMode("range")}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              viewMode === "history" ? "bg-white shadow-sm text-[#1d1d1f]" : "text-[#86868b]"
+              dateMode === "range" ? "bg-[#0071e3] text-white" : "text-[#86868b] hover:text-[#1d1d1f]"
             }`}
           >
-            <Clock className="w-4 h-4 inline mr-1.5" />
-            ประวัติ
+            ช่วงวัน
           </button>
         </div>
 
+        {/* Date Picker */}
+        {dateMode === "single" ? (
+          <div className="flex items-center gap-2">
+            <button onClick={goToPrevDay} className="p-2 hover:bg-[#f5f5f7] rounded-lg">
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <input
+              type="date"
+              value={format(selectedDate, "yyyy-MM-dd")}
+              onChange={(e) => setSelectedDate(new Date(e.target.value))}
+              className="px-4 py-2 border border-[#e8e8ed] rounded-xl text-sm"
+            />
+            <button onClick={goToNextDay} className="p-2 hover:bg-[#f5f5f7] rounded-lg">
+              <ChevronRight className="w-5 h-5" />
+            </button>
+            {!isToday(selectedDate) && (
+              <button
+                onClick={goToToday}
+                className="px-3 py-2 text-sm text-[#0071e3] hover:bg-[#0071e3]/10 rounded-lg"
+              >
+                วันนี้
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-4 py-2 border border-[#e8e8ed] rounded-xl text-sm"
+            />
+            <span className="text-[#86868b]">ถึง</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-4 py-2 border border-[#e8e8ed] rounded-xl text-sm"
+            />
+          </div>
+        )}
+
         {/* Actions */}
-        <div className="flex gap-2">
-          <Button onClick={() => setAddModal(true)}>
-            <Plus className="w-4 h-4" />
-            เพิ่มการเข้างาน
+        <div className="flex items-center gap-2 ml-auto">
+          <Button variant="secondary" onClick={fetchAttendance} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            รีเฟรช
           </Button>
-          {viewMode === "history" && (
-            <Button variant="secondary" onClick={exportCSV} disabled={!historyLogs.length}>
-              <Download className="w-4 h-4" />
-              Export CSV
-            </Button>
-          )}
+          <Button onClick={() => setAddModal(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            เพิ่ม Manual
+          </Button>
         </div>
       </div>
 
-      {/* Daily View */}
-      {viewMode === "daily" && (
-        <>
-          {/* Date Navigation */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setSelectedDate(subDays(selectedDate, 1))}
-                className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5 text-[#6e6e73]" />
-              </button>
-              <div className="relative">
-                <h2 className="text-lg font-semibold text-[#1d1d1f] min-w-[220px] text-center cursor-pointer hover:bg-[#f5f5f7] px-3 py-1.5 rounded-lg transition-colors">
-                  {format(selectedDate, "EEEE d MMMM yyyy", { locale: th })}
-                </h2>
-                <input
-                  type="date"
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                  value={format(selectedDate, "yyyy-MM-dd")}
-                  onChange={(e) => e.target.value && setSelectedDate(new Date(e.target.value))}
-                />
-              </div>
-              <button
-                onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-                className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors"
-              >
-                <ChevronRight className="w-5 h-5 text-[#6e6e73]" />
-              </button>
-            </div>
-            <button
-              onClick={() => setSelectedDate(new Date())}
-              className="px-3 py-1.5 text-sm text-[#0071e3] hover:bg-[#0071e3]/10 rounded-lg transition-colors"
-            >
-              วันนี้
-            </button>
-          </div>
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#86868b]" />
+          <input
+            type="text"
+            placeholder="ค้นหาชื่อพนักงาน..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-[#e8e8ed] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20"
+          />
+        </div>
+        <select
+          value={filterBranch}
+          onChange={(e) => setFilterBranch(e.target.value)}
+          className="px-4 py-2 border border-[#e8e8ed] rounded-xl text-sm bg-white"
+        >
+          <option value="all">ทุกสาขา</option>
+          {branches.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}
+            </option>
+          ))}
+        </select>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="px-4 py-2 border border-[#e8e8ed] rounded-xl text-sm bg-white"
+        >
+          <option value="all">ทุกสถานะ</option>
+          <option value="present">ปกติ</option>
+          <option value="late">มาสาย</option>
+          <option value="absent">ขาด</option>
+          <option value="leave">ลา</option>
+          <option value="wfh">WFH</option>
+          <option value="ot">มี OT</option>
+        </select>
+      </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
-            {[
-              {
-                label: "ทั้งหมด",
-                value: dailyStats.total,
-                icon: Users,
-                color: "text-[#1d1d1f]",
-                bg: "bg-[#f5f5f7]",
-              },
-              {
-                label: "มาทำงาน",
-                value: dailyStats.present,
-                icon: CheckCircle2,
-                color: "text-[#34c759]",
-                bg: "bg-[#34c759]/10",
-              },
-              {
-                label: "สาย",
-                value: dailyStats.late,
-                icon: AlertTriangle,
-                color: "text-[#ff9500]",
-                bg: "bg-[#ff9500]/10",
-              },
-              { label: "ขาด", value: dailyStats.absent, icon: UserX, color: "text-[#ff3b30]", bg: "bg-[#ff3b30]/10" },
-              { label: "ลา", value: dailyStats.leave, icon: Calendar, color: "text-[#0071e3]", bg: "bg-[#0071e3]/10" },
-              { label: "WFH", value: dailyStats.wfh, icon: Home, color: "text-[#af52de]", bg: "bg-[#af52de]/10" },
-              {
-                label: "OT (ชม.)",
-                value: dailyStats.totalOT.toFixed(1),
-                icon: Clock,
-                color: "text-[#ff9500]",
-                bg: "bg-[#ff9500]/10",
-              },
-              {
-                label: "OT (฿)",
-                value: `${dailyStats.totalOTAmount.toLocaleString()}`,
-                icon: DollarSign,
-                color: "text-[#34c759]",
-                bg: "bg-[#34c759]/10",
-              },
-            ].map((s, i) => (
-              <Card key={i} elevated className="!p-3">
-                <div className="flex flex-col gap-1.5">
-                  <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center`}>
-                    <s.icon className={`w-4 h-4 ${s.color}`} />
-                  </div>
-                  <div>
-                    <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
-                    <p className="text-[10px] text-[#86868b]">{s.label}</p>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+        <Card elevated className="!p-4 text-center">
+          <Users className="w-5 h-5 mx-auto mb-1 text-[#0071e3]" />
+          <p className="text-xl font-bold text-[#1d1d1f]">{stats.total}</p>
+          <p className="text-xs text-[#86868b]">ทั้งหมด</p>
+        </Card>
+        <Card elevated className="!p-4 text-center">
+          <CheckCircle2 className="w-5 h-5 mx-auto mb-1 text-[#34c759]" />
+          <p className="text-xl font-bold text-[#34c759]">{stats.present}</p>
+          <p className="text-xs text-[#86868b]">ปกติ</p>
+        </Card>
+        <Card elevated className="!p-4 text-center">
+          <Clock className="w-5 h-5 mx-auto mb-1 text-[#ff9500]" />
+          <p className="text-xl font-bold text-[#ff9500]">{stats.late}</p>
+          <p className="text-xs text-[#86868b]">สาย</p>
+        </Card>
+        <Card elevated className="!p-4 text-center">
+          <UserX className="w-5 h-5 mx-auto mb-1 text-[#ff3b30]" />
+          <p className="text-xl font-bold text-[#ff3b30]">{stats.absent}</p>
+          <p className="text-xs text-[#86868b]">ขาด</p>
+        </Card>
+        <Card elevated className="!p-4 text-center">
+          <Calendar className="w-5 h-5 mx-auto mb-1 text-[#af52de]" />
+          <p className="text-xl font-bold text-[#af52de]">{stats.leave}</p>
+          <p className="text-xs text-[#86868b]">ลา</p>
+        </Card>
+        <Card elevated className="!p-4 text-center">
+          <Home className="w-5 h-5 mx-auto mb-1 text-[#5856d6]" />
+          <p className="text-xl font-bold text-[#5856d6]">{stats.wfh}</p>
+          <p className="text-xs text-[#86868b]">WFH</p>
+        </Card>
+        <Card elevated className="!p-4 text-center">
+          <Timer className="w-5 h-5 mx-auto mb-1 text-[#ff9500]" />
+          <p className="text-xl font-bold text-[#ff9500]">{stats.otHours.toFixed(1)}</p>
+          <p className="text-xs text-[#86868b]">ชม. OT</p>
+        </Card>
+        <Card elevated className="!p-4 text-center">
+          <DollarSign className="w-5 h-5 mx-auto mb-1 text-[#34c759]" />
+          <p className="text-xl font-bold text-[#34c759]">฿{stats.otAmount.toLocaleString()}</p>
+          <p className="text-xs text-[#86868b]">เงิน OT</p>
+        </Card>
+      </div>
 
-          {/* Employee List */}
-          <Card elevated padding="none">
-            {loading ? (
-              <div className="flex justify-center py-16">
-                <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : daySummaries.length === 0 ? (
-              <div className="text-center py-16 text-[#86868b]">
-                <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>ไม่มีพนักงาน</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-[#e8e8ed] bg-[#f9f9fb]">
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
-                        พนักงาน
-                      </th>
-                      <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
-                        เข้างาน
-                      </th>
-                      <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
-                        ออกงาน
-                      </th>
-                      <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
-                        ชั่วโมง
-                      </th>
-                      <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
-                        OT
-                      </th>
-                      <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
-                        ลา/WFH
-                      </th>
-                      <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
-                        สถานะ
-                      </th>
-                      <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
-                        รูป
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#e8e8ed]">
-                    {daySummaries.map((summary) => (
-                      <tr key={summary.employee.id} className="hover:bg-[#f5f5f7]/50 transition-colors group">
-                        <td className="px-4 py-3">
-                          <Link href={`/admin/employees/${summary.employee.id}`} className="flex items-center gap-2">
-                            <Avatar name={summary.employee.name} size="sm" />
-                            <div>
-                              <p className="text-sm font-medium text-[#1d1d1f] group-hover:text-[#0071e3] transition-colors">
-                                {summary.employee.name}
-                              </p>
-                              <p className="text-xs text-[#86868b]">{summary.employee.email}</p>
-                            </div>
-                          </Link>
-                        </td>
-                        <td className="text-center px-3 py-3">
-                          {summary.attendance?.clockIn ? (
-                            <span className="text-sm text-[#1d1d1f] font-medium">
-                              {format(new Date(summary.attendance.clockIn), "HH:mm")}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-[#86868b]">-</span>
+      {/* Table */}
+      <Card elevated className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-[#e8e8ed] bg-[#f5f5f7]">
+                {dateMode === "range" && <th className="px-4 py-3 text-left text-xs font-semibold text-[#86868b]">วันที่</th>}
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[#86868b]">พนักงาน</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-[#86868b]">เข้างาน</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-[#86868b]">ออกงาน</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-[#86868b]">ชม.ทำงาน</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-[#86868b]">สถานะ</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-[#86868b]">OT</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-[#86868b]">รูป</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={dateMode === "range" ? 8 : 7} className="px-4 py-12 text-center">
+                    <div className="flex items-center justify-center gap-2 text-[#86868b]">
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                      กำลังโหลด...
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredRows.length === 0 ? (
+                <tr>
+                  <td colSpan={dateMode === "range" ? 8 : 7} className="px-4 py-12 text-center text-[#86868b]">
+                    ไม่พบข้อมูล
+                  </td>
+                </tr>
+              ) : (
+                filteredRows.map((row) => (
+                  <tr key={row.id} className="border-b border-[#e8e8ed] hover:bg-[#f5f5f7]/50">
+                    {dateMode === "range" && (
+                      <td className="px-4 py-3 text-sm text-[#1d1d1f]">
+                        {format(new Date(row.workDate), "d MMM", { locale: th })}
+                      </td>
+                    )}
+                    <td className="px-4 py-3">
+                      <Link href={`/admin/employees/${row.employee.id}`} className="flex items-center gap-2 hover:underline">
+                        <Avatar name={row.employee.name} size="sm" />
+                        <div>
+                          <p className="text-sm font-medium text-[#1d1d1f]">{row.employee.name}</p>
+                          {row.employee.branch_id && (
+                            <p className="text-xs text-[#86868b]">
+                              {branches.find((b) => b.id === row.employee.branch_id)?.name}
+                            </p>
                           )}
-                        </td>
-                        <td className="text-center px-3 py-3">
-                          {summary.attendance?.clockOut ? (
-                            <span className="text-sm text-[#1d1d1f] font-medium">
-                              {format(new Date(summary.attendance.clockOut), "HH:mm")}
-                            </span>
-                          ) : summary.attendance?.clockIn ? (
-                            <span className="text-xs text-[#ff9500]">ยังไม่เช็คเอาท์</span>
-                          ) : (
-                            <span className="text-sm text-[#86868b]">-</span>
-                          )}
-                        </td>
-                        <td className="text-center px-3 py-3">
-                          {summary.attendance?.workHours ? (
-                            <span className="text-sm font-semibold text-[#0071e3]">
-                              {summary.attendance.workHours.toFixed(1)}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-[#86868b]">-</span>
-                          )}
-                        </td>
-                        <td className="text-center px-3 py-3">
-                          {summary.ot.length > 0 ? (
-                            <button
-                              onClick={() =>
-                                setDetailModal({ type: "ot", employee: summary.employee, data: summary.ot })
-                              }
-                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#ff9500] bg-[#ff9500]/10 rounded-lg hover:bg-[#ff9500]/20 transition-colors"
-                            >
-                              <Clock className="w-3 h-3" />
-                              {summary.ot.reduce((h, o) => h + (o.actualHours || o.approvedHours || 0), 0).toFixed(1)}{" "}
-                              ชม.
-                            </button>
-                          ) : (
-                            <span className="text-sm text-[#86868b]">-</span>
-                          )}
-                        </td>
-                        <td className="text-center px-3 py-3">
-                          {summary.leave ? (
-                            <button
-                              onClick={() =>
-                                setDetailModal({ type: "leave", employee: summary.employee, data: summary.leave })
-                              }
-                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/20 transition-colors"
-                            >
-                              <Calendar className="w-3 h-3" />
-                              {getLeaveTypeLabel(summary.leave.leaveType)}
-                            </button>
-                          ) : summary.wfh ? (
-                            <button
-                              onClick={() =>
-                                setDetailModal({ type: "wfh", employee: summary.employee, data: summary.wfh })
-                              }
-                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#af52de] bg-[#af52de]/10 rounded-lg hover:bg-[#af52de]/20 transition-colors"
-                            >
-                              <Home className="w-3 h-3" />
-                              WFH
-                            </button>
-                          ) : (
-                            <span className="text-sm text-[#86868b]">-</span>
-                          )}
-                        </td>
-                        <td className="text-center px-3 py-3">{getStatusBadge(summary)}</td>
-                        <td className="text-center px-3 py-3">
-                          <div className="flex justify-center gap-1">
-                            {summary.attendance?.clockInPhotoUrl && (
-                              <button
-                                onClick={() => setPhotoModal(summary.attendance!.clockInPhotoUrl!)}
-                                className="p-1.5 text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/20 transition-colors"
-                                title="รูปเข้างาน"
-                              >
-                                <Camera className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            {summary.attendance?.clockOutPhotoUrl && (
-                              <button
-                                onClick={() => setPhotoModal(summary.attendance!.clockOutPhotoUrl!)}
-                                className="p-1.5 text-[#34c759] bg-[#34c759]/10 rounded-lg hover:bg-[#34c759]/20 transition-colors"
-                                title="รูปออกงาน"
-                              >
-                                <Camera className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            {!summary.attendance?.clockInPhotoUrl && !summary.attendance?.clockOutPhotoUrl && (
-                              <span className="text-xs text-[#86868b]">-</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
-        </>
-      )}
-
-      {/* History View */}
-      {viewMode === "history" && (
-        <>
-          {/* Month Navigation & Filters */}
-          <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5 text-[#6e6e73]" />
-              </button>
-              <h2 className="text-lg font-semibold text-[#1d1d1f] min-w-[160px] text-center">
-                {format(currentMonth, "MMMM yyyy", { locale: th })}
-              </h2>
-              <button
-                onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors"
-              >
-                <ChevronRight className="w-5 h-5 text-[#6e6e73]" />
-              </button>
-            </div>
-
-            <div className="flex flex-wrap gap-2 flex-1">
-              <Select
-                value={filterEmployee}
-                onChange={setFilterEmployee}
-                options={[{ value: "", label: "ทุกคน" }, ...employees.map((e) => ({ value: e.id, label: e.name }))]}
-                placeholder="พนักงาน"
-              />
-              <Select
-                value={filterStatus}
-                onChange={setFilterStatus}
-                options={[
-                  { value: "all", label: "ทุกสถานะ" },
-                  { value: "normal", label: "ปกติ" },
-                  { value: "late", label: "สาย" },
-                  { value: "holiday", label: "วันหยุด" },
-                  { value: "no_checkout", label: "ไม่เช็คเอาท์" },
-                ]}
-              />
-              {branches.length > 0 && (
-                <Select
-                  value={filterBranch}
-                  onChange={setFilterBranch}
-                  options={[{ value: "", label: "ทุกสาขา" }, ...branches.map((b) => ({ value: b.id, label: b.name }))]}
-                  placeholder="สาขา"
-                />
-              )}
-              {(filterEmployee || filterStatus !== "all" || filterBranch) && (
-                <button
-                  onClick={() => {
-                    setFilterEmployee("");
-                    setFilterStatus("all");
-                    setFilterBranch("");
-                  }}
-                  className="px-3 py-2 text-sm text-[#0071e3] hover:bg-[#0071e3]/10 rounded-lg transition-colors"
-                >
-                  ล้างตัวกรอง
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* History Table */}
-          <Card elevated padding="none">
-            {loading ? (
-              <div className="flex justify-center py-16">
-                <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : historyLogs.length === 0 ? (
-              <div className="text-center py-16 text-[#86868b]">
-                <Clock className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>ไม่มีข้อมูล</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-[#e8e8ed] bg-[#f9f9fb]">
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
-                        วันที่
-                      </th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
-                        พนักงาน
-                      </th>
-                      <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
-                        เข้า
-                      </th>
-                      <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
-                        ออก
-                      </th>
-                      <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
-                        ชม.
-                      </th>
-                      <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
-                        OT
-                      </th>
-                      <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
-                        ลา/WFH
-                      </th>
-                      <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
-                        สถานะ
-                      </th>
-                      <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
-                        รูป
-                      </th>
-                      <th className="text-right px-4 py-3"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#e8e8ed]">
-                    {historyLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-[#f5f5f7]/50 transition-colors">
-                        <td className="px-4 py-3 text-sm font-medium text-[#1d1d1f]">
-                          {format(new Date(log.work_date), "d MMM yyyy", { locale: th })}
-                        </td>
-                        <td className="px-4 py-3">
-                          <Link href={`/admin/employees/${log.employee_id}`} className="flex items-center gap-2 group">
-                            <Avatar name={log.employee?.name || "?"} size="sm" />
-                            <div>
-                              <p className="text-sm font-medium text-[#1d1d1f] group-hover:text-[#0071e3] transition-colors">
-                                {log.employee?.name}
-                              </p>
-                              {log.employee?.branch_id && (
-                                <p className="text-xs text-[#86868b]">
-                                  {branches.find((b) => b.id === log.employee.branch_id)?.name}
-                                </p>
-                              )}
-                            </div>
-                          </Link>
-                        </td>
-                        <td className="text-center px-3 py-3 text-sm text-[#1d1d1f] font-medium">
-                          {log.clock_in_time ? format(new Date(log.clock_in_time), "HH:mm") : "-"}
-                        </td>
-                        <td className="text-center px-3 py-3 text-sm text-[#1d1d1f] font-medium">
-                          {log.clock_out_time ? (
-                            format(new Date(log.clock_out_time), "HH:mm")
-                          ) : (
-                            <span className="text-xs text-[#ff9500]">ยังไม่เช็คเอาท์</span>
-                          )}
-                        </td>
-                        <td className="text-center px-3 py-3 text-sm font-semibold text-[#0071e3]">
-                          {log.total_hours?.toFixed(1) || "0"}
-                        </td>
-                        <td className="text-center px-3 py-3">
-                          {log.ot.length > 0 ? (
-                            <button
-                              onClick={() =>
-                                setDetailModal({
-                                  type: "ot",
-                                  employee: log.employee,
-                                  data: log.ot,
-                                })
-                              }
-                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#ff9500] bg-[#ff9500]/10 rounded-lg hover:bg-[#ff9500]/20 transition-colors"
-                            >
-                              <Clock className="w-3 h-3" />
-                              {log.ot.reduce((h, o) => h + (o.actualHours || o.approvedHours || 0), 0).toFixed(1)} ชม.
-                            </button>
-                          ) : (
-                            <span className="text-xs text-[#86868b]">-</span>
-                          )}
-                        </td>
-                        <td className="text-center px-3 py-3">
-                          {log.leave ? (
-                            <button
-                              onClick={() =>
-                                setDetailModal({
-                                  type: "leave",
-                                  employee: log.employee,
-                                  data: log.leave,
-                                })
-                              }
-                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/20 transition-colors"
-                            >
-                              <Calendar className="w-3 h-3" />
-                              {getLeaveTypeLabel(log.leave.leaveType)}
-                            </button>
-                          ) : log.wfh ? (
-                            <button
-                              onClick={() =>
-                                setDetailModal({
-                                  type: "wfh",
-                                  employee: log.employee,
-                                  data: log.wfh,
-                                })
-                              }
-                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#af52de] bg-[#af52de]/10 rounded-lg hover:bg-[#af52de]/20 transition-colors"
-                            >
-                              <Home className="w-3 h-3" />
-                              WFH
-                            </button>
-                          ) : (
-                            <span className="text-xs text-[#86868b]">-</span>
-                          )}
-                        </td>
-                        <td className="text-center px-3 py-3">
-                          <div className="flex flex-col items-center gap-1">
-                            {log.status === "holiday" ? (
-                              <Badge variant="info">
-                                <Sun className="w-3 h-3 mr-1" />
-                                วันหยุด
-                              </Badge>
-                            ) : log.is_late && log.lateRequest?.status === "approved" ? (
-                              <Badge variant="success">
-                                <CheckCircle2 className="w-3 h-3 mr-1" />
-                                อนุมัติสาย
-                              </Badge>
-                            ) : (
-                              <Badge variant={log.is_late ? "warning" : "success"}>
-                                {log.is_late ? `สาย ${log.late_minutes || 0}น.` : "ปกติ"}
-                              </Badge>
-                            )}
-                            <div className="flex gap-1">
-                              {log.auto_checkout && (
-                                <span className="text-[10px] px-1.5 py-0.5 bg-[#0071e3]/10 text-[#0071e3] rounded">
-                                  Auto
-                                </span>
-                              )}
-                              {log.edited_at && (
-                                <span className="text-[10px] px-1.5 py-0.5 bg-[#86868b]/10 text-[#86868b] rounded">
-                                  แก้ไข
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="text-center px-3 py-3">
-                          <div className="flex justify-center gap-1">
-                            {log.clock_in_photo_url && (
-                              <button
-                                onClick={() => setPhotoModal(log.clock_in_photo_url)}
-                                className="p-1.5 text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/20 transition-colors"
-                                title="รูปเข้างาน"
-                              >
-                                <Camera className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            {log.clock_out_photo_url && (
-                              <button
-                                onClick={() => setPhotoModal(log.clock_out_photo_url)}
-                                className="p-1.5 text-[#34c759] bg-[#34c759]/10 rounded-lg hover:bg-[#34c759]/20 transition-colors"
-                                title="รูปออกงาน"
-                              >
-                                <Camera className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            {!log.clock_in_photo_url && !log.clock_out_photo_url && (
-                              <span className="text-xs text-[#86868b]">-</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="text-right px-4 py-3">
-                          <Link
-                            href={`/admin/attendance/edit/${log.id}`}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/20 transition-colors"
+                        </div>
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm text-[#1d1d1f]">
+                      {row.clockIn ? format(new Date(row.clockIn), "HH:mm") : "-"}
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm text-[#1d1d1f]">
+                      {row.clockOut ? (
+                        <span className={row.autoCheckout ? "text-[#ff9500]" : ""}>
+                          {format(new Date(row.clockOut), "HH:mm")}
+                          {row.autoCheckout && " (auto)"}
+                        </span>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm font-medium text-[#0071e3]">
+                      {row.workHours ? row.workHours.toFixed(1) : "-"}
+                    </td>
+                    <td className="px-4 py-3 text-center">{getStatusBadge(row)}</td>
+                    <td className="px-4 py-3 text-center">
+                      {row.otCount > 0 ? (
+                        <div className="text-xs">
+                          <p className="font-medium text-[#ff9500]">{row.otHours.toFixed(1)} ชม.</p>
+                          <p className="text-[#86868b]">฿{row.otAmount.toLocaleString()}</p>
+                        </div>
+                      ) : (
+                        <span className="text-[#86868b]">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        {row.clockInPhotoUrl && (
+                          <button
+                            onClick={() => setPhotoModal({ url: row.clockInPhotoUrl!, type: "เข้างาน" })}
+                            className="p-1.5 text-[#0071e3] hover:bg-[#0071e3]/10 rounded-lg"
+                            title="รูปเข้างาน"
                           >
-                            <Edit className="w-3 h-3" />
-                            แก้ไข
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
-        </>
+                            <Camera className="w-4 h-4" />
+                          </button>
+                        )}
+                        {row.clockOutPhotoUrl && (
+                          <button
+                            onClick={() => setPhotoModal({ url: row.clockOutPhotoUrl!, type: "ออกงาน" })}
+                            className="p-1.5 text-[#34c759] hover:bg-[#34c759]/10 rounded-lg"
+                            title="รูปออกงาน"
+                          >
+                            <Camera className="w-4 h-4" />
+                          </button>
+                        )}
+                        {!row.clockInPhotoUrl && !row.clockOutPhotoUrl && (
+                          <span className="text-[#86868b]">-</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* Photo Modal */}
+      {photoModal && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setPhotoModal(null)}>
+          <div className="relative max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setPhotoModal(null)}
+              className="absolute -top-12 right-0 p-2 text-white hover:text-[#ff3b30]"
+            >
+              <X className="w-8 h-8" />
+            </button>
+            <p className="text-white text-center mb-4 text-lg font-medium">รูปถ่าย{photoModal.type}</p>
+            <img src={photoModal.url} alt={`รูป${photoModal.type}`} className="w-full rounded-2xl shadow-2xl" />
+          </div>
+        </div>
       )}
 
       {/* Add Modal */}
       <Modal isOpen={addModal} onClose={() => setAddModal(false)} title="เพิ่มการเข้างาน Manual" size="md">
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-[#1d1d1f] mb-1.5">พนักงาน *</label>
-            <Select
-              value={addForm.employeeId}
-              onChange={(v) => setAddForm({ ...addForm, employeeId: v })}
-              options={[{ value: "", label: "เลือกพนักงาน" }, ...employees.map((e) => ({ value: e.id, label: e.name }))]}
-            />
-          </div>
+          <Select
+            label="พนักงาน"
+            value={addForm.employeeId}
+            onChange={(v) => setAddForm({ ...addForm, employeeId: v })}
+            options={[
+              { value: "", label: "เลือกพนักงาน" },
+              ...employees.map((e) => ({ value: e.id, label: e.name })),
+            ]}
+          />
           <DateInput
-            label="วันที่ *"
+            label="วันที่"
             value={addForm.workDate}
             onChange={(v) => setAddForm({ ...addForm, workDate: v })}
           />
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-[#1d1d1f] mb-1.5">เวลาเข้า *</label>
-              <TimeInput value={addForm.clockInTime} onChange={(v) => setAddForm({ ...addForm, clockInTime: v })} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[#1d1d1f] mb-1.5">เวลาออก *</label>
-              <TimeInput value={addForm.clockOutTime} onChange={(v) => setAddForm({ ...addForm, clockOutTime: v })} />
-            </div>
+          <div className="grid grid-cols-2 gap-4">
+            <TimeInput
+              label="เวลาเข้างาน"
+              value={addForm.clockInTime}
+              onChange={(v) => setAddForm({ ...addForm, clockInTime: v })}
+            />
+            <TimeInput
+              label="เวลาออกงาน"
+              value={addForm.clockOutTime}
+              onChange={(v) => setAddForm({ ...addForm, clockOutTime: v })}
+            />
           </div>
           <Select
             label="สถานะ"
             value={addForm.status}
             onChange={(v) => setAddForm({ ...addForm, status: v })}
             options={[
-              { value: "present", label: "มาทำงานปกติ" },
-              { value: "holiday", label: "วันหยุด (OT)" },
-              { value: "wfh", label: "Work From Home" },
+              { value: "present", label: "ปกติ" },
+              { value: "late", label: "มาสาย" },
             ]}
           />
-          <label className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-xl cursor-pointer hover:bg-[#e8e8ed] transition-colors">
+          <div className="flex items-center gap-2">
             <input
               type="checkbox"
+              id="isLate"
               checked={addForm.isLate}
               onChange={(e) => setAddForm({ ...addForm, isLate: e.target.checked })}
-              className="w-5 h-5 rounded border-[#d2d2d7] text-[#0071e3] focus:ring-[#0071e3]"
+              className="w-4 h-4 rounded border-[#d2d2d7]"
             />
-            <span className="text-sm font-medium text-[#1d1d1f]">มาสาย</span>
-          </label>
-          <div className="flex gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setAddModal(false)} className="flex-1">
-              ยกเลิก
-            </Button>
-            <Button onClick={handleAddAttendance} loading={saving} className="flex-1">
-              เพิ่มการเข้างาน
-            </Button>
+            <label htmlFor="isLate" className="text-sm text-[#1d1d1f]">มาสาย</label>
           </div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <Button variant="secondary" onClick={() => setAddModal(false)} className="flex-1">
+            ยกเลิก
+          </Button>
+          <Button onClick={handleAddAttendance} loading={saving} className="flex-1">
+            บันทึก
+          </Button>
         </div>
       </Modal>
-
-      {/* Detail Modals */}
-      {detailModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl animate-scale-in">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-[#e8e8ed] flex items-center justify-between bg-[#fbfbfd]">
-              <div>
-                <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
-                  {detailModal.type === "ot"
-                    ? "รายละเอียด OT"
-                    : detailModal.type === "leave"
-                    ? "รายละเอียดการลา"
-                    : detailModal.type === "wfh"
-                    ? "รายละเอียด WFH"
-                    : "รายละเอียดคำขอสาย"}
-                </h3>
-                <p className="text-[13px] text-[#86868b] mt-0.5">
-                  {detailModal.employee.name}
-                  {detailModal.type === "ot" && detailModal.data.length > 0
-                    ? ` - ${format(new Date((detailModal.data[0] as OTRecord).requestDate), "d MMMM yyyy", { locale: th })}`
-                    : detailModal.type === "leave"
-                    ? ` - ${format(new Date((detailModal.data as LeaveRecord).startDate), "d MMMM yyyy", { locale: th })}`
-                    : detailModal.type === "wfh"
-                    ? ` - ${format(new Date((detailModal.data as WFHRecord).date), "d MMMM yyyy", { locale: th })}`
-                    : ""}
-                </p>
-              </div>
-              <button
-                onClick={() => setDetailModal(null)}
-                className="p-2 hover:bg-[#e8e8ed] rounded-full transition-colors"
-              >
-                <X className="w-5 h-5 text-[#86868b]" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6">
-              {detailModal.type === "ot" && (
-                <div className="space-y-3">
-                  {(detailModal.data as OTRecord[]).map((ot) => (
-                    <Card key={ot.id} elevated className="!p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge
-                              variant={
-                                ot.otType === "holiday"
-                                  ? "info"
-                                  : ot.otType === "weekend"
-                                  ? "warning"
-                                  : "default"
-                              }
-                            >
-                              {getOTTypeLabel(ot.otType)}
-                            </Badge>
-                            <span className={`text-xs font-medium ${getOTStatusColor(ot.status)}`}>
-                              {ot.status === "completed"
-                                ? "เสร็จสิ้น"
-                                : ot.status === "started"
-                                ? "กำลัง OT"
-                                : "อนุมัติแล้ว"}
-                            </span>
-                          </div>
-                          <p className="text-xs text-[#86868b]">#{ot.id.slice(0, 8)}</p>
-                        </div>
-                        {ot.amount && (
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-[#34c759]">฿{ot.amount.toLocaleString()}</p>
-                            <p className="text-xs text-[#86868b]">อัตรา {ot.rate?.toFixed(1)}x</p>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="flex items-center gap-2 p-2 bg-[#f5f5f7] rounded-lg">
-                          <Clock className="w-4 h-4 text-[#0071e3]" />
-                          <div>
-                            <p className="text-[10px] text-[#86868b]">เวลาเริ่ม</p>
-                            <p className="text-sm font-medium text-[#1d1d1f]">
-                              {ot.startTime ? format(new Date(ot.startTime), "HH:mm") : "-"}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 p-2 bg-[#f5f5f7] rounded-lg">
-                          <Clock className="w-4 h-4 text-[#ff9500]" />
-                          <div>
-                            <p className="text-[10px] text-[#86868b]">เวลาจบ</p>
-                            <p className="text-sm font-medium text-[#1d1d1f]">
-                              {ot.endTime ? format(new Date(ot.endTime), "HH:mm") : "-"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 pt-3 border-t border-[#e8e8ed] flex items-center justify-between">
-                        <div>
-                          <p className="text-xs text-[#86868b]">อนุมัติ</p>
-                          <p className="text-sm font-semibold text-[#1d1d1f]">
-                            {ot.approvedHours?.toFixed(1) || 0} ชั่วโมง
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-[#86868b]">ทำจริง</p>
-                          <p className="text-sm font-semibold text-[#0071e3]">
-                            {ot.actualHours?.toFixed(1) || "-"} ชั่วโมง
-                          </p>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                  {(detailModal.data as OTRecord[]).length === 0 && (
-                    <div className="text-center py-8 text-[#86868b]">
-                      <Clock className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                      <p>ไม่มีข้อมูล OT</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {detailModal.type === "leave" && (
-                <Card elevated className="!p-4">
-                  <div className="space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <Badge variant="info">{getLeaveTypeLabel((detailModal.data as LeaveRecord).leaveType)}</Badge>
-                        {(detailModal.data as LeaveRecord).isHalfDay && (
-                          <span className="ml-2 text-xs text-[#86868b]">(ครึ่งวัน)</span>
-                        )}
-                      </div>
-                      <Badge variant="success">
-                        <CheckCircle2 className="w-3 h-3 mr-1" />
-                        อนุมัติแล้ว
-                      </Badge>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3 bg-[#f5f5f7] rounded-lg">
-                        <p className="text-xs text-[#86868b] mb-1">วันที่เริ่ม</p>
-                        <p className="text-sm font-medium text-[#1d1d1f]">
-                          {format(new Date((detailModal.data as LeaveRecord).startDate), "d MMM yyyy", { locale: th })}
-                        </p>
-                      </div>
-                      <div className="p-3 bg-[#f5f5f7] rounded-lg">
-                        <p className="text-xs text-[#86868b] mb-1">วันที่สิ้นสุด</p>
-                        <p className="text-sm font-medium text-[#1d1d1f]">
-                          {format(new Date((detailModal.data as LeaveRecord).endDate), "d MMM yyyy", { locale: th })}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-[#86868b] mb-1.5">เหตุผล</p>
-                      <div className="p-3 bg-[#f5f5f7] rounded-lg">
-                        <p className="text-sm text-[#1d1d1f]">{(detailModal.data as LeaveRecord).reason || "-"}</p>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              )}
-
-              {detailModal.type === "wfh" && (
-                <Card elevated className="!p-4">
-                  <div className="space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <Badge variant="success">
-                          <Home className="w-3 h-3 mr-1" />
-                          Work From Home
-                        </Badge>
-                        {(detailModal.data as WFHRecord).isHalfDay && (
-                          <span className="ml-2 text-xs text-[#86868b]">(ครึ่งวัน)</span>
-                        )}
-                      </div>
-                      <Badge variant="success">
-                        <CheckCircle2 className="w-3 h-3 mr-1" />
-                        อนุมัติแล้ว
-                      </Badge>
-                    </div>
-
-                    <div className="p-3 bg-[#f5f5f7] rounded-lg">
-                      <p className="text-xs text-[#86868b] mb-1">วันที่</p>
-                      <p className="text-sm font-medium text-[#1d1d1f]">
-                        {format(new Date((detailModal.data as WFHRecord).date), "d MMMM yyyy", { locale: th })}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-[#86868b] mb-1.5">เหตุผล</p>
-                      <div className="p-3 bg-[#f5f5f7] rounded-lg">
-                        <p className="text-sm text-[#1d1d1f]">{(detailModal.data as WFHRecord).reason || "-"}</p>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-[#e8e8ed] bg-[#fbfbfd]">
-              <Button variant="secondary" onClick={() => setDetailModal(null)} className="w-full">
-                ปิด
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Photo Modal */}
-      {photoModal && (
-        <div
-          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 animate-fade-in"
-          onClick={() => setPhotoModal(null)}
-        >
-          <button
-            className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full transition-colors"
-            onClick={() => setPhotoModal(null)}
-          >
-            <X className="w-5 h-5 text-white" />
-          </button>
-          <img src={photoModal} alt="Attendance Photo" className="max-w-full max-h-[90vh] rounded-2xl shadow-2xl" />
-        </div>
-      )}
     </AdminLayout>
   );
 }
 
 export default function AttendancePage() {
   return (
-    <ProtectedRoute allowedRoles={["admin", "supervisor"]}>
+    <ProtectedRoute requiredRole="admin">
       <AttendanceContent />
     </ProtectedRoute>
   );
