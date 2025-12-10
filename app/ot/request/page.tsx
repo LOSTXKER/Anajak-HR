@@ -22,6 +22,14 @@ function OTRequestContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+
+  // Admin is system account - redirect to admin panel
+  useEffect(() => {
+    if (employee?.role === "admin") {
+      router.replace("/admin");
+    }
+  }, [employee, router]);
+
   const [dayInfo, setDayInfo] = useState<{
     rate: number;
     type: "holiday" | "weekend" | "workday";

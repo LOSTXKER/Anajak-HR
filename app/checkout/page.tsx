@@ -38,6 +38,13 @@ function CheckoutContent() {
   const [branch, setBranch] = useState<Branch | null>(null);
   const [radiusCheck, setRadiusCheck] = useState<{ inRadius: boolean; distance: number } | null>(null);
 
+  // Admin is system account - redirect to admin panel
+  useEffect(() => {
+    if (employee?.role === "admin") {
+      router.replace("/admin");
+    }
+  }, [employee, router]);
+
   // ช่วงเวลาที่อนุญาต
   const [allowedTime, setAllowedTime] = useState({ checkoutStart: "15:00", checkoutEnd: "22:00" });
 

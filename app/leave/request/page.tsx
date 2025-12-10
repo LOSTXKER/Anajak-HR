@@ -29,6 +29,13 @@ function LeaveRequestContent() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  // Admin is system account - redirect to admin panel
+  useEffect(() => {
+    if (employee?.role === "admin") {
+      router.replace("/admin");
+    }
+  }, [employee, router]);
   const [leaveSummary, setLeaveSummary] = useState({
     sick: 0,
     personal: 0,

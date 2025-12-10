@@ -65,6 +65,13 @@ export default function HomePage() {
     setMounted(true);
   }, []);
 
+  // Admin is system account - redirect to admin panel
+  useEffect(() => {
+    if (employee?.role === "admin") {
+      router.replace("/admin");
+    }
+  }, [employee, router]);
+
   // Refresh when page becomes visible
   useEffect(() => {
     const handleVisibilityChange = () => {

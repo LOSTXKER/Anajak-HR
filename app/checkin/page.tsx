@@ -33,6 +33,13 @@ function CheckinContent() {
   const [success, setSuccess] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
+  // Admin is system account - redirect to admin panel
+  useEffect(() => {
+    if (employee?.role === "admin") {
+      router.replace("/admin");
+    }
+  }, [employee, router]);
+
   // ข้อมูลสาขาและการตรวจรัศมี
   const [branch, setBranch] = useState<Branch | null>(null);
   const [radiusCheck, setRadiusCheck] = useState<{ inRadius: boolean; distance: number } | null>(null);

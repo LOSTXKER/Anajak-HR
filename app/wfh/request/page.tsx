@@ -19,6 +19,13 @@ function WFHRequestContent() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
+  // Admin is system account - redirect to admin panel
+  useEffect(() => {
+    if (employee?.role === "admin") {
+      router.replace("/admin");
+    }
+  }, [employee, router]);
+
   const [formData, setFormData] = useState({
     date: format(new Date(), "yyyy-MM-dd"),
     isHalfDay: false,

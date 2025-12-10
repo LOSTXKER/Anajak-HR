@@ -47,6 +47,13 @@ function LateRequestContent() {
   const [submitting, setSubmitting] = useState(false);
   const [requests, setRequests] = useState<LateRequest[]>([]);
   const [lateAttendances, setLateAttendances] = useState<AttendanceLog[]>([]);
+
+  // Admin is system account - redirect to admin panel
+  useEffect(() => {
+    if (employee?.role === "admin") {
+      router.replace("/admin");
+    }
+  }, [employee, router]);
   
   // Form
   const [selectedDate, setSelectedDate] = useState("");
