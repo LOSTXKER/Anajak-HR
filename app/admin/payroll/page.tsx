@@ -10,10 +10,10 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { 
-  Download, 
-  ChevronLeft, 
-  ChevronRight, 
+import {
+  Download,
+  ChevronLeft,
+  ChevronRight,
   DollarSign,
   Clock,
   AlertTriangle,
@@ -25,6 +25,7 @@ import {
   Building2,
   Filter,
   HelpCircle,
+  X,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, differenceInMinutes } from "date-fns";
 import { th } from "date-fns/locale";
@@ -61,6 +62,15 @@ interface PayrollData {
   totalPay: number;
 }
 
+interface OTDetailData {
+  id: string;
+  request_date: string;
+  actual_ot_hours: number;
+  ot_amount: number;
+  ot_rate: number;
+  ot_type: string;
+}
+
 interface Settings {
   work_hours_per_day: number;
   late_deduction_per_minute: number;
@@ -79,7 +89,7 @@ function PayrollContent() {
   const [payrollData, setPayrollData] = useState<PayrollData[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
-  
+
   // Filters
   const [selectedEmployee, setSelectedEmployee] = useState("all");
   const [selectedBranch, setSelectedBranch] = useState("all");
@@ -102,6 +112,12 @@ function PayrollContent() {
     totalLatePenalty: 0,
     totalPay: 0,
   });
+
+  // OT Detail Modal
+  const [showOTModal, setShowOTModal] = useState(false);
+  const [selectedOTEmployee, setSelectedOTEmployee] = useState<Employee | null>(null);
+  const [otDetails, setOtDetails] = useState<OTDetailData[]>([]);
+  const [loadingOT, setLoadingOT] = useState(false);
 
   useEffect(() => {
     fetchEmployees();
@@ -129,7 +145,7 @@ function PayrollContent() {
       .select("id, name, email, role, branch_id, base_salary, commission, is_system_account")
       .eq("account_status", "approved")
       .order("name");
-    
+
     // Filter out system accounts (not real employees)
     const includedEmployees = (data || []).filter((e: any) => !e.is_system_account);
     setEmployees(includedEmployees);
@@ -163,13 +179,13 @@ function PayrollContent() {
 
       // Filter employees
       let employeesToProcess = employees;
-      
+
       if (selectedEmployee !== "all") {
         employeesToProcess = employees.filter((e: any) => e.id === selectedEmployee);
       }
-      
+
       if (selectedBranch !== "all") {
-        employeesToProcess = employeesToProcess.filter((e: any) => 
+        employeesToProcess = employeesToProcess.filter((e: any) =>
           selectedBranch === "none" ? !e.branch_id : e.branch_id === selectedBranch
         );
       }
@@ -209,7 +225,7 @@ function PayrollContent() {
           .eq("status", "approved")
           .gte("request_date", startDate)
           .lte("request_date", endDate);
-        
+
         const approvedLateDates = new Set(
           (approvedLateRequests || []).map((r: any) => r.request_date)
         );
@@ -218,18 +234,18 @@ function PayrollContent() {
         const workDays = attendance?.filter((a: any) => a.status !== "holiday").length || 0;
         const totalWorkHours = attendance?.reduce((sum: number, a: any) => sum + (a.total_hours || 0), 0) || 0;
         const lateDays = attendance?.filter((a: any) => a.is_late).length || 0;
-        
+
         // คำนวณนาทีสาย (ไม่รวมวันที่มี approved late request)
         let lateMinutes = 0;
         const [startHour, startMinute] = settings.work_start_time.split(":").map(Number);
         const MAX_LATE_MINUTES = 120; // สูงสุด 2 ชั่วโมง ถ้าเกินถือว่าไม่ใช่การมาสาย
-        
+
         attendance?.forEach((a: any) => {
           // ถ้าวันนี้มี approved late request ไม่นับเป็นสาย
           if (approvedLateDates.has(a.work_date)) {
             return;
           }
-          
+
           if (a.is_late && a.clock_in_time) {
             // ถ้ามี late_minutes ในฐานข้อมูลให้ใช้เลย
             if (a.late_minutes && a.late_minutes > 0) {
@@ -239,10 +255,10 @@ function PayrollContent() {
               const clockIn = new Date(a.clock_in_time);
               const clockInHour = clockIn.getHours();
               const clockInMinute = clockIn.getMinutes();
-              
+
               const clockInTotalMinutes = clockInHour * 60 + clockInMinute;
               const workStartTotalMinutes = startHour * 60 + startMinute;
-              
+
               if (clockInTotalMinutes > workStartTotalMinutes) {
                 const mins = clockInTotalMinutes - workStartTotalMinutes;
                 // ถ้าเกิน threshold ไม่นับเป็นสาย (อาจเช็คอินช่วงบ่าย/เย็น)
@@ -269,12 +285,12 @@ function PayrollContent() {
         let ot1xHours = 0, ot1xAmount = 0;
         let ot15xHours = 0, ot15xAmount = 0;
         let ot2xHours = 0, ot2xAmount = 0;
-        
+
         otLogs?.forEach((ot: any) => {
           const hours = ot.actual_ot_hours || 0;
           const amount = ot.ot_amount || 0;
           const rate = ot.ot_rate || 1.5; // Use stored rate
-          
+
           // Classify by rate
           if (rate <= 1) {
             ot1xHours += hours;
@@ -288,17 +304,17 @@ function PayrollContent() {
             ot2xAmount += amount;
           }
         });
-        
+
         const otTotalAmount = ot1xAmount + ot15xAmount + ot2xAmount;
 
         // คำนวณเงินเดือน - ใช้ base_salary ที่ถูกต้อง
         const baseSalary = emp.base_salary || 0;
         const dailyRate = baseSalary / settings.days_per_month;
         const basePay = workDays * dailyRate;
-        
+
         // ค่าคอมมิชชั่น
         const commission = emp.commission || 0;
-        
+
         // หัก penalty สาย
         const latePenalty = lateMinutes * settings.late_deduction_per_minute;
 
@@ -327,9 +343,9 @@ function PayrollContent() {
       });
 
       const results = await Promise.all(payrollPromises);
-      
+
       // Filter by search
-      const filteredResults = results.filter((r: any) => 
+      const filteredResults = results.filter((r: any) =>
         r.employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.employee.email.toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -355,6 +371,32 @@ function PayrollContent() {
     }
   };
 
+  const fetchOTDetails = async (emp: Employee) => {
+    setSelectedOTEmployee(emp);
+    setShowOTModal(true);
+    setLoadingOT(true);
+    try {
+      const startDate = format(startOfMonth(currentMonth), "yyyy-MM-dd");
+      const endDate = format(endOfMonth(currentMonth), "yyyy-MM-dd");
+
+      const { data } = await supabase
+        .from("ot_requests")
+        .select("id, request_date, actual_ot_hours, ot_amount, ot_rate, ot_type")
+        .eq("employee_id", emp.id)
+        .eq("status", "completed")
+        .gte("request_date", startDate)
+        .lte("request_date", endDate)
+        .order("request_date");
+
+      setOtDetails(data || []);
+    } catch (error) {
+      console.error("Error fetching OT details:", error);
+    } finally {
+      setLoadingOT(false);
+    }
+  };
+
+
   const exportToCSV = () => {
     if (!payrollData.length) return;
 
@@ -367,12 +409,6 @@ function PayrollContent() {
       "วันลา",
       "วันสาย",
       "นาทีสาย",
-      "OT 1x (ชม.)",
-      "OT 1x (บาท)",
-      "OT 1.5x (ชม.)",
-      "OT 1.5x (บาท)",
-      "OT 2x (ชม.)",
-      "OT 2x (บาท)",
       "OT รวม (บาท)",
       "เงินเดือนพื้นฐาน",
       "คอมมิชชั่น",
@@ -389,12 +425,6 @@ function PayrollContent() {
       r.leaveDays,
       r.lateDays,
       r.lateMinutes,
-      r.ot1xHours.toFixed(1),
-      r.ot1xAmount.toFixed(2),
-      r.ot15xHours.toFixed(1),
-      r.ot15xAmount.toFixed(2),
-      r.ot2xHours.toFixed(1),
-      r.ot2xAmount.toFixed(2),
       r.otTotalAmount.toFixed(2),
       r.basePay.toFixed(2),
       r.commission.toFixed(2),
@@ -585,65 +615,51 @@ function PayrollContent() {
               <thead>
                 <tr className="border-b border-[#e8e8ed] bg-[#f5f5f7]">
                   <th className="text-left px-4 py-3 text-[11px] font-semibold text-[#86868b] uppercase">พนักงาน</th>
-                  <ColumnHeader 
-                    label="เงินเดือนตั้ง" 
-                    tooltip="ฐานเงินเดือนที่กำหนดให้พนักงาน (ตั้งค่าได้ในหน้าจัดการพนักงาน)" 
-                    align="right" 
+                  <ColumnHeader
+                    label="เงินเดือนตั้ง"
+                    tooltip="ฐานเงินเดือนที่กำหนดให้พนักงาน (ตั้งค่าได้ในหน้าจัดการพนักงาน)"
+                    align="right"
                   />
-                  <ColumnHeader 
-                    label="วันทำงาน" 
-                    tooltip="จำนวนวันที่มาทำงานจริงในเดือนนี้ (ไม่รวมวันหยุด)" 
-                    align="center" 
+                  <ColumnHeader
+                    label="วันทำงาน"
+                    tooltip="จำนวนวันที่มาทำงานจริงในเดือนนี้ (ไม่รวมวันหยุด)"
+                    align="center"
                   />
-                  <ColumnHeader 
-                    label="ลา" 
-                    tooltip="จำนวนวันลาที่ได้รับอนุมัติในเดือนนี้" 
-                    align="center" 
+                  <ColumnHeader
+                    label="ลา"
+                    tooltip="จำนวนวันลาที่ได้รับอนุมัติในเดือนนี้"
+                    align="center"
                   />
-                  <ColumnHeader 
-                    label="สาย" 
+                  <ColumnHeader
+                    label="สาย"
                     tooltip={`จำนวนวันที่มาสาย และนาทีสายรวม (หลัง ${settings.work_start_time} น.)`}
-                    align="center" 
+                    align="center"
                   />
-                  <ColumnHeader 
-                    label="OT 1x" 
-                    tooltip="OT วันธรรมดา (อัตรา 1 เท่า)" 
-                    align="center" 
-                  />
-                  <ColumnHeader 
-                    label="OT 1.5x" 
-                    tooltip="OT วันธรรมดาหลังเลิกงาน (อัตรา 1.5 เท่า)" 
-                    align="center" 
-                  />
-                  <ColumnHeader 
-                    label="OT 2x" 
-                    tooltip="OT วันหยุด (อัตรา 2 เท่า)" 
-                    align="center" 
-                  />
-                  <ColumnHeader 
-                    label="เงินเดือน" 
+
+                  <ColumnHeader
+                    label="เงินเดือน"
                     tooltip={`(เงินเดือนตั้ง ÷ ${settings.days_per_month} วัน) × วันทำงานจริง`}
-                    align="right" 
+                    align="right"
                   />
-                  <ColumnHeader 
-                    label="คอมมิชชั่น" 
-                    tooltip="ค่าคอมมิชชั่นประจำเดือน (ตั้งค่าได้ในหน้าจัดการพนักงาน)" 
-                    align="right" 
+                  <ColumnHeader
+                    label="คอมมิชชั่น"
+                    tooltip="ค่าคอมมิชชั่นประจำเดือน (ตั้งค่าได้ในหน้าจัดการพนักงาน)"
+                    align="right"
                   />
-                  <ColumnHeader 
-                    label="OT รวม" 
-                    tooltip="รวมค่า OT ทุกประเภท (1x + 1.5x + 2x)" 
-                    align="right" 
+                  <ColumnHeader
+                    label="OT รวม"
+                    tooltip="รวมค่า OT ทุกอัตราที่ทำในเดือนนี้"
+                    align="right"
                   />
-                  <ColumnHeader 
-                    label="หักสาย" 
+                  <ColumnHeader
+                    label="หักสาย"
                     tooltip={`นาทีสาย × ${settings.late_deduction_per_minute} บาท/นาที`}
-                    align="right" 
+                    align="right"
                   />
-                  <ColumnHeader 
-                    label="รวม" 
-                    tooltip="เงินเดือน + คอมมิชชั่น + เงิน OT - หักสาย" 
-                    align="right" 
+                  <ColumnHeader
+                    label="รวม"
+                    tooltip="เงินเดือน + คอมมิชชั่น + เงิน OT - หักสาย"
+                    align="right"
                   />
                 </tr>
               </thead>
@@ -679,39 +695,7 @@ function PayrollContent() {
                         <span className="text-[13px] text-[#86868b]">-</span>
                       )}
                     </td>
-                    {/* OT 1x */}
-                    <td className="px-3 py-3 text-center">
-                      {row.ot1xHours > 0 ? (
-                        <div>
-                          <span className="text-[13px] text-[#0071e3]">{row.ot1xHours.toFixed(1)}ชม.</span>
-                          <p className="text-[10px] text-[#86868b]">฿{formatCurrency(row.ot1xAmount)}</p>
-                        </div>
-                      ) : (
-                        <span className="text-[13px] text-[#86868b]">-</span>
-                      )}
-                    </td>
-                    {/* OT 1.5x */}
-                    <td className="px-3 py-3 text-center">
-                      {row.ot15xHours > 0 ? (
-                        <div>
-                          <span className="text-[13px] text-[#ff9500]">{row.ot15xHours.toFixed(1)}ชม.</span>
-                          <p className="text-[10px] text-[#86868b]">฿{formatCurrency(row.ot15xAmount)}</p>
-                        </div>
-                      ) : (
-                        <span className="text-[13px] text-[#86868b]">-</span>
-                      )}
-                    </td>
-                    {/* OT 2x */}
-                    <td className="px-3 py-3 text-center">
-                      {row.ot2xHours > 0 ? (
-                        <div>
-                          <span className="text-[13px] text-[#ff3b30]">{row.ot2xHours.toFixed(1)}ชม.</span>
-                          <p className="text-[10px] text-[#86868b]">฿{formatCurrency(row.ot2xAmount)}</p>
-                        </div>
-                      ) : (
-                        <span className="text-[13px] text-[#86868b]">-</span>
-                      )}
-                    </td>
+
                     <td className="px-3 py-3 text-right">
                       <span className="text-[13px] text-[#1d1d1f]">฿{formatCurrency(row.basePay)}</span>
                     </td>
@@ -724,7 +708,12 @@ function PayrollContent() {
                     </td>
                     <td className="px-3 py-3 text-right">
                       {row.otTotalAmount > 0 ? (
-                        <span className="text-[13px] font-medium text-[#ff9500]">+฿{formatCurrency(row.otTotalAmount)}</span>
+                        <button
+                          onClick={() => fetchOTDetails(row.employee)}
+                          className="text-[13px] font-medium text-[#ff9500] hover:underline"
+                        >
+                          +฿{formatCurrency(row.otTotalAmount)}
+                        </button>
                       ) : (
                         <span className="text-[13px] text-[#86868b]">-</span>
                       )}
@@ -747,15 +736,7 @@ function PayrollContent() {
                   <td colSpan={5} className="px-4 py-3 text-[13px] font-semibold text-[#1d1d1f]">
                     รวมทั้งหมด ({summary.totalEmployees} คน)
                   </td>
-                  <td className="px-3 py-3 text-center text-[12px] font-semibold text-[#0071e3]">
-                    ฿{formatCurrency(summary.totalOT1x)}
-                  </td>
-                  <td className="px-3 py-3 text-center text-[12px] font-semibold text-[#ff9500]">
-                    ฿{formatCurrency(summary.totalOT15x)}
-                  </td>
-                  <td className="px-3 py-3 text-center text-[12px] font-semibold text-[#ff3b30]">
-                    ฿{formatCurrency(summary.totalOT2x)}
-                  </td>
+
                   <td className="px-3 py-3 text-right text-[13px] font-semibold text-[#1d1d1f]">
                     ฿{formatCurrency(summary.totalBasePay)}
                   </td>
@@ -792,6 +773,78 @@ function PayrollContent() {
           </div>
         </div>
       </div>
+
+      {/* OT Modal */}
+      {showOTModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-scale-in">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-[#e8e8ed] flex items-center justify-between bg-[#fbfbfd]">
+              <div>
+                <h3 className="text-[17px] font-semibold text-[#1d1d1f]">รายละเอียด OT</h3>
+                <p className="text-[13px] text-[#86868b]">
+                  {selectedOTEmployee?.name} - {format(currentMonth, "MMMM yyyy", { locale: th })}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowOTModal(false)}
+                className="p-2 hover:bg-[#e8e8ed] rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-[#86868b]" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="max-h-[60vh] overflow-y-auto p-4">
+              {loadingOT ? (
+                <div className="flex justify-center py-8">
+                  <div className="w-8 h-8 border-2 border-[#ff9500] border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : otDetails.length === 0 ? (
+                <div className="text-center py-8 text-[#86868b]">ไม่มีรายการ OT</div>
+              ) : (
+                <div className="space-y-3">
+                  {otDetails.map((ot) => (
+                    <div key={ot.id} className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[14px] font-medium text-[#1d1d1f]">
+                            {format(new Date(ot.request_date), "d MMM", { locale: th })}
+                          </span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${ot.ot_rate >= 2 ? "bg-[#ff3b30]/10 text-[#ff3b30]" :
+                            ot.ot_rate > 1 ? "bg-[#ff9500]/10 text-[#ff9500]" :
+                              "bg-[#0071e3]/10 text-[#0071e3]"
+                            }`}>
+                            {ot.ot_rate}x
+                          </span>
+                        </div>
+                        <p className="text-[12px] text-[#86868b]">{ot.ot_type === "holiday" ? "วันหยุดนักขัตฤกษ์" : ot.ot_type === "weekend" ? "วันหยุดสุดสัปดาห์" : "หลังเลิกงาน"}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[14px] font-semibold text-[#1d1d1f]">฿{formatCurrency(ot.ot_amount)}</p>
+                        <p className="text-[12px] text-[#86868b]">{ot.actual_ot_hours} ชม.</p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Total Summary Row */}
+                  <div className="flex items-center justify-between p-3 mt-2 border-t border-[#e8e8ed]">
+                    <span className="text-[14px] font-semibold text-[#1d1d1f]">รวมทั้งหมด</span>
+                    <span className="text-[15px] font-bold text-[#ff9500]">
+                      ฿{formatCurrency(otDetails.reduce((sum, item) => sum + item.ot_amount, 0))}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-[#fbfbfd] border-t border-[#e8e8ed]">
+              <Button fullWidth onClick={() => setShowOTModal(false)}>ปิด</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }
