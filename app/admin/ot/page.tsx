@@ -157,7 +157,8 @@ function OTManagementContent() {
   }, [filterStatus, dateFilter, toast]);
 
   const fetchEmployees = useCallback(async () => {
-    const { data } = await supabase.from("employees").select("id, name, email").eq("account_status", "approved").order("name");
+    // Exclude admin from employee list
+    const { data } = await supabase.from("employees").select("id, name, email").eq("account_status", "approved").neq("role", "admin").order("name");
     setEmployees(data || []);
   }, []);
 

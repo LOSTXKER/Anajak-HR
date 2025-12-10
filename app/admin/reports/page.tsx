@@ -170,11 +170,12 @@ function ReportsContent() {
 
       // Fetch all data in parallel
       const [employeesRes, attendanceRes, otRes, leaveRes, wfhRes] = await Promise.all([
-        // Employees - get all approved employees
+        // Employees - get all approved employees (exclude admin)
         supabase
           .from("employees")
           .select("id, name, email, role, branch_id")
-          .eq("account_status", "approved"),
+          .eq("account_status", "approved")
+          .neq("role", "admin"),
         
         // Attendance - all logs in date range
         supabase

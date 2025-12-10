@@ -158,11 +158,12 @@ function EmployeesContent() {
     }
   };
 
-  // Stats (pending excludes admin - admin doesn't need approval)
+  // Stats (admin is not an employee - excluded from stats)
   const stats = useMemo(() => {
-    const total = employees.length;
-    const approved = employees.filter((e) => e.account_status === "approved").length;
-    const pending = employees.filter((e) => e.account_status === "pending" && e.role !== "admin").length;
+    const nonAdminEmployees = employees.filter((e) => e.role !== "admin");
+    const total = nonAdminEmployees.length;
+    const approved = nonAdminEmployees.filter((e) => e.account_status === "approved").length;
+    const pending = nonAdminEmployees.filter((e) => e.account_status === "pending").length;
     const admins = employees.filter((e) => e.role === "admin").length;
     return { total, approved, pending, admins };
   }, [employees]);

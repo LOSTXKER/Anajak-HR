@@ -118,8 +118,9 @@ function AttendanceContent() {
   // Fetch base data
   useEffect(() => {
     const fetchBaseData = async () => {
+      // Exclude admin from employee list
       const [empRes, branchRes] = await Promise.all([
-        supabase.from("employees").select("id, name, email, branch_id").eq("account_status", "approved").order("name"),
+        supabase.from("employees").select("id, name, email, branch_id").eq("account_status", "approved").neq("role", "admin").order("name"),
         supabase.from("branches").select("id, name").order("name"),
       ]);
       setEmployees(empRes.data || []);

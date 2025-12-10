@@ -97,10 +97,12 @@ function PayrollContent() {
   };
 
   const fetchEmployees = async () => {
+    // Exclude admin accounts from payroll (admin is not an employee)
     const { data } = await supabase
       .from("employees")
       .select("id, name, email, role, branch_id, base_salary, commission, is_system_account")
       .eq("account_status", "approved")
+      .neq("role", "admin")
       .order("name");
 
     // Filter out system accounts (not real employees)
