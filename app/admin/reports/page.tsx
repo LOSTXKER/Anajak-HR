@@ -151,7 +151,7 @@ function ReportsContent() {
       ]);
 
       // 3. Process Per Employee
-      const processedReports = employees.map((emp) => {
+      const processedReports = employees.map((emp: { id: string; full_name: string; employee_code: string; position: string; branch_id: string; base_salary: number }) => {
         // Filter logs for this employee
         const userAttendance = attendanceLogs?.filter((a: any) => a.employee_id === emp.id) || [];
         const userOt = otRequests?.filter((o: any) => o.employee_id === emp.id) || [];

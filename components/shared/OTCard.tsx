@@ -161,7 +161,7 @@ export function OTCard({
                         </div>
                     </div>
                     <Link href="/ot/request">
-                        <Button variant="outline" size="sm">
+                        <Button variant="secondary" size="sm">
                             ขอ OT
                         </Button>
                     </Link>
