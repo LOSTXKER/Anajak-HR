@@ -461,7 +461,7 @@ function AttendanceContent() {
   };
 
   return (
-    <AdminLayout title="การเข้างาน" subtitle="ดูและจัดการข้อมูลการเข้างานพนักงาน">
+    <AdminLayout title="การเข้างาน">
       {/* Header Controls */}
       <div className="flex flex-col lg:flex-row gap-4 mb-6">
         {/* Date Mode Toggle */}
@@ -815,7 +815,7 @@ function AttendanceContent() {
 
 export default function AttendancePage() {
   return (
-    <ProtectedRoute requiredRole="admin">
+    <ProtectedRoute allowedRoles={["admin"]}>
       <AttendanceContent />
     </ProtectedRoute>
   );

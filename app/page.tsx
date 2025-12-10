@@ -654,9 +654,9 @@ export default function HomePage() {
                 </>
               ) : employee ? (
                 <>
-                  <p className="text-2xl font-bold text-[#1d1d1f]">{employee.annual_leave_quota || 10} <span className="text-sm font-normal text-[#86868b]">พักร้อน</span></p>
+                  <p className="text-2xl font-bold text-[#1d1d1f]">{(employee as any).annual_leave_quota || 10} <span className="text-sm font-normal text-[#86868b]">พักร้อน</span></p>
                   <p className="text-[13px] text-[#34c759] font-medium mt-1">
-                    ป่วย {employee.sick_leave_quota || 30} • กิจ {employee.personal_leave_quota || 3}
+                    ป่วย {(employee as any).sick_leave_quota || 30} • กิจ {(employee as any).personal_leave_quota || 3}
                   </p>
                 </>
               ) : (

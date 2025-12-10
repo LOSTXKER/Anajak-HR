@@ -332,7 +332,7 @@ function EmployeeProfileContent() {
       case "pending":
         return <Badge variant="warning">รออนุมัติ</Badge>;
       case "rejected":
-        return <Badge variant="error">ปฏิเสธ</Badge>;
+        return <Badge variant="danger">ปฏิเสธ</Badge>;
       case "completed":
         return <Badge variant="success">เสร็จสิ้น</Badge>;
       case "started":
@@ -989,7 +989,7 @@ function EmployeeProfileContent() {
           <Button variant="secondary" onClick={() => setDeleteModal(null)} className="flex-1">
             ยกเลิก
           </Button>
-          <Button variant="error" onClick={handleDelete} loading={deleting} className="flex-1">
+          <Button variant="danger" onClick={handleDelete} loading={deleting} className="flex-1">
             ลบ
           </Button>
         </div>

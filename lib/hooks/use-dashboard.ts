@@ -80,8 +80,8 @@ export function useDashboard() {
                     .lte("request_date", endDate);
 
                 if (data) {
-                    const totalHours = data.reduce((sum, ot) => sum + (ot.actual_ot_hours || 0), 0);
-                    const totalAmount = data.reduce((sum, ot) => sum + (ot.ot_amount || 0), 0);
+                    const totalHours = data.reduce((sum: number, ot: any) => sum + (ot.actual_ot_hours || 0), 0);
+                    const totalAmount = data.reduce((sum: number, ot: any) => sum + (ot.ot_amount || 0), 0);
                     setMonthlyOT({ hours: totalHours, amount: totalAmount });
                 }
             } catch (error) {

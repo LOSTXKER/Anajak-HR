@@ -298,7 +298,7 @@ export default function MyProfilePage() {
       case "pending":
         return <Badge variant="warning"><Clock className="w-3 h-3 mr-1" />รออนุมัติ</Badge>;
       case "rejected":
-        return <Badge variant="error"><XCircle className="w-3 h-3 mr-1" />ปฏิเสธ</Badge>;
+        return <Badge variant="danger"><XCircle className="w-3 h-3 mr-1" />ปฏิเสธ</Badge>;
       case "completed":
         return <Badge variant="success"><CheckCircle className="w-3 h-3 mr-1" />เสร็จสิ้น</Badge>;
       default:

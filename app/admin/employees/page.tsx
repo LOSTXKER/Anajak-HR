@@ -240,7 +240,7 @@ function EmployeesContent() {
   const getRoleBadge = (role: string) => {
     switch (role) {
       case "admin": return <Badge variant="danger">👑 Admin</Badge>;
-      case "supervisor": return <Badge variant="primary">👨‍💼 Supervisor</Badge>;
+      case "supervisor": return <Badge variant="info">👨‍💼 Supervisor</Badge>;
       default: return <Badge variant="default">👤 Staff</Badge>;
     }
   };
