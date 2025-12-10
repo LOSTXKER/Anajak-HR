@@ -146,8 +146,14 @@ function AdminDashboardContent() {
 
       const present = attendance?.filter((a: any) => a.clock_in_time)?.length || 0;
       
-      // วันหยุด/สุดสัปดาห์ ไม่นับขาดงาน
-      const absent = isNonWorkingDay ? 0 : (totalEmployees || 0) - present;
+      // ตรวจสอบว่ายังไม่ถึงเวลาเข้างาน
+      const now = new Date();
+      const currentHour = now.getHours();
+      const workStartHour = 9; // TODO: Get from settings
+      const isBeforeWorkStart = currentHour < workStartHour;
+      
+      // วันหยุด/สุดสัปดาห์ หรือ ก่อนเวลาเข้างาน → ไม่นับขาดงาน
+      const absent = (isNonWorkingDay || isBeforeWorkStart) ? 0 : (totalEmployees || 0) - present;
 
       setStats({
         totalEmployees: totalEmployees || 0,

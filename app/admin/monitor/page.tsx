@@ -169,8 +169,14 @@ function MonitorContent() {
         .filter((a: any) => !a.employee?.is_system_account)
         .slice(0, 10);
 
-      // วันหยุด/สุดสัปดาห์ ไม่นับ "ยังไม่เข้างาน"
-      const notCheckedIn = isNonWorkingDay ? 0 : totalEmployees - checkedIn;
+      // ตรวจสอบว่ายังไม่ถึงเวลาเข้างาน
+      const now = new Date();
+      const currentHour = now.getHours();
+      const workStartHour = 9; // TODO: Get from settings
+      const isBeforeWorkStart = currentHour < workStartHour;
+
+      // วันหยุด/สุดสัปดาห์ หรือ ก่อนเวลาเข้างาน → ไม่นับ "ยังไม่เข้างาน"
+      const notCheckedIn = (isNonWorkingDay || isBeforeWorkStart) ? 0 : totalEmployees - checkedIn;
 
       setStats({
         totalEmployees,
