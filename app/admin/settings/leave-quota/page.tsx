@@ -7,78 +7,44 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Modal } from "@/components/ui/Modal";
-import { Avatar } from "@/components/ui/Avatar";
-import { Badge } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
-import { Calendar, Edit, RefreshCw, Save, Users } from "lucide-react";
+import { Calendar, Save, Info, ArrowRight, Users } from "lucide-react";
+import Link from "next/link";
 
-interface Employee {
-  id: string;
-  name: string;
-  email: string;
-  annual_leave_quota: number;
-  sick_leave_quota: number;
-  personal_leave_quota: number;
-}
-
-interface LeaveBalance {
-  annual_used: number;
-  annual_remaining: number;
-  sick_used: number;
-  sick_remaining: number;
-  personal_used: number;
-  personal_remaining: number;
-}
-
-function LeaveQuotaContent() {
+function LeaveQuotaSettingsContent() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [balances, setBalances] = useState<Record<string, LeaveBalance>>({});
-  const [editModal, setEditModal] = useState<Employee | null>(null);
-  const [editForm, setEditForm] = useState({
-    annual: 10,
-    sick: 30,
-    personal: 3,
-  });
   const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState({
+    defaultAnnual: 10,
+    defaultSick: 30,
+    defaultPersonal: 3,
+  });
 
   useEffect(() => {
-    fetchData();
+    fetchSettings();
   }, []);
 
-  const fetchData = async () => {
+  const fetchSettings = async () => {
     setLoading(true);
     try {
-      // Fetch employees
-      const { data: empData } = await supabase
-        .from("employees")
-        .select("id, name, email, annual_leave_quota, sick_leave_quota, personal_leave_quota")
-        .eq("account_status", "approved")
-        .order("name");
-
-      setEmployees(empData || []);
-
-      // Fetch current year balances
-      const currentYear = new Date().getFullYear();
-      const { data: balanceData } = await supabase
-        .from("leave_balances")
+      const { data } = await supabase
+        .from("system_settings")
         .select("*")
-        .eq("year", currentYear);
+        .in("setting_key", ["default_annual_leave", "default_sick_leave", "default_personal_leave"]);
 
-      const balanceMap: Record<string, LeaveBalance> = {};
-      (balanceData || []).forEach((b: any) => {
-        balanceMap[b.employee_id] = {
-          annual_used: b.annual_leave_used || 0,
-          annual_remaining: b.annual_leave_remaining || 0,
-          sick_used: b.sick_leave_used || 0,
-          sick_remaining: b.sick_leave_remaining || 0,
-          personal_used: b.personal_leave_used || 0,
-          personal_remaining: b.personal_leave_remaining || 0,
-        };
-      });
-      setBalances(balanceMap);
+      if (data) {
+        const settingsMap: any = {};
+        data.forEach((item: any) => {
+          settingsMap[item.setting_key] = item.setting_value;
+        });
+
+        setSettings({
+          defaultAnnual: parseInt(settingsMap.default_annual_leave) || 10,
+          defaultSick: parseInt(settingsMap.default_sick_leave) || 30,
+          defaultPersonal: parseInt(settingsMap.default_personal_leave) || 3,
+        });
+      }
     } catch (error: any) {
       toast.error("เกิดข้อผิดพลาด", error?.message);
     } finally {
@@ -86,45 +52,26 @@ function LeaveQuotaContent() {
     }
   };
 
-  const handleEdit = (emp: Employee) => {
-    setEditModal(emp);
-    setEditForm({
-      annual: emp.annual_leave_quota || 10,
-      sick: emp.sick_leave_quota || 30,
-      personal: emp.personal_leave_quota || 3,
-    });
-  };
-
   const handleSave = async () => {
-    if (!editModal) return;
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("employees")
-        .update({
-          annual_leave_quota: editForm.annual,
-          sick_leave_quota: editForm.sick,
-          personal_leave_quota: editForm.personal,
-        })
-        .eq("id", editModal.id);
+      const updates = [
+        { key: "default_annual_leave", value: settings.defaultAnnual.toString() },
+        { key: "default_sick_leave", value: settings.defaultSick.toString() },
+        { key: "default_personal_leave", value: settings.defaultPersonal.toString() },
+      ];
 
-      if (error) throw error;
+      for (const update of updates) {
+        const { error } = await supabase
+          .from("system_settings")
+          .upsert(
+            { setting_key: update.key, setting_value: update.value },
+            { onConflict: "setting_key" }
+          );
+        if (error) throw error;
+      }
 
-      // Update balance for current year
-      const currentYear = new Date().getFullYear();
-      await supabase
-        .from("leave_balances")
-        .upsert({
-          employee_id: editModal.id,
-          year: currentYear,
-          annual_leave_quota: editForm.annual,
-          sick_leave_quota: editForm.sick,
-          personal_leave_quota: editForm.personal,
-        }, { onConflict: "employee_id,year" });
-
-      toast.success("สำเร็จ", "อัพเดทโควต้าเรียบร้อย");
-      setEditModal(null);
-      fetchData();
+      toast.success("บันทึกสำเร็จ", "อัพเดทค่าเริ่มต้นโควต้าวันลาเรียบร้อย");
     } catch (error: any) {
       toast.error("เกิดข้อผิดพลาด", error?.message);
     } finally {
@@ -132,216 +79,164 @@ function LeaveQuotaContent() {
     }
   };
 
-  const handleBulkUpdate = async () => {
-    if (!confirm("ตั้งค่าโควต้าเริ่มต้นให้พนักงานทุกคน?\n(10 วันพักร้อน, 30 วันป่วย, 3 วันกิจ)")) return;
-
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from("employees")
-        .update({
-          annual_leave_quota: 10,
-          sick_leave_quota: 30,
-          personal_leave_quota: 3,
-        })
-        .eq("account_status", "approved");
-
-      if (error) throw error;
-
-      // Initialize balances for current year
-      const currentYear = new Date().getFullYear();
-      const values = employees.map((e) => ({
-        employee_id: e.id,
-        year: currentYear,
-        annual_leave_quota: 10,
-        sick_leave_quota: 30,
-        personal_leave_quota: 3,
-      }));
-
-      await supabase.from("leave_balances").upsert(values, {
-        onConflict: "employee_id,year",
-      });
-
-      toast.success("สำเร็จ", "ตั้งค่าโควต้าเริ่มต้นเรียบร้อย");
-      fetchData();
-    } catch (error: any) {
-      toast.error("เกิดข้อผิดพลาด", error?.message);
-    } finally {
-      setSaving(false);
-    }
-  };
+  if (loading) {
+    return (
+      <AdminLayout title="ตั้งค่าโควต้าวันลา">
+        <div className="flex items-center justify-center py-20">
+          <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
-    <AdminLayout title="จัดการโควต้าวันลา">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-[#1d1d1f]">โควต้าวันลาพนักงาน</h1>
-          <p className="text-sm text-[#86868b] mt-1">จัดการสิทธิ์วันลาของพนักงานแต่ละคน</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={handleBulkUpdate} loading={saving}>
-            <Users className="w-4 h-4" />
-            ตั้งค่าเริ่มต้นทุกคน
-          </Button>
-          <Button variant="text" onClick={fetchData} disabled={loading}>
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          </Button>
-        </div>
-      </div>
-
-      {/* Default Quota Info */}
-      <Card elevated className="mb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Calendar className="w-5 h-5 text-[#0071e3]" />
-          <h3 className="font-semibold text-[#1d1d1f]">โควต้าเริ่มต้น</h3>
-        </div>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center p-3 bg-[#34c759]/10 rounded-xl">
-            <p className="text-2xl font-bold text-[#34c759]">10</p>
-            <p className="text-xs text-[#86868b]">วันพักร้อน</p>
-          </div>
-          <div className="text-center p-3 bg-[#ff3b30]/10 rounded-xl">
-            <p className="text-2xl font-bold text-[#ff3b30]">30</p>
-            <p className="text-xs text-[#86868b]">วันลาป่วย</p>
-          </div>
-          <div className="text-center p-3 bg-[#ff9500]/10 rounded-xl">
-            <p className="text-2xl font-bold text-[#ff9500]">3</p>
-            <p className="text-xs text-[#86868b]">วันลากิจ</p>
+    <AdminLayout title="ตั้งค่าโควต้าวันลา" description="กำหนดค่าเริ่มต้นสำหรับพนักงานใหม่">
+      {/* Info Banner */}
+      <Card elevated className="mb-6 bg-[#0071e3]/5 border border-[#0071e3]/20">
+        <div className="flex items-start gap-3">
+          <Info className="w-5 h-5 text-[#0071e3] flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-[#1d1d1f] mb-1">
+              หน้านี้สำหรับตั้งค่าเริ่มต้นเท่านั้น
+            </h3>
+            <p className="text-[13px] text-[#86868b] mb-3">
+              ค่าเหล่านี้จะใช้กับพนักงานใหม่ที่สมัครเข้ามา หากต้องการแก้ไขโควต้าของพนักงานแต่ละคน
+            </p>
+            <Link href="/admin/employees">
+              <Button variant="primary" size="sm">
+                <Users className="w-4 h-4" />
+                ไปที่หน้าจัดการพนักงาน
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
           </div>
         </div>
       </Card>
 
-      {/* Employee List */}
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : (
-        <Card elevated padding="none">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[#e8e8ed] bg-[#f9f9fb]">
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-[#86868b] uppercase">พนักงาน</th>
-                  <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase">พักร้อน</th>
-                  <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase">ป่วย</th>
-                  <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase">กิจ</th>
-                  <th className="text-right px-6 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#e8e8ed]">
-                {employees.map((emp) => {
-                  const balance = balances[emp.id];
-                  return (
-                    <tr key={emp.id} className="hover:bg-[#f5f5f7]/50">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar name={emp.name} size="sm" />
-                          <div>
-                            <p className="text-sm font-medium text-[#1d1d1f]">{emp.name}</p>
-                            <p className="text-xs text-[#86868b]">{emp.email}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-4">
-                        <div className="text-center">
-                          <p className="text-sm font-semibold text-[#34c759]">{emp.annual_leave_quota || 10}</p>
-                          {balance && (
-                            <p className="text-xs text-[#86868b]">
-                              ใช้ {balance.annual_used} | เหลือ {balance.annual_remaining}
-                            </p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3 py-4">
-                        <div className="text-center">
-                          <p className="text-sm font-semibold text-[#ff3b30]">{emp.sick_leave_quota || 30}</p>
-                          {balance && (
-                            <p className="text-xs text-[#86868b]">
-                              ใช้ {balance.sick_used} | เหลือ {balance.sick_remaining}
-                            </p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3 py-4">
-                        <div className="text-center">
-                          <p className="text-sm font-semibold text-[#ff9500]">{emp.personal_leave_quota || 3}</p>
-                          {balance && (
-                            <p className="text-xs text-[#86868b]">
-                              ใช้ {balance.personal_used} | เหลือ {balance.personal_remaining}
-                            </p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => handleEdit(emp)}
-                          className="p-2 text-[#0071e3] hover:bg-[#0071e3]/10 rounded-lg transition-colors"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
-
-      {/* Edit Modal */}
-      {editModal && (
-        <Modal
-          isOpen={true}
-          onClose={() => setEditModal(null)}
-          title={`แก้ไขโควต้าวันลา - ${editModal.name}`}
-          size="md"
-        >
-          <div className="space-y-4">
-            <Input
-              label="วันลาพักร้อน"
-              type="number"
-              min="0"
-              value={editForm.annual}
-              onChange={(e) => setEditForm({ ...editForm, annual: parseInt(e.target.value) || 0 })}
-            />
-            <Input
-              label="วันลาป่วย"
-              type="number"
-              min="0"
-              value={editForm.sick}
-              onChange={(e) => setEditForm({ ...editForm, sick: parseInt(e.target.value) || 0 })}
-            />
-            <Input
-              label="วันลากิจ"
-              type="number"
-              min="0"
-              value={editForm.personal}
-              onChange={(e) => setEditForm({ ...editForm, personal: parseInt(e.target.value) || 0 })}
-            />
-            <div className="flex gap-3 pt-2">
-              <Button variant="secondary" onClick={() => setEditModal(null)} className="flex-1">
-                ยกเลิก
-              </Button>
-              <Button onClick={handleSave} loading={saving} className="flex-1">
-                <Save className="w-4 h-4" />
-                บันทึก
-              </Button>
+      <div className="max-w-2xl">
+        {/* Default Quota Settings */}
+        <Card elevated>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-[#0071e3]/10 rounded-xl flex items-center justify-center">
+              <Calendar className="w-5 h-5 text-[#0071e3]" />
+            </div>
+            <div>
+              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">โควต้าเริ่มต้น</h3>
+              <p className="text-[13px] text-[#86868b]">สำหรับพนักงานใหม่</p>
             </div>
           </div>
-        </Modal>
-      )}
+
+          <div className="space-y-5">
+            {/* Annual Leave */}
+            <div>
+              <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
+                วันลาพักร้อนต่อปี
+              </label>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number"
+                  min="0"
+                  max="365"
+                  value={settings.defaultAnnual}
+                  onChange={(e) => setSettings({ ...settings, defaultAnnual: parseInt(e.target.value) || 0 })}
+                  className="flex-1"
+                />
+                <div className="px-4 py-3 bg-[#34c759]/10 rounded-xl min-w-[80px] text-center">
+                  <p className="text-2xl font-bold text-[#34c759]">{settings.defaultAnnual}</p>
+                  <p className="text-xs text-[#86868b]">วัน</p>
+                </div>
+              </div>
+              <p className="text-xs text-[#86868b] mt-2">
+                💡 โดยทั่วไปมักกำหนดไว้ที่ 6-10 วันต่อปี
+              </p>
+            </div>
+
+            {/* Sick Leave */}
+            <div>
+              <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
+                วันลาป่วยต่อปี
+              </label>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number"
+                  min="0"
+                  max="365"
+                  value={settings.defaultSick}
+                  onChange={(e) => setSettings({ ...settings, defaultSick: parseInt(e.target.value) || 0 })}
+                  className="flex-1"
+                />
+                <div className="px-4 py-3 bg-[#ff3b30]/10 rounded-xl min-w-[80px] text-center">
+                  <p className="text-2xl font-bold text-[#ff3b30]">{settings.defaultSick}</p>
+                  <p className="text-xs text-[#86868b]">วัน</p>
+                </div>
+              </div>
+              <p className="text-xs text-[#86868b] mt-2">
+                💡 โดยทั่วไปมักกำหนดไว้ที่ 30 วันต่อปี
+              </p>
+            </div>
+
+            {/* Personal Leave */}
+            <div>
+              <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
+                วันลากิจส่วนตัวต่อปี
+              </label>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number"
+                  min="0"
+                  max="365"
+                  value={settings.defaultPersonal}
+                  onChange={(e) => setSettings({ ...settings, defaultPersonal: parseInt(e.target.value) || 0 })}
+                  className="flex-1"
+                />
+                <div className="px-4 py-3 bg-[#ff9500]/10 rounded-xl min-w-[80px] text-center">
+                  <p className="text-2xl font-bold text-[#ff9500]">{settings.defaultPersonal}</p>
+                  <p className="text-xs text-[#86868b]">วัน</p>
+                </div>
+              </div>
+              <p className="text-xs text-[#86868b] mt-2">
+                💡 โดยทั่วไปมักกำหนดไว้ที่ 3 วันต่อปี
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-6 border-t border-[#e8e8ed]">
+            <Button 
+              onClick={handleSave} 
+              size="lg" 
+              loading={saving}
+              fullWidth
+              icon={!saving ? <Save className="w-5 h-5" /> : undefined}
+            >
+              {saving ? "กำลังบันทึก..." : "บันทึกค่าเริ่มต้น"}
+            </Button>
+          </div>
+        </Card>
+
+        {/* Summary Card */}
+        <Card elevated className="mt-6 bg-[#f9f9fb]">
+          <h4 className="text-sm font-semibold text-[#1d1d1f] mb-3">📌 สรุป</h4>
+          <div className="space-y-2 text-[13px] text-[#86868b]">
+            <p>• พนักงานใหม่จะได้รับ <strong className="text-[#34c759]">{settings.defaultAnnual} วันพักร้อน</strong></p>
+            <p>• พนักงานใหม่จะได้รับ <strong className="text-[#ff3b30]">{settings.defaultSick} วันลาป่วย</strong></p>
+            <p>• พนักงานใหม่จะได้รับ <strong className="text-[#ff9500]">{settings.defaultPersonal} วันลากิจ</strong></p>
+            <p className="pt-2 border-t border-[#e8e8ed] mt-3">
+              💡 หากต้องการแก้ไขโควต้าของพนักงานปัจจุบัน ให้ไปที่หน้า{" "}
+              <Link href="/admin/employees" className="text-[#0071e3] hover:underline">
+                จัดการพนักงาน
+              </Link>
+            </p>
+          </div>
+        </Card>
+      </div>
     </AdminLayout>
   );
 }
 
-export default function LeaveQuotaPage() {
+export default function LeaveQuotaSettingsPage() {
   return (
     <ProtectedRoute allowedRoles={["admin"]}>
-      <LeaveQuotaContent />
+      <LeaveQuotaSettingsContent />
     </ProtectedRoute>
   );
 }
-
