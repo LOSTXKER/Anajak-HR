@@ -571,7 +571,8 @@ export default function HomePage() {
         )}
 
         {/* Upcoming Holidays Card */}
-        {upcomingHolidays.length > 0 && (
+        {/* Filter out today's holiday from upcoming list */}
+        {upcomingHolidays.filter((h: any) => !isSameDay(parseISO(h.date), new Date())).length > 0 && (
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#e8e8ed] mb-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -587,7 +588,7 @@ export default function HomePage() {
             </div>
 
             <div className="space-y-3">
-              {upcomingHolidays.map((holiday: any) => {
+              {upcomingHolidays.filter((h: any) => !isSameDay(parseISO(h.date), new Date())).map((holiday: any) => {
                 const holidayDate = parseISO(holiday.date);
                 const today = startOfDay(new Date());
                 const daysUntil = differenceInCalendarDays(holidayDate, today);
