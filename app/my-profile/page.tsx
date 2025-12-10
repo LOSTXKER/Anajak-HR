@@ -26,7 +26,11 @@ import {
   ChevronLeft,
   ChevronRight,
   XCircle,
+  Camera,
+  X,
+  Trash2,
 } from "lucide-react";
+import { useToast } from "@/components/ui/Toast";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
 import { th } from "date-fns/locale";
 import Link from "next/link";
@@ -37,6 +41,8 @@ interface AttendanceRecord {
   work_date: string;
   clock_in_time: string | null;
   clock_out_time: string | null;
+  clock_in_photo_url: string | null;
+  clock_out_photo_url: string | null;
   total_hours: number | null;
   is_late: boolean;
   late_minutes: number;
@@ -94,12 +100,15 @@ type TabType = "overview" | "attendance" | "ot" | "leave" | "wfh";
 
 export default function MyProfilePage() {
   const router = useRouter();
+  const toast = useToast();
   const { user, employee, loading: authLoading } = useAuth();
 
   // State
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [photoModal, setPhotoModal] = useState<{ url: string; type: string } | null>(null);
+  const [canceling, setCanceling] = useState<string | null>(null);
 
   // Data
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
@@ -259,6 +268,27 @@ export default function MyProfilePage() {
       wfhDays: wfhData.filter((w) => w.status === "approved").length,
     };
   }, [attendanceData, otData, leaveData, wfhData]);
+
+  // Cancel request
+  const handleCancel = async (type: "leave" | "wfh", id: string) => {
+    setCanceling(id);
+    try {
+      const table = type === "leave" ? "leave_requests" : "wfh_requests";
+      const { error } = await supabase
+        .from(table)
+        .update({ status: "cancelled" })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast.success("ยกเลิกสำเร็จ", `ยกเลิกคำขอ${type === "leave" ? "ลา" : "WFH"}เรียบร้อย`);
+      fetchData();
+    } catch (error: any) {
+      toast.error("เกิดข้อผิดพลาด", error?.message || "ไม่สามารถยกเลิกได้");
+    } finally {
+      setCanceling(null);
+    }
+  };
 
   // Helpers
   const getStatusBadge = (status: string) => {
@@ -544,7 +574,7 @@ export default function MyProfilePage() {
                 ) : (
                   attendanceData.map((att) => (
                     <Card key={att.id} elevated className="!p-4">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mb-2">
                         <div>
                           <p className="text-[13px] text-[#86868b]">
                             {format(new Date(att.work_date), "d MMM yyyy", { locale: th })}
@@ -563,6 +593,29 @@ export default function MyProfilePage() {
                           )}
                         </div>
                       </div>
+                      {/* Photo buttons */}
+                      {(att.clock_in_photo_url || att.clock_out_photo_url) && (
+                        <div className="flex gap-2 pt-2 border-t border-[#e8e8ed]">
+                          {att.clock_in_photo_url && (
+                            <button
+                              onClick={() => setPhotoModal({ url: att.clock_in_photo_url!, type: "เข้างาน" })}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/20 transition-colors"
+                            >
+                              <Camera className="w-3.5 h-3.5" />
+                              รูปเข้างาน
+                            </button>
+                          )}
+                          {att.clock_out_photo_url && (
+                            <button
+                              onClick={() => setPhotoModal({ url: att.clock_out_photo_url!, type: "ออกงาน" })}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#34c759] bg-[#34c759]/10 rounded-lg hover:bg-[#34c759]/20 transition-colors"
+                            >
+                              <Camera className="w-3.5 h-3.5" />
+                              รูปออกงาน
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </Card>
                   ))
                 )}
@@ -631,6 +684,16 @@ export default function MyProfilePage() {
                         {leave.is_half_day && " (ครึ่งวัน)"}
                       </p>
                       <p className="text-[13px] text-[#86868b] mt-1">{leave.reason}</p>
+                      {leave.status === "pending" && (
+                        <button
+                          onClick={() => handleCancel("leave", leave.id)}
+                          disabled={canceling === leave.id}
+                          className="mt-3 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#ff3b30] bg-[#ff3b30]/10 rounded-lg hover:bg-[#ff3b30]/20 transition-colors disabled:opacity-50"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          {canceling === leave.id ? "กำลังยกเลิก..." : "ยกเลิกคำขอ"}
+                        </button>
+                      )}
                     </Card>
                   ))
                 )}
@@ -658,6 +721,16 @@ export default function MyProfilePage() {
                         Work From Home {wfh.is_half_day && "(ครึ่งวัน)"}
                       </p>
                       <p className="text-[13px] text-[#86868b] mt-1">{wfh.reason}</p>
+                      {wfh.status === "pending" && (
+                        <button
+                          onClick={() => handleCancel("wfh", wfh.id)}
+                          disabled={canceling === wfh.id}
+                          className="mt-3 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#ff3b30] bg-[#ff3b30]/10 rounded-lg hover:bg-[#ff3b30]/20 transition-colors disabled:opacity-50"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          {canceling === wfh.id ? "กำลังยกเลิก..." : "ยกเลิกคำขอ"}
+                        </button>
+                      )}
                     </Card>
                   ))
                 )}
@@ -666,6 +739,31 @@ export default function MyProfilePage() {
           </>
         )}
       </main>
+
+      {/* Photo Modal */}
+      {photoModal && (
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          onClick={() => setPhotoModal(null)}
+        >
+          <div className="relative max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setPhotoModal(null)}
+              className="absolute -top-12 right-0 p-2 text-white hover:text-[#ff3b30] transition-colors"
+            >
+              <X className="w-8 h-8" />
+            </button>
+            <p className="text-white text-center mb-4 text-lg font-medium">
+              รูปถ่าย{photoModal.type}
+            </p>
+            <img
+              src={photoModal.url}
+              alt={`รูปถ่าย${photoModal.type}`}
+              className="w-full rounded-2xl shadow-2xl"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

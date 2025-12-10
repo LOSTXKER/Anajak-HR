@@ -5,13 +5,15 @@
  * This replaces the inline data fetching in page.tsx
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useTodayAttendance, useWorkStats } from "./use-attendance";
-import { useActiveOT, usePendingOT } from "./use-ot";
+import { useActiveOT, usePendingOT, useOTHistory } from "./use-ot";
 import { useTodayHoliday, useUpcomingHolidays } from "./use-holidays";
 import { useWorkSettings } from "./use-settings";
 import { formatOTDuration } from "@/lib/services/ot.service";
+import { supabase } from "@/lib/supabase/client";
+import { startOfMonth, endOfMonth, format } from "date-fns";
 
 /**
  * Combined hook for employee dashboard
@@ -27,6 +29,18 @@ export function useDashboard() {
     const { pendingOT, isLoading: loadingPendingOT, refetch: refetchPendingOT } = usePendingOT(employee?.id);
     const { holiday: todayHoliday, isLoading: loadingTodayHoliday } = useTodayHoliday();
     const { holidays: upcomingHolidays, isLoading: loadingUpcoming } = useUpcomingHolidays(30, 3);
+
+    // Monthly OT summary state
+    const [monthlyOT, setMonthlyOT] = useState({ hours: 0, amount: 0 });
+    const [loadingMonthlyOT, setLoadingMonthlyOT] = useState(false);
+
+    // Leave balance state
+    const [leaveBalance, setLeaveBalance] = useState<{
+        annual_remaining: number;
+        sick_remaining: number;
+        personal_remaining: number;
+    } | null>(null);
+    const [loadingLeaveBalance, setLoadingLeaveBalance] = useState(false);
 
     // Live OT duration (updates every second)
     const [otDuration, setOtDuration] = useState("00:00:00");
@@ -46,6 +60,68 @@ export function useDashboard() {
         return () => clearInterval(interval);
     }, [activeOT]);
 
+    // Fetch monthly OT summary
+    useEffect(() => {
+        if (!employee?.id) return;
+
+        const fetchMonthlyOT = async () => {
+            setLoadingMonthlyOT(true);
+            try {
+                const now = new Date();
+                const startDate = format(startOfMonth(now), "yyyy-MM-dd");
+                const endDate = format(endOfMonth(now), "yyyy-MM-dd");
+
+                const { data } = await supabase
+                    .from("ot_requests")
+                    .select("actual_ot_hours, ot_amount")
+                    .eq("employee_id", employee.id)
+                    .in("status", ["approved", "started", "completed"])
+                    .gte("request_date", startDate)
+                    .lte("request_date", endDate);
+
+                if (data) {
+                    const totalHours = data.reduce((sum, ot) => sum + (ot.actual_ot_hours || 0), 0);
+                    const totalAmount = data.reduce((sum, ot) => sum + (ot.ot_amount || 0), 0);
+                    setMonthlyOT({ hours: totalHours, amount: totalAmount });
+                }
+            } catch (error) {
+                console.error("Error fetching monthly OT:", error);
+            } finally {
+                setLoadingMonthlyOT(false);
+            }
+        };
+
+        fetchMonthlyOT();
+    }, [employee?.id]);
+
+    // Fetch leave balance
+    useEffect(() => {
+        if (!employee?.id) return;
+
+        const fetchLeaveBalance = async () => {
+            setLoadingLeaveBalance(true);
+            try {
+                const currentYear = new Date().getFullYear();
+                const { data } = await supabase
+                    .from("leave_balances")
+                    .select("annual_remaining, sick_remaining, personal_remaining")
+                    .eq("employee_id", employee.id)
+                    .eq("year", currentYear)
+                    .single();
+
+                if (data) {
+                    setLeaveBalance(data);
+                }
+            } catch (error) {
+                console.error("Error fetching leave balance:", error);
+            } finally {
+                setLoadingLeaveBalance(false);
+            }
+        };
+
+        fetchLeaveBalance();
+    }, [employee?.id]);
+
     // Refresh all data
     const refetchAll = async () => {
         await Promise.all([
@@ -56,7 +132,7 @@ export function useDashboard() {
     };
 
     // Combined loading state
-    const isLoading = loadingSettings || loadingAttendance || loadingActiveOT || loadingPendingOT || loadingTodayHoliday || loadingUpcoming;
+    const isLoading = loadingSettings || loadingAttendance || loadingActiveOT || loadingPendingOT || loadingTodayHoliday || loadingUpcoming || loadingMonthlyOT || loadingLeaveBalance;
 
     return {
         // Auth
@@ -76,6 +152,10 @@ export function useDashboard() {
         activeOT,
         pendingOT,
         otDuration,
+        monthlyOT,
+
+        // Leave
+        leaveBalance,
 
         // Holiday
         todayHoliday,

@@ -54,6 +54,8 @@ export default function HomePage() {
     activeOT,
     pendingOT,
     otDuration,
+    monthlyOT,
+    leaveBalance,
     todayHoliday,
     upcomingHolidays,
     workSettings,
@@ -620,6 +622,41 @@ export default function HomePage() {
             )}
           </div>
         )}
+
+        {/* Monthly Summary Cards */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          {/* OT Summary Card */}
+          <Link href="/my-profile?tab=ot">
+            <div className="bg-gradient-to-br from-[#ff9500] to-[#ff6f00] rounded-2xl p-4 text-white shadow-sm hover:shadow-md transition-all">
+              <div className="flex items-center gap-2 mb-2">
+                <Timer className="w-5 h-5" />
+                <span className="text-[13px] font-medium opacity-90">OT เดือนนี้</span>
+              </div>
+              <p className="text-2xl font-bold">{monthlyOT.hours.toFixed(1)} <span className="text-sm font-normal opacity-80">ชม.</span></p>
+              <p className="text-[13px] opacity-80 mt-1">฿{monthlyOT.amount.toLocaleString()}</p>
+            </div>
+          </Link>
+
+          {/* Leave Quota Card */}
+          <Link href="/my-profile?tab=leave">
+            <div className="bg-gradient-to-br from-[#34c759] to-[#28a745] rounded-2xl p-4 text-white shadow-sm hover:shadow-md transition-all">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar className="w-5 h-5" />
+                <span className="text-[13px] font-medium opacity-90">วันลาคงเหลือ</span>
+              </div>
+              {leaveBalance ? (
+                <>
+                  <p className="text-2xl font-bold">{leaveBalance.annual_remaining} <span className="text-sm font-normal opacity-80">พักร้อน</span></p>
+                  <p className="text-[13px] opacity-80 mt-1">
+                    ป่วย {leaveBalance.sick_remaining} • กิจ {leaveBalance.personal_remaining}
+                  </p>
+                </>
+              ) : (
+                <p className="text-lg font-medium opacity-80">ไม่มีข้อมูล</p>
+              )}
+            </div>
+          </Link>
+        </div>
 
         {/* Quick Actions Grid */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#e8e8ed] mb-4">
