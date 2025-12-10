@@ -133,6 +133,13 @@ interface AttendanceLog {
   employee: Employee;
 }
 
+interface HistoryLogWithDetails extends AttendanceLog {
+  ot: OTRecord[];
+  leave: LeaveRecord | null;
+  wfh: WFHRecord | null;
+  lateRequest: LateRequestRecord | null;
+}
+
 type ViewMode = "daily" | "history";
 
 function AttendanceContent() {
@@ -153,7 +160,7 @@ function AttendanceContent() {
   const [daySummaries, setDaySummaries] = useState<DaySummary[]>([]);
 
   // History view state
-  const [historyLogs, setHistoryLogs] = useState<AttendanceLog[]>([]);
+  const [historyLogs, setHistoryLogs] = useState<HistoryLogWithDetails[]>([]);
   const [filterEmployee, setFilterEmployee] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterBranch, setFilterBranch] = useState("");
@@ -326,7 +333,96 @@ function AttendanceContent() {
         logs = logs.filter((l) => l.employee?.branch_id === filterBranch);
       }
 
-      setHistoryLogs(logs);
+      // Fetch OT, Leave, WFH data for the month
+      const [otRes, leaveRes, wfhRes, lateReqRes] = await Promise.all([
+        supabase
+          .from("ot_requests")
+          .select("*")
+          .gte("request_date", startDate)
+          .lte("request_date", endDate)
+          .in("status", ["approved", "started", "completed"]),
+        supabase
+          .from("leave_requests")
+          .select("*")
+          .eq("status", "approved")
+          .or(`start_date.lte.${endDate},end_date.gte.${startDate}`),
+        supabase
+          .from("wfh_requests")
+          .select("*")
+          .eq("status", "approved")
+          .gte("date", startDate)
+          .lte("date", endDate),
+        supabase
+          .from("late_requests")
+          .select("*")
+          .gte("request_date", startDate)
+          .lte("request_date", endDate),
+      ]);
+
+      // Map logs with OT/Leave/WFH data
+      const logsWithDetails: HistoryLogWithDetails[] = logs.map((log) => {
+        const dateStr = log.work_date;
+        const empOt = (otRes.data || []).filter(
+          (o: any) => o.employee_id === log.employee_id && o.request_date === dateStr
+        );
+        const empLeave = (leaveRes.data || []).find(
+          (l: any) =>
+            l.employee_id === log.employee_id && l.start_date <= dateStr && l.end_date >= dateStr
+        );
+        const empWfh = (wfhRes.data || []).find(
+          (w: any) => w.employee_id === log.employee_id && w.date === dateStr
+        );
+        const empLateReq = (lateReqRes.data || []).find(
+          (lr: any) => lr.employee_id === log.employee_id && lr.request_date === dateStr
+        );
+
+        return {
+          ...log,
+          ot: empOt.map((o: any) => ({
+            id: o.id,
+            requestDate: o.request_date,
+            otType: o.ot_type,
+            startTime: o.actual_start_time,
+            endTime: o.actual_end_time,
+            approvedHours: o.approved_ot_hours,
+            actualHours: o.actual_ot_hours,
+            amount: o.ot_amount,
+            rate: o.ot_rate,
+            status: o.status,
+          })),
+          leave: empLeave
+            ? {
+                id: empLeave.id,
+                leaveType: empLeave.leave_type,
+                startDate: empLeave.start_date,
+                endDate: empLeave.end_date,
+                isHalfDay: empLeave.is_half_day,
+                reason: empLeave.reason,
+                status: empLeave.status,
+              }
+            : null,
+          wfh: empWfh
+            ? {
+                id: empWfh.id,
+                date: empWfh.date,
+                isHalfDay: empWfh.is_half_day,
+                reason: empWfh.reason,
+                status: empWfh.status,
+              }
+            : null,
+          lateRequest: empLateReq
+            ? {
+                id: empLateReq.id,
+                requestDate: empLateReq.request_date,
+                clockInTime: empLateReq.actual_clock_in_time,
+                reason: empLateReq.reason,
+                status: empLateReq.status,
+              }
+            : null,
+        };
+      });
+
+      setHistoryLogs(logsWithDetails);
     } catch (error) {
       console.error("Error fetching history:", error);
     } finally {
@@ -915,6 +1011,12 @@ function AttendanceContent() {
                         ชม.
                       </th>
                       <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
+                        OT
+                      </th>
+                      <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
+                        ลา/WFH
+                      </th>
+                      <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
                         สถานะ
                       </th>
                       <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase tracking-wide">
@@ -956,11 +1058,68 @@ function AttendanceContent() {
                           {log.total_hours?.toFixed(1) || "0"}
                         </td>
                         <td className="text-center px-3 py-3">
+                          {log.ot.length > 0 ? (
+                            <button
+                              onClick={() =>
+                                setDetailModal({
+                                  type: "ot",
+                                  employee: log.employee,
+                                  data: log.ot,
+                                })
+                              }
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#ff9500] bg-[#ff9500]/10 rounded-lg hover:bg-[#ff9500]/20 transition-colors"
+                            >
+                              <Clock className="w-3 h-3" />
+                              {log.ot.reduce((h, o) => h + (o.actualHours || o.approvedHours || 0), 0).toFixed(1)} ชม.
+                            </button>
+                          ) : (
+                            <span className="text-xs text-[#86868b]">-</span>
+                          )}
+                        </td>
+                        <td className="text-center px-3 py-3">
+                          {log.leave ? (
+                            <button
+                              onClick={() =>
+                                setDetailModal({
+                                  type: "leave",
+                                  employee: log.employee,
+                                  data: log.leave,
+                                })
+                              }
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/20 transition-colors"
+                            >
+                              <Calendar className="w-3 h-3" />
+                              {getLeaveTypeLabel(log.leave.leaveType)}
+                            </button>
+                          ) : log.wfh ? (
+                            <button
+                              onClick={() =>
+                                setDetailModal({
+                                  type: "wfh",
+                                  employee: log.employee,
+                                  data: log.wfh,
+                                })
+                              }
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#af52de] bg-[#af52de]/10 rounded-lg hover:bg-[#af52de]/20 transition-colors"
+                            >
+                              <Home className="w-3 h-3" />
+                              WFH
+                            </button>
+                          ) : (
+                            <span className="text-xs text-[#86868b]">-</span>
+                          )}
+                        </td>
+                        <td className="text-center px-3 py-3">
                           <div className="flex flex-col items-center gap-1">
                             {log.status === "holiday" ? (
                               <Badge variant="info">
                                 <Sun className="w-3 h-3 mr-1" />
                                 วันหยุด
+                              </Badge>
+                            ) : log.is_late && log.lateRequest?.status === "approved" ? (
+                              <Badge variant="success">
+                                <CheckCircle2 className="w-3 h-3 mr-1" />
+                                อนุมัติสาย
                               </Badge>
                             ) : (
                               <Badge variant={log.is_late ? "warning" : "success"}>
@@ -1098,7 +1257,14 @@ function AttendanceContent() {
                     : "รายละเอียดคำขอสาย"}
                 </h3>
                 <p className="text-[13px] text-[#86868b] mt-0.5">
-                  {detailModal.employee.name} - {format(selectedDate, "d MMMM yyyy", { locale: th })}
+                  {detailModal.employee.name}
+                  {detailModal.type === "ot" && detailModal.data.length > 0
+                    ? ` - ${format(new Date((detailModal.data[0] as OTRecord).requestDate), "d MMMM yyyy", { locale: th })}`
+                    : detailModal.type === "leave"
+                    ? ` - ${format(new Date((detailModal.data as LeaveRecord).startDate), "d MMMM yyyy", { locale: th })}`
+                    : detailModal.type === "wfh"
+                    ? ` - ${format(new Date((detailModal.data as WFHRecord).date), "d MMMM yyyy", { locale: th })}`
+                    : ""}
                 </p>
               </div>
               <button
