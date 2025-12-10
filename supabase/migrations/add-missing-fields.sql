@@ -139,11 +139,16 @@ ALTER TABLE attendance_anomalies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE checkout_reminders ENABLE ROW LEVEL SECURITY;
 
 -- System settings - readable by all authenticated
+DROP POLICY IF EXISTS "Anyone can read settings" ON system_settings;
+DROP POLICY IF EXISTS "Admins can manage settings" ON system_settings;
 CREATE POLICY "Anyone can read settings" ON system_settings FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Admins can manage settings" ON system_settings FOR ALL TO authenticated 
 USING (EXISTS (SELECT 1 FROM employees WHERE id = auth.uid() AND role = 'admin'));
 
 -- Late requests - employees can view their own
+DROP POLICY IF EXISTS "late_requests_select_own" ON late_requests;
+DROP POLICY IF EXISTS "late_requests_insert_own" ON late_requests;
+DROP POLICY IF EXISTS "late_requests_update_admin" ON late_requests;
 CREATE POLICY "late_requests_select_own" ON late_requests FOR SELECT TO authenticated 
 USING (employee_id = auth.uid() OR EXISTS (SELECT 1 FROM employees WHERE id = auth.uid() AND role IN ('admin', 'supervisor')));
 
@@ -154,10 +159,12 @@ CREATE POLICY "late_requests_update_admin" ON late_requests FOR UPDATE TO authen
 USING (EXISTS (SELECT 1 FROM employees WHERE id = auth.uid() AND role IN ('admin', 'supervisor')));
 
 -- Anomalies - admin/supervisor only
+DROP POLICY IF EXISTS "anomalies_admin" ON attendance_anomalies;
 CREATE POLICY "anomalies_admin" ON attendance_anomalies FOR ALL TO authenticated 
 USING (EXISTS (SELECT 1 FROM employees WHERE id = auth.uid() AND role IN ('admin', 'supervisor')));
 
 -- Reminders - admin/supervisor only
+DROP POLICY IF EXISTS "reminders_admin" ON checkout_reminders;
 CREATE POLICY "reminders_admin" ON checkout_reminders FOR ALL TO authenticated 
 USING (EXISTS (SELECT 1 FROM employees WHERE id = auth.uid() AND role IN ('admin', 'supervisor')));
 
