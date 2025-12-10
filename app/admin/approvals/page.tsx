@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -54,12 +55,21 @@ const typeConfig: Record<RequestType, { label: string; icon: any; color: string;
 function ApprovalsContent() {
   const { employee: currentAdmin } = useAuth();
   const toast = useToast();
+  const searchParams = useSearchParams();
+  const typeParam = searchParams.get("type") as RequestType | null;
   
   // State
   const [loading, setLoading] = useState(true);
-  const [activeType, setActiveType] = useState<RequestType | "all">("all");
+  const [activeType, setActiveType] = useState<RequestType | "all">(typeParam || "all");
   const [requests, setRequests] = useState<PendingRequest[]>([]);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
+
+  // Update activeType when URL changes
+  useEffect(() => {
+    if (typeParam && ["ot", "leave", "wfh", "late"].includes(typeParam)) {
+      setActiveType(typeParam);
+    }
+  }, [typeParam]);
 
   // Stats
   const stats = useMemo(() => {
@@ -458,7 +468,13 @@ function ApprovalsContent() {
 export default function ApprovalsPage() {
   return (
     <ProtectedRoute allowedRoles={["admin", "supervisor"]}>
-      <ApprovalsContent />
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
+        </div>
+      }>
+        <ApprovalsContent />
+      </Suspense>
     </ProtectedRoute>
   );
 }

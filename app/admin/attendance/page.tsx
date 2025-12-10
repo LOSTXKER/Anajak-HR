@@ -799,15 +799,17 @@ function AttendanceContent() {
                   </thead>
                   <tbody className="divide-y divide-[#e8e8ed]">
                     {daySummaries.map((summary) => (
-                      <tr key={summary.employee.id} className="hover:bg-[#f5f5f7]/50 transition-colors">
+                      <tr key={summary.employee.id} className="hover:bg-[#f5f5f7]/50 transition-colors group">
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
+                          <Link href={`/admin/employees/${summary.employee.id}`} className="flex items-center gap-2">
                             <Avatar name={summary.employee.name} size="sm" />
                             <div>
-                              <p className="text-sm font-medium text-[#1d1d1f]">{summary.employee.name}</p>
+                              <p className="text-sm font-medium text-[#1d1d1f] group-hover:text-[#0071e3] transition-colors">
+                                {summary.employee.name}
+                              </p>
                               <p className="text-xs text-[#86868b]">{summary.employee.email}</p>
                             </div>
-                          </div>
+                          </Link>
                         </td>
                         <td className="text-center px-3 py-3">
                           {summary.attendance?.clockIn ? (
@@ -1032,17 +1034,19 @@ function AttendanceContent() {
                           {format(new Date(log.work_date), "d MMM yyyy", { locale: th })}
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
+                          <Link href={`/admin/employees/${log.employee_id}`} className="flex items-center gap-2 group">
                             <Avatar name={log.employee?.name || "?"} size="sm" />
                             <div>
-                              <p className="text-sm font-medium text-[#1d1d1f]">{log.employee?.name}</p>
+                              <p className="text-sm font-medium text-[#1d1d1f] group-hover:text-[#0071e3] transition-colors">
+                                {log.employee?.name}
+                              </p>
                               {log.employee?.branch_id && (
                                 <p className="text-xs text-[#86868b]">
                                   {branches.find((b) => b.id === log.employee.branch_id)?.name}
                                 </p>
                               )}
                             </div>
-                          </div>
+                          </Link>
                         </td>
                         <td className="text-center px-3 py-3 text-sm text-[#1d1d1f] font-medium">
                           {log.clock_in_time ? format(new Date(log.clock_in_time), "HH:mm") : "-"}

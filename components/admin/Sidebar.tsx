@@ -15,9 +15,11 @@ import {
   Menu,
   X,
   FileText,
-  Home,
   DollarSign,
   Activity,
+  AlertTriangle,
+  Building2,
+  CalendarDays,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { useState, useEffect } from "react";
@@ -95,27 +97,31 @@ export function Sidebar() {
       title: "หลัก",
       items: [
         { title: "Dashboard", href: "/admin", icon: LayoutGrid },
-        { title: "Monitor", href: "/admin/monitor", icon: Activity },
         { title: "อนุมัติ", href: "/admin/approvals", icon: FileText, badge: pendingCounts.ot + pendingCounts.leave + pendingCounts.wfh + pendingCounts.late },
-      ],
-    },
-    {
-      title: "จัดการข้อมูล",
-      items: [
-        { title: "พนักงาน", href: "/admin/employees", icon: Users, badge: pendingCounts.employees },
         { title: "การเข้างาน", href: "/admin/attendance", icon: Clock },
-        { title: "ประวัติมาสาย", href: "/admin/late-requests", icon: Clock },
-        { title: "จัดการ OT", href: "/admin/ot", icon: Calendar },
-        { title: "จัดการลา", href: "/admin/leave", icon: FileText },
-        { title: "จัดการ WFH", href: "/admin/wfh", icon: Home },
+        { title: "พนักงาน", href: "/admin/employees", icon: Users, badge: pendingCounts.employees },
       ],
     },
     {
-      title: "รายงาน & ตั้งค่า",
+      title: "ติดตาม",
+      items: [
+        { title: "Monitor", href: "/admin/monitor", icon: Activity },
+        { title: "ความผิดปกติ", href: "/admin/anomalies", icon: AlertTriangle },
+      ],
+    },
+    {
+      title: "การเงิน",
       items: [
         { title: "เงินเดือน", href: "/admin/payroll", icon: DollarSign },
         { title: "รายงาน", href: "/admin/reports", icon: BarChart3 },
-        { title: "ตั้งค่า", href: "/admin/settings", icon: Settings },
+      ],
+    },
+    {
+      title: "ตั้งค่า",
+      items: [
+        { title: "สาขา", href: "/admin/branches", icon: Building2 },
+        { title: "วันหยุด", href: "/admin/holidays", icon: CalendarDays },
+        { title: "ตั้งค่าระบบ", href: "/admin/settings", icon: Settings },
       ],
     },
   ];

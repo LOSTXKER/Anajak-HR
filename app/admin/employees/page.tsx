@@ -29,7 +29,10 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  Eye,
+  ChevronRight,
 } from "lucide-react";
+import Link from "next/link";
 
 interface Employee {
   id: string;
@@ -386,12 +389,17 @@ function EmployeesContent() {
                 {filteredEmployees.map((emp) => {
                   const balance = balances[emp.id];
                   return (
-                    <tr key={emp.id} className="hover:bg-[#f5f5f7]/50">
+                    <tr key={emp.id} className="hover:bg-[#f5f5f7]/50 cursor-pointer group">
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
+                        <Link href={`/admin/employees/${emp.id}`} className="flex items-center gap-3">
                           <Avatar name={emp.name} size="sm" />
-                          <div>
-                            <p className="text-sm font-medium text-[#1d1d1f]">{emp.name}</p>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium text-[#1d1d1f] group-hover:text-[#0071e3] transition-colors">
+                                {emp.name}
+                              </p>
+                              <ChevronRight className="w-4 h-4 text-[#86868b] opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
                             <div className="flex items-center gap-2 mt-1">
                               <Mail className="w-3 h-3 text-[#86868b]" />
                               <p className="text-xs text-[#86868b]">{emp.email}</p>
@@ -403,7 +411,7 @@ function EmployeesContent() {
                               </div>
                             )}
                           </div>
-                        </div>
+                        </Link>
                       </td>
                       <td className="px-3 py-4">
                         {getRoleBadge(emp.role)}
@@ -462,6 +470,13 @@ function EmployeesContent() {
                               </button>
                             </>
                           )}
+                          <Link
+                            href={`/admin/employees/${emp.id}`}
+                            className="p-2 text-[#34c759] hover:bg-[#34c759]/10 rounded-lg transition-colors"
+                            title="ดูรายละเอียด"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Link>
                           <button
                             onClick={() => handleEdit(emp)}
                             className="p-2 text-[#0071e3] hover:bg-[#0071e3]/10 rounded-lg transition-colors"
