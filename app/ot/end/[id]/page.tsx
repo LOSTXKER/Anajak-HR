@@ -116,7 +116,7 @@ function OTEndContent({ id }: { id: string }) {
         .from("ot_requests")
         .select("*")
         .eq("id", id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       setOtRequest(data);
@@ -209,7 +209,7 @@ function OTEndContent({ id }: { id: string }) {
         .from("employees")
         .select("base_salary")
         .eq("id", employee.id)
-        .single();
+        .maybeSingle();
 
       const { data: settingsData } = await supabase
         .from("system_settings")

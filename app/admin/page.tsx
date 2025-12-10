@@ -329,154 +329,64 @@ function AdminDashboardContent() {
           </Card>
         </div>
 
-        {/* Pending Requests */}
+        {/* Pending Requests Summary */}
         <div className="space-y-6">
-          {/* Pending OT */}
-          <Card elevated padding="none">
-            <div className="px-6 py-4 border-b border-[#e8e8ed]">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
-                  🕐 รออนุมัติ OT
-                </h3>
+          <Card elevated>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
+                ⚠️ รอการอนุมัติ
+              </h3>
+              <Link
+                href="/admin/approvals"
+                className="text-[14px] text-[#0071e3] hover:underline"
+              >
+                จัดการทั้งหมด →
+              </Link>
+            </div>
+
+            {totalPending === 0 ? (
+              <div className="flex items-center gap-3 p-4 bg-[#34c759]/10 rounded-xl">
+                <CheckCircle className="w-6 h-6 text-[#34c759]" />
+                <p className="text-[14px] text-[#1d1d1f]">ไม่มีรายการรออนุมัติ</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
                 {pendingRequests.ot.length > 0 && (
-                  <Badge variant="warning">{pendingRequests.ot.length}</Badge>
-                )}
-              </div>
-            </div>
-            {pendingRequests.ot.length === 0 ? (
-              <div className="text-center py-8 text-[#86868b] text-[14px]">
-                ไม่มีคำขอ OT
-              </div>
-            ) : (
-              <div className="divide-y divide-[#e8e8ed]">
-                {pendingRequests.ot.slice(0, 3).map((ot) => (
-                  <div key={ot.id} className="p-4">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Avatar name={ot.employee?.name || "?"} size="sm" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-medium text-[#1d1d1f] truncate">
-                          {ot.employee?.name}
-                        </p>
-                        <p className="text-[12px] text-[#86868b]">
-                          {format(new Date(ot.requested_start_time), "dd/MM HH:mm")} - {format(new Date(ot.requested_end_time), "HH:mm")}
-                        </p>
-                      </div>
+                  <Link
+                    href="/admin/approvals"
+                    className="flex items-center justify-between p-3 bg-[#ff9500]/10 rounded-xl hover:bg-[#ff9500]/15 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-[20px]">🕐</span>
+                      <span className="text-[14px] text-[#1d1d1f]">คำขอ OT</span>
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={() => handleApproveOT(ot.id, true)} className="flex-1">
-                        <CheckCircle className="w-3 h-3" /> อนุมัติ
-                      </Button>
-                      <Button size="sm" variant="danger" onClick={() => handleApproveOT(ot.id, false)} className="flex-1">
-                        <XCircle className="w-3 h-3" /> ปฏิเสธ
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                {pendingRequests.ot.length > 3 && (
-                  <Link href="/admin/ot" className="block text-center py-3 text-[#0071e3] text-[14px] hover:bg-[#f5f5f7]">
-                    ดูทั้งหมด ({pendingRequests.ot.length})
+                    <Badge variant="warning">{pendingRequests.ot.length}</Badge>
                   </Link>
                 )}
-              </div>
-            )}
-          </Card>
 
-          {/* Pending Leave */}
-          <Card elevated padding="none">
-            <div className="px-6 py-4 border-b border-[#e8e8ed]">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
-                  📝 รออนุมัติลา
-                </h3>
                 {pendingRequests.leave.length > 0 && (
-                  <Badge variant="warning">{pendingRequests.leave.length}</Badge>
-                )}
-              </div>
-            </div>
-            {pendingRequests.leave.length === 0 ? (
-              <div className="text-center py-8 text-[#86868b] text-[14px]">
-                ไม่มีคำขอลา
-              </div>
-            ) : (
-              <div className="divide-y divide-[#e8e8ed]">
-                {pendingRequests.leave.slice(0, 3).map((leave) => (
-                  <div key={leave.id} className="p-4">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Avatar name={leave.employee?.name || "?"} size="sm" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-medium text-[#1d1d1f] truncate">
-                          {leave.employee?.name}
-                        </p>
-                        <p className="text-[12px] text-[#86868b]">
-                          {leave.leave_type} • {format(new Date(leave.start_date), "dd/MM")}
-                          {leave.start_date !== leave.end_date && ` - ${format(new Date(leave.end_date), "dd/MM")}`}
-                        </p>
-                      </div>
+                  <Link
+                    href="/admin/approvals"
+                    className="flex items-center justify-between p-3 bg-[#0071e3]/10 rounded-xl hover:bg-[#0071e3]/15 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-[20px]">📝</span>
+                      <span className="text-[14px] text-[#1d1d1f]">คำขอลางาน</span>
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={() => handleApproveLeave(leave.id, true)} className="flex-1">
-                        <CheckCircle className="w-3 h-3" /> อนุมัติ
-                      </Button>
-                      <Button size="sm" variant="danger" onClick={() => handleApproveLeave(leave.id, false)} className="flex-1">
-                        <XCircle className="w-3 h-3" /> ปฏิเสธ
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                {pendingRequests.leave.length > 3 && (
-                  <Link href="/admin/leave" className="block text-center py-3 text-[#0071e3] text-[14px] hover:bg-[#f5f5f7]">
-                    ดูทั้งหมด ({pendingRequests.leave.length})
+                    <Badge variant="info">{pendingRequests.leave.length}</Badge>
                   </Link>
                 )}
-              </div>
-            )}
-          </Card>
 
-          {/* Pending WFH */}
-          <Card elevated padding="none">
-            <div className="px-6 py-4 border-b border-[#e8e8ed]">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
-                  🏠 รออนุมัติ WFH
-                </h3>
                 {pendingRequests.wfh.length > 0 && (
-                  <Badge variant="warning">{pendingRequests.wfh.length}</Badge>
-                )}
-              </div>
-            </div>
-            {pendingRequests.wfh.length === 0 ? (
-              <div className="text-center py-8 text-[#86868b] text-[14px]">
-                ไม่มีคำขอ WFH
-              </div>
-            ) : (
-              <div className="divide-y divide-[#e8e8ed]">
-                {pendingRequests.wfh.slice(0, 3).map((wfh) => (
-                  <div key={wfh.id} className="p-4">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Avatar name={wfh.employee?.name || "?"} size="sm" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-medium text-[#1d1d1f] truncate">
-                          {wfh.employee?.name}
-                        </p>
-                        <p className="text-[12px] text-[#86868b]">
-                          {format(new Date(wfh.date), "dd MMMM yyyy", { locale: th })}
-                          {wfh.is_half_day && " (ครึ่งวัน)"}
-                        </p>
-                      </div>
+                  <Link
+                    href="/admin/approvals"
+                    className="flex items-center justify-between p-3 bg-[#34c759]/10 rounded-xl hover:bg-[#34c759]/15 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-[20px]">🏠</span>
+                      <span className="text-[14px] text-[#1d1d1f]">คำขอ WFH</span>
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={() => handleApproveWFH(wfh.id, true)} className="flex-1">
-                        <CheckCircle className="w-3 h-3" /> อนุมัติ
-                      </Button>
-                      <Button size="sm" variant="danger" onClick={() => handleApproveWFH(wfh.id, false)} className="flex-1">
-                        <XCircle className="w-3 h-3" /> ปฏิเสธ
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                {pendingRequests.wfh.length > 3 && (
-                  <Link href="/admin/wfh" className="block text-center py-3 text-[#0071e3] text-[14px] hover:bg-[#f5f5f7]">
-                    ดูทั้งหมด ({pendingRequests.wfh.length})
+                    <Badge variant="success">{pendingRequests.wfh.length}</Badge>
                   </Link>
                 )}
               </div>

@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
         .from("system_settings")
         .select("setting_value")
         .eq("setting_key", "require_account_approval")
-        .single();
-      
+        .maybeSingle();
+
       if (settingData) {
         requireApproval = settingData.setting_value !== "false";
       }
@@ -50,14 +50,14 @@ export async function POST(request: NextRequest) {
 
     if (authError) {
       console.error("Auth error:", authError);
-      
+
       if (authError.message.includes("already registered")) {
         return NextResponse.json(
           { error: "อีเมลนี้ถูกใช้งานแล้ว" },
           { status: 400 }
         );
       }
-      
+
       return NextResponse.json(
         { error: authError.message || "ไม่สามารถสร้างบัญชีได้" },
         { status: 400 }
@@ -88,10 +88,10 @@ export async function POST(request: NextRequest) {
 
     if (employeeError) {
       console.error("Employee insert error:", employeeError);
-      
+
       // ถ้า insert employee ไม่ได้ ให้ลบ user ที่สร้างไปด้วย
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-      
+
       return NextResponse.json(
         { error: "ไม่สามารถสร้างข้อมูลพนักงานได้" },
         { status: 400 }
@@ -101,8 +101,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: requireApproval 
-          ? "สมัครสมาชิกสำเร็จ รอการอนุมัติจาก Admin" 
+        message: requireApproval
+          ? "สมัครสมาชิกสำเร็จ รอการอนุมัติจาก Admin"
           : "สมัครสมาชิกสำเร็จ",
         requireApproval,
         user: {

@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { getOTRateForDate } from "@/lib/utils/holiday";
+import { getOTRateForDate } from "@/lib/services/holiday.service";
 
 interface OTRequest {
   id: string;
@@ -98,7 +98,7 @@ function OTStartContent({ id }: { id: string }) {
         .from("ot_requests")
         .select("*")
         .eq("id", id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       setOtRequest(data);
@@ -316,7 +316,13 @@ function OTStartContent({ id }: { id: string }) {
   };
 
   const handleStartOT = async () => {
-    if (!photo || !employee || !otRequest) return;
+    if (!employee || !otRequest) return;
+
+    // Validate photo
+    if (!photo || !photo.startsWith("data:image")) {
+      setError("กรุณาถ่ายรูปก่อนกด ยืนยันเริ่ม OT");
+      return;
+    }
 
     // Check requirements
     const requirement = getRequirementMessage();
@@ -357,29 +363,9 @@ function OTStartContent({ id }: { id: string }) {
       }
 
       const now = new Date();
-      const isNonWorkday = dayInfo && (dayInfo.type === "holiday" || dayInfo.type === "weekend");
 
-      // For holiday/weekend OT without attendance, create one automatically
-      if ((isNonWorkday || otRequest.ot_type === "holiday") && !todayAttendance) {
-        const { error: attendanceError } = await supabase
-          .from("attendance_logs")
-          .insert({
-            employee_id: employee.id,
-            work_date: otRequest.request_date,
-            clock_in_time: now.toISOString(),
-            clock_in_photo_url: photoUrl,
-            clock_in_gps_lat: location.lat,
-            clock_in_gps_lng: location.lng,
-            status: dayInfo?.type || "holiday", // Mark day type
-            work_mode: "onsite",
-            note: `OT ${dayInfo?.typeName || "วันหยุด"}`,
-            is_late: false,
-          });
-
-        if (attendanceError) {
-          console.error("Error creating attendance:", attendanceError);
-        }
-      }
+      // Note: OT วันหยุด ไม่สร้าง attendance record แล้ว
+      // เก็บเฉพาะใน ot_requests เท่านั้น
 
       // Update OT request with GPS
       const { error: updateError } = await supabase

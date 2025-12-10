@@ -82,7 +82,7 @@ function CheckinContent() {
         .from("branches")
         .select("id, name, gps_lat, gps_lng, radius_meters")
         .eq("id", employee.branch_id)
-        .single(),
+        .maybeSingle(),
       supabase
         .from("system_settings")
         .select("setting_key, setting_value")

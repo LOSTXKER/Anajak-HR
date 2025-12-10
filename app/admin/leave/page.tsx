@@ -13,12 +13,12 @@ import { Input } from "@/components/ui/Input";
 import { DateInput } from "@/components/ui/DateInput";
 import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { 
-  Calendar, 
-  FileText, 
-  CheckCircle, 
-  XCircle, 
-  ExternalLink, 
+import {
+  Calendar,
+  FileText,
+  CheckCircle,
+  XCircle,
+  ExternalLink,
   Plus,
   User,
   Search,
@@ -138,7 +138,7 @@ function LeaveManagementContent() {
     try {
       const leave = leaveRequests.find((l) => l.id === confirmDialog.id);
       let newStatus = "";
-      
+
       if (confirmDialog.action === "approve") {
         newStatus = "approved";
       } else if (confirmDialog.action === "reject") {
@@ -370,10 +370,9 @@ function LeaveManagementContent() {
             className={`
               flex items-center gap-2 px-4 py-2 rounded-full text-[14px] font-medium whitespace-nowrap
               transition-colors
-              ${
-                filter === tab.key
-                  ? "bg-[#0071e3] text-white"
-                  : "bg-[#f5f5f7] text-[#6e6e73] hover:bg-[#e8e8ed]"
+              ${filter === tab.key
+                ? "bg-[#0071e3] text-white"
+                : "bg-[#f5f5f7] text-[#6e6e73] hover:bg-[#e8e8ed]"
               }
             `}
           >
@@ -449,23 +448,13 @@ function LeaveManagementContent() {
                   {/* Actions */}
                   <div className="flex gap-2 md:flex-col">
                     {leave.status === "pending" && (
-                      <>
-                        <Button
-                          size="sm"
-                          onClick={() => setConfirmDialog({ open: true, id: leave.id, action: "approve", name: leave.employee?.name || "" })}
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                          อนุมัติ
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          onClick={() => setConfirmDialog({ open: true, id: leave.id, action: "reject", name: leave.employee?.name || "" })}
-                        >
-                          <XCircle className="w-4 h-4" />
-                          ปฏิเสธ
-                        </Button>
-                      </>
+                      <a
+                        href="/admin/approvals"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[#ff9500] bg-[#ff9500]/10 rounded-lg hover:bg-[#ff9500]/20"
+                      >
+                        <Calendar className="w-4 h-4" />
+                        รออนุมัติ
+                      </a>
                     )}
                     {(leave.status === "approved" || leave.status === "pending") && (
                       <Button
@@ -584,19 +573,18 @@ function LeaveManagementContent() {
         onConfirm={handleConfirm}
         title={
           confirmDialog.action === "approve" ? "ยืนยันการอนุมัติ" :
-          confirmDialog.action === "reject" ? "ยืนยันการปฏิเสธ" :
-          "ยืนยันการยกเลิก"
+            confirmDialog.action === "reject" ? "ยืนยันการปฏิเสธ" :
+              "ยืนยันการยกเลิก"
         }
-        message={`คุณต้องการ${
-          confirmDialog.action === "approve" ? "อนุมัติ" :
-          confirmDialog.action === "reject" ? "ปฏิเสธ" :
-          "ยกเลิก"
-        }คำขอลาของ "${confirmDialog.name}" ใช่หรือไม่?`}
+        message={`คุณต้องการ${confirmDialog.action === "approve" ? "อนุมัติ" :
+            confirmDialog.action === "reject" ? "ปฏิเสธ" :
+              "ยกเลิก"
+          }คำขอลาของ "${confirmDialog.name}" ใช่หรือไม่?`}
         type={confirmDialog.action === "approve" ? "success" : "danger"}
         confirmText={
           confirmDialog.action === "approve" ? "อนุมัติ" :
-          confirmDialog.action === "reject" ? "ปฏิเสธ" :
-          "ยกเลิก"
+            confirmDialog.action === "reject" ? "ปฏิเสธ" :
+              "ยกเลิก"
         }
         loading={processing}
       />

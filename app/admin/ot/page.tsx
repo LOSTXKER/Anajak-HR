@@ -16,13 +16,13 @@ import { TimeInput } from "@/components/ui/TimeInput";
 import { DateInput } from "@/components/ui/DateInput";
 import { Select } from "@/components/ui/Select";
 import { getOTRateForDate } from "@/lib/utils/holiday";
-import { 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  Trash2, 
-  Edit2, 
-  Play, 
+import {
+  Clock,
+  CheckCircle,
+  XCircle,
+  Trash2,
+  Edit2,
+  Play,
   Calendar,
   Search,
   RotateCcw,
@@ -82,7 +82,7 @@ function OTManagementContent() {
     reason: "",
     status: "approved",
   });
-  
+
   // Day info for selected date in add form
   const [dayInfo, setDayInfo] = useState<{
     rate: number;
@@ -144,7 +144,7 @@ function OTManagementContent() {
       if (dateFilter) query = query.eq("request_date", dateFilter);
 
       const { data, error } = await query;
-      
+
       if (error) throw error;
       setOtRequests(data || []);
     } catch (error: any) {
@@ -372,7 +372,7 @@ function OTManagementContent() {
     if (ot.actual_end_time) {
       return <Badge variant="info">✅ เสร็จสิ้น</Badge>;
     }
-    
+
     switch (status) {
       case "pending":
         return <Badge variant="warning">รออนุมัติ</Badge>;
@@ -456,10 +456,9 @@ function OTManagementContent() {
             className={`
               flex items-center gap-2 px-4 py-2 rounded-full text-[14px] font-medium whitespace-nowrap
               transition-colors
-              ${
-                filter === tab.key
-                  ? "bg-[#0071e3] text-white"
-                  : "bg-[#f5f5f7] text-[#6e6e73] hover:bg-[#e8e8ed]"
+              ${filter === tab.key
+                ? "bg-[#0071e3] text-white"
+                : "bg-[#f5f5f7] text-[#6e6e73] hover:bg-[#e8e8ed]"
               }
             `}
           >
@@ -595,29 +594,15 @@ function OTManagementContent() {
                     แก้ไข
                   </Button>
 
-                  {/* Pending: Approve/Reject */}
+                  {/* Pending: Show link to approvals page */}
                   {ot.status === "pending" && (
-                    <>
-                      <Button
-                        size="sm"
-                        onClick={() =>
-                          setConfirmDialog({ open: true, id: ot.id, action: "approve", name: ot.employee?.name })
-                        }
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        อนุมัติ
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() =>
-                          setConfirmDialog({ open: true, id: ot.id, action: "reject", name: ot.employee?.name })
-                        }
-                      >
-                        <XCircle className="w-4 h-4" />
-                        ปฏิเสธ
-                      </Button>
-                    </>
+                    <a
+                      href="/admin/approvals"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[#ff9500] bg-[#ff9500]/10 rounded-lg hover:bg-[#ff9500]/20"
+                    >
+                      <Clock className="w-4 h-4" />
+                      รออนุมัติ
+                    </a>
                   )}
 
                   {/* Approved but not started: Cancel */}
@@ -661,25 +646,25 @@ function OTManagementContent() {
         onConfirm={handleConfirm}
         title={
           confirmDialog.action === "approve" ? "ยืนยันการอนุมัติ" :
-          confirmDialog.action === "reject" ? "ยืนยันการปฏิเสธ" :
-          confirmDialog.action === "cancel" ? "ยืนยันการยกเลิก" :
-          "ยืนยันการรีเซ็ต"
+            confirmDialog.action === "reject" ? "ยืนยันการปฏิเสธ" :
+              confirmDialog.action === "cancel" ? "ยืนยันการยกเลิก" :
+                "ยืนยันการรีเซ็ต"
         }
         message={
           confirmDialog.action === "approve"
             ? `คุณต้องการอนุมัติ OT ของ "${confirmDialog.name}" ใช่หรือไม่?`
             : confirmDialog.action === "reject"
-            ? `คุณต้องการปฏิเสธ OT ของ "${confirmDialog.name}" ใช่หรือไม่?`
-            : confirmDialog.action === "cancel"
-            ? `คุณต้องการยกเลิก OT ของ "${confirmDialog.name}" ใช่หรือไม่? (พนักงานจะไม่สามารถเริ่ม OT นี้ได้)`
-            : `คุณต้องการรีเซ็ต OT ของ "${confirmDialog.name}" ใช่หรือไม่? (จะลบเวลาจริง, รูปภาพ, และชั่วโมง OT ทั้งหมด)`
+              ? `คุณต้องการปฏิเสธ OT ของ "${confirmDialog.name}" ใช่หรือไม่?`
+              : confirmDialog.action === "cancel"
+                ? `คุณต้องการยกเลิก OT ของ "${confirmDialog.name}" ใช่หรือไม่? (พนักงานจะไม่สามารถเริ่ม OT นี้ได้)`
+                : `คุณต้องการรีเซ็ต OT ของ "${confirmDialog.name}" ใช่หรือไม่? (จะลบเวลาจริง, รูปภาพ, และชั่วโมง OT ทั้งหมด)`
         }
         type={confirmDialog.action === "approve" ? "info" : "danger"}
         confirmText={
           confirmDialog.action === "approve" ? "อนุมัติ" :
-          confirmDialog.action === "reject" ? "ปฏิเสธ" :
-          confirmDialog.action === "cancel" ? "ยกเลิก" :
-          "รีเซ็ต"
+            confirmDialog.action === "reject" ? "ปฏิเสธ" :
+              confirmDialog.action === "cancel" ? "ยกเลิก" :
+                "รีเซ็ต"
         }
         loading={processing}
       />
@@ -837,12 +822,11 @@ function OTManagementContent() {
           </div>
 
           {/* Day Type Preview */}
-          <div className={`p-4 rounded-xl border-2 ${
-            loadingDayInfo ? "bg-[#f5f5f7] border-[#d2d2d7]" :
-            dayInfo?.type === "holiday" ? "bg-[#ff3b30]/10 border-[#ff3b30]/30" :
-            dayInfo?.type === "weekend" ? "bg-[#ff9500]/10 border-[#ff9500]/30" :
-            "bg-[#34c759]/10 border-[#34c759]/30"
-          }`}>
+          <div className={`p-4 rounded-xl border-2 ${loadingDayInfo ? "bg-[#f5f5f7] border-[#d2d2d7]" :
+              dayInfo?.type === "holiday" ? "bg-[#ff3b30]/10 border-[#ff3b30]/30" :
+                dayInfo?.type === "weekend" ? "bg-[#ff9500]/10 border-[#ff9500]/30" :
+                  "bg-[#34c759]/10 border-[#34c759]/30"
+            }`}>
             <div className="flex items-center gap-2 mb-2">
               <Info className="w-4 h-4" />
               <span className="text-[14px] font-medium">ประเภท OT (คำนวณจากวันที่)</span>
@@ -857,8 +841,8 @@ function OTManagementContent() {
                 <div className="flex items-center gap-2">
                   <Badge variant={
                     dayInfo.type === "holiday" ? "danger" :
-                    dayInfo.type === "weekend" ? "warning" :
-                    "success"
+                      dayInfo.type === "weekend" ? "warning" :
+                        "success"
                   }>
                     {dayInfo.typeName}
                   </Badge>

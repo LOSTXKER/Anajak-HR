@@ -302,11 +302,10 @@ function LateRequestsContent() {
       <div className="flex gap-2 mb-6 border-b border-[#e8e8ed]">
         <button
           onClick={() => setActiveTab("requests")}
-          className={`flex items-center gap-2 px-4 py-3 text-[15px] font-medium border-b-2 transition-colors ${
-            activeTab === "requests"
+          className={`flex items-center gap-2 px-4 py-3 text-[15px] font-medium border-b-2 transition-colors ${activeTab === "requests"
               ? "border-[#0071e3] text-[#0071e3]"
               : "border-transparent text-[#86868b] hover:text-[#1d1d1f]"
-          }`}
+            }`}
         >
           <FileText className="w-4 h-4" />
           คำขอมาสาย
@@ -318,11 +317,10 @@ function LateRequestsContent() {
         </button>
         <button
           onClick={() => setActiveTab("history")}
-          className={`flex items-center gap-2 px-4 py-3 text-[15px] font-medium border-b-2 transition-colors ${
-            activeTab === "history"
+          className={`flex items-center gap-2 px-4 py-3 text-[15px] font-medium border-b-2 transition-colors ${activeTab === "history"
               ? "border-[#0071e3] text-[#0071e3]"
               : "border-transparent text-[#86868b] hover:text-[#1d1d1f]"
-          }`}
+            }`}
         >
           <History className="w-4 h-4" />
           ประวัติการมาสาย
@@ -453,104 +451,91 @@ function LateRequestsContent() {
       {/* Requests Table */}
       {activeTab === "requests" && (
         <Card elevated padding="none">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : filteredRequests.length === 0 ? (
-          <div className="text-center py-20 text-[#86868b]">
-            ไม่มีคำขอ{statusFilter === "pending" ? "ที่รออนุมัติ" : ""}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[#e8e8ed] bg-[#f5f5f7]">
-                  <th className="text-left px-6 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
-                    พนักงาน
-                  </th>
-                  <th className="text-left px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
-                    วันที่
-                  </th>
-                  <th className="text-left px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
-                    สาย
-                  </th>
-                  <th className="text-left px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
-                    เหตุผล
-                  </th>
-                  <th className="text-left px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
-                    สถานะ
-                  </th>
-                  <th className="text-right px-6 py-4"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#e8e8ed]">
-                {filteredRequests.map((req) => (
-                  <tr key={req.id} className="hover:bg-[#f5f5f7] transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar name={req.employees.name} size="sm" />
-                        <div>
-                          <p className="text-[14px] font-medium text-[#1d1d1f]">
-                            {req.employees.name}
-                          </p>
-                          <p className="text-[12px] text-[#86868b]">
-                            {req.employees.email}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <p className="text-[14px] text-[#1d1d1f]">
-                        {format(new Date(req.request_date), "d MMM yyyy", { locale: th })}
-                      </p>
-                    </td>
-                    <td className="px-4 py-4">
-                      {req.actual_late_minutes ? (
-                        <span className="text-[14px] font-medium text-[#ff9500]">
-                          {req.actual_late_minutes} นาที
-                        </span>
-                      ) : (
-                        <span className="text-[14px] text-[#86868b]">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4">
-                      <p className="text-[14px] text-[#1d1d1f] max-w-[200px] truncate">
-                        {req.reason}
-                      </p>
-                    </td>
-                    <td className="px-4 py-4">{getStatusBadge(req.status)}</td>
-                    <td className="px-6 py-4 text-right">
-                      {req.status === "pending" && (
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() =>
-                              setActionModal({ open: true, request: req, action: "approve" })
-                            }
-                            className="p-2 text-[#34c759] hover:bg-[#34c759]/10 rounded-lg transition-colors"
-                            title="อนุมัติ"
-                          >
-                            <Check className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() =>
-                              setActionModal({ open: true, request: req, action: "reject" })
-                            }
-                            className="p-2 text-[#ff3b30] hover:bg-[#ff3b30]/10 rounded-lg transition-colors"
-                            title="ไม่อนุมัติ"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : filteredRequests.length === 0 ? (
+            <div className="text-center py-20 text-[#86868b]">
+              ไม่มีคำขอ{statusFilter === "pending" ? "ที่รออนุมัติ" : ""}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[#e8e8ed] bg-[#f5f5f7]">
+                    <th className="text-left px-6 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
+                      พนักงาน
+                    </th>
+                    <th className="text-left px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
+                      วันที่
+                    </th>
+                    <th className="text-left px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
+                      สาย
+                    </th>
+                    <th className="text-left px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
+                      เหตุผล
+                    </th>
+                    <th className="text-left px-4 py-4 text-[12px] font-semibold text-[#86868b] uppercase">
+                      สถานะ
+                    </th>
+                    <th className="text-right px-6 py-4"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+                </thead>
+                <tbody className="divide-y divide-[#e8e8ed]">
+                  {filteredRequests.map((req) => (
+                    <tr key={req.id} className="hover:bg-[#f5f5f7] transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar name={req.employees.name} size="sm" />
+                          <div>
+                            <p className="text-[14px] font-medium text-[#1d1d1f]">
+                              {req.employees.name}
+                            </p>
+                            <p className="text-[12px] text-[#86868b]">
+                              {req.employees.email}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className="text-[14px] text-[#1d1d1f]">
+                          {format(new Date(req.request_date), "d MMM yyyy", { locale: th })}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4">
+                        {req.actual_late_minutes ? (
+                          <span className="text-[14px] font-medium text-[#ff9500]">
+                            {req.actual_late_minutes} นาที
+                          </span>
+                        ) : (
+                          <span className="text-[14px] text-[#86868b]">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className="text-[14px] text-[#1d1d1f] max-w-[200px] truncate">
+                          {req.reason}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4">{getStatusBadge(req.status)}</td>
+                      <td className="px-6 py-4 text-right">
+                        {req.status === "pending" && (
+                          <a
+                            href="/admin/approvals"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[#ff9500] bg-[#ff9500]/10 rounded-lg hover:bg-[#ff9500]/20"
+                          >
+                            <Clock className="w-4 h-4" />
+                            รออนุมัติ
+                          </a>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
       )}
 
       {/* History Table */}
@@ -693,9 +678,8 @@ function LateRequestsContent() {
               <Button
                 onClick={handleAction}
                 loading={processing}
-                className={`flex-1 ${
-                  actionModal.action === "reject" ? "!bg-[#ff3b30]" : ""
-                }`}
+                className={`flex-1 ${actionModal.action === "reject" ? "!bg-[#ff3b30]" : ""
+                  }`}
               >
                 {actionModal.action === "approve" ? "อนุมัติ" : "ปฏิเสธ"}
               </Button>

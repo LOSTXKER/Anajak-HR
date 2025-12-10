@@ -59,8 +59,8 @@ export async function POST(request: NextRequest) {
     // ตรวจสอบ error ก่อน
     if (error) {
       console.error("Error fetching pending checkouts:", error);
-      return Response.json({ 
-        error: "Failed to fetch pending checkouts", 
+      return Response.json({
+        error: "Failed to fetch pending checkouts",
         details: error.message,
         hint: error.hint || "Check if SUPABASE_SERVICE_ROLE_KEY is set correctly"
       }, { status: 500 });
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
           .eq("employee_id", attendance.employee_id)
           .eq("request_date", today)
           .eq("status", "approved")
-          .single();
+          .maybeSingle();
 
         if (approvedOT) continue; // ข้ามถ้ามี OT
       }
@@ -221,13 +221,13 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   try {
     const today = format(new Date(), "yyyy-MM-dd");
-    
+
     // ทดสอบการเชื่อมต่อ database
     const { data: testData, error: testError } = await supabaseServer
       .from("attendance_logs")
       .select("id")
       .limit(1);
-    
+
     if (testError) {
       return Response.json({
         status: "error",

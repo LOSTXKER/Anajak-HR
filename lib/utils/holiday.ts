@@ -38,7 +38,7 @@ export async function isWeekend(date: string): Promise<boolean> {
   // Our system: 1=Monday, ..., 7=Sunday
   const dayOfWeek = dateObj.getDay();
   const ourDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
-  
+
   return !workingDays.includes(ourDayOfWeek);
 }
 
@@ -160,13 +160,17 @@ export async function getOTRateForDate(
   const dayType = await getDayType(date, branchId);
   const settings = await getOTSettings();
 
+  // Simplified logic:
+  // - Holiday/Weekend: No check-in required (OT start = arrival)
+  // - Workday: Must check-in first (already at work)
+
   switch (dayType.type) {
     case "holiday":
       return {
         rate: settings.otRateHoliday,
         type: "holiday" as const,
         typeName: `วันหยุดนักขัตฤกษ์ (${dayType.holidayName})`,
-        requireCheckin: settings.requireCheckinHoliday,
+        requireCheckin: false, // Never require check-in for holidays
         holidayName: dayType.holidayName,
       };
     case "weekend":
@@ -174,7 +178,7 @@ export async function getOTRateForDate(
         rate: settings.otRateWeekend,
         type: "weekend" as const,
         typeName: "วันหยุดสุดสัปดาห์",
-        requireCheckin: settings.requireCheckinWeekend,
+        requireCheckin: false, // Never require check-in for weekends
       };
     case "workday":
     default:
@@ -182,7 +186,7 @@ export async function getOTRateForDate(
         rate: settings.otRateWorkday,
         type: "workday" as const,
         typeName: "วันทำงานปกติ",
-        requireCheckin: settings.requireCheckinWorkday,
+        requireCheckin: true, // Always require check-in for workdays
       };
   }
 }
@@ -198,7 +202,7 @@ export async function getOTRate(
   employeeRates?: { ot_rate_1x?: number; ot_rate_1_5x?: number; ot_rate_2x?: number }
 ) {
   const rateInfo = await getOTRateForDate(date, branchId);
-  
+
   return {
     rate: rateInfo.rate,
     isHoliday: rateInfo.type === "holiday",

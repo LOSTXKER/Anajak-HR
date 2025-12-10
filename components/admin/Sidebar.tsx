@@ -96,6 +96,7 @@ export function Sidebar() {
       items: [
         { title: "Dashboard", href: "/admin", icon: LayoutGrid },
         { title: "Monitor", href: "/admin/monitor", icon: Activity },
+        { title: "อนุมัติ", href: "/admin/approvals", icon: FileText, badge: pendingCounts.ot + pendingCounts.leave + pendingCounts.wfh + pendingCounts.late },
       ],
     },
     {
@@ -103,10 +104,10 @@ export function Sidebar() {
       items: [
         { title: "พนักงาน", href: "/admin/employees", icon: Users, badge: pendingCounts.employees },
         { title: "การเข้างาน", href: "/admin/attendance", icon: Clock },
-        { title: "คำขอมาสาย", href: "/admin/late-requests", icon: Clock, badge: pendingCounts.late },
-        { title: "OT", href: "/admin/ot", icon: Calendar, badge: pendingCounts.ot },
-        { title: "การลา", href: "/admin/leave", icon: FileText, badge: pendingCounts.leave },
-        { title: "WFH", href: "/admin/wfh", icon: Home, badge: pendingCounts.wfh },
+        { title: "ประวัติมาสาย", href: "/admin/late-requests", icon: Clock },
+        { title: "จัดการ OT", href: "/admin/ot", icon: Calendar },
+        { title: "จัดการลา", href: "/admin/leave", icon: FileText },
+        { title: "จัดการ WFH", href: "/admin/wfh", icon: Home },
       ],
     },
     {
@@ -148,7 +149,7 @@ export function Sidebar() {
             <div className="px-3 py-1.5 text-[11px] font-semibold text-[#86868b] uppercase tracking-wider">
               {section.title}
             </div>
-            
+
             {/* Section Items */}
             <div className="space-y-0.5">
               {section.items.map((item) => {
@@ -161,10 +162,9 @@ export function Sidebar() {
                     className={`
                       flex items-center gap-3 px-3 py-2 rounded-xl
                       text-[14px] font-medium transition-all duration-200 relative
-                      ${
-                        isActive
-                          ? "bg-[#0071e3] text-white"
-                          : "text-[#6e6e73] hover:bg-[#f5f5f7] hover:text-[#1d1d1f]"
+                      ${isActive
+                        ? "bg-[#0071e3] text-white"
+                        : "text-[#6e6e73] hover:bg-[#f5f5f7] hover:text-[#1d1d1f]"
                       }
                     `}
                   >

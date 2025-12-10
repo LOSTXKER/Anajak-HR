@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -9,281 +9,386 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Textarea } from "@/components/ui/Textarea";
 import { useToast } from "@/components/ui/Toast";
 import {
-  UserCheck,
-  UserX,
   Clock,
-  Mail,
-  Phone,
+  Calendar,
+  Home,
+  AlertTriangle,
   CheckCircle,
   XCircle,
+  RefreshCw,
+  FileText,
+  User,
 } from "lucide-react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 
-interface PendingEmployee {
+type TabType = "all" | "ot" | "leave" | "wfh" | "late";
+
+interface PendingItem {
   id: string;
-  name: string;
-  email: string;
-  phone: string;
-  role: string;
-  account_status: string;
+  type: "ot" | "leave" | "wfh" | "late";
+  employee: { name: string; email: string };
+  date: string;
+  details: string;
+  reason?: string;
   created_at: string;
 }
 
 function ApprovalsContent() {
-  const { employee } = useAuth();
+  const { employee: currentAdmin } = useAuth();
   const toast = useToast();
   const [loading, setLoading] = useState(true);
-  const [pendingEmployees, setPendingEmployees] = useState<PendingEmployee[]>([]);
-  const [selectedEmployee, setSelectedEmployee] = useState<PendingEmployee | null>(null);
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState("");
+  const [activeTab, setActiveTab] = useState<TabType>("all");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [processing, setProcessing] = useState(false);
 
-  useEffect(() => {
-    fetchPendingEmployees();
-  }, []);
+  // Pending items
+  const [otRequests, setOtRequests] = useState<any[]>([]);
+  const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
+  const [wfhRequests, setWfhRequests] = useState<any[]>([]);
+  const [lateRequests, setLateRequests] = useState<any[]>([]);
 
-  const fetchPendingEmployees = async () => {
+  const fetchAllPending = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("employees")
-        .select("*")
-        .eq("account_status", "pending")
+      // Fetch pending OT
+      const { data: ot } = await supabase
+        .from("ot_requests")
+        .select("*, employee:employees!employee_id(name, email)")
+        .eq("status", "pending")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setPendingEmployees(data || []);
+      // Fetch pending Leave
+      const { data: leave } = await supabase
+        .from("leave_requests")
+        .select("*, employee:employees!employee_id(name, email)")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+      // Fetch pending WFH
+      const { data: wfh } = await supabase
+        .from("wfh_requests")
+        .select("*, employee:employees!employee_id(name, email)")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+      // Fetch pending Late Requests
+      const { data: late } = await supabase
+        .from("late_requests")
+        .select("*, employees:employees!employee_id(name, email)")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+      setOtRequests(ot || []);
+      setLeaveRequests(leave || []);
+      setWfhRequests(wfh || []);
+      setLateRequests(late || []);
     } catch (error) {
-      console.error("Error:", error);
-      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลได้");
+      console.error("Error fetching pending:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleApprove = async (employeeId: string) => {
-    if (!employee?.id) return;
+  useEffect(() => {
+    fetchAllPending();
+  }, [fetchAllPending]);
+
+  const handleApprove = async (type: string, id: string, approved: boolean) => {
     setProcessing(true);
-    
     try {
+      let table = "";
+      let updateData: any = {
+        status: approved ? "approved" : "rejected",
+        approved_by: currentAdmin?.id,
+        approved_at: new Date().toISOString(),
+      };
+
+      switch (type) {
+        case "ot":
+          table = "ot_requests";
+          break;
+        case "leave":
+          table = "leave_requests";
+          break;
+        case "wfh":
+          table = "wfh_requests";
+          break;
+        case "late":
+          table = "late_requests";
+          break;
+      }
+
       const { error } = await supabase
-        .from("employees")
-        .update({
-          account_status: "approved",
-          approved_by: employee.id,
-          approved_at: new Date().toISOString(),
-        })
-        .eq("id", employeeId);
+        .from(table)
+        .update(updateData)
+        .eq("id", id);
 
       if (error) throw error;
 
-      toast.success("สำเร็จ", "อนุมัติบัญชีพนักงานแล้ว");
-      fetchPendingEmployees();
+      toast.success(approved ? "อนุมัติแล้ว" : "ปฏิเสธแล้ว", "ดำเนินการเรียบร้อย");
+      fetchAllPending();
     } catch (error: any) {
-      console.error("Error:", error);
-      toast.error("เกิดข้อผิดพลาด", error.message || "ไม่สามารถอนุมัติได้");
+      toast.error("เกิดข้อผิดพลาด", error?.message || "ไม่สามารถดำเนินการได้");
     } finally {
       setProcessing(false);
     }
   };
 
-  const handleReject = async () => {
-    if (!selectedEmployee || !employee?.id) return;
-    if (!rejectionReason.trim()) {
-      toast.error("กรุณาระบุเหตุผล", "ต้องระบุเหตุผลในการปฏิเสธ");
+  const handleBatchApprove = async (approved: boolean) => {
+    if (selected.size === 0) {
+      toast.error("กรุณาเลือก", "กรุณาเลือกรายการที่ต้องการ");
       return;
     }
-    
+
     setProcessing(true);
-    
     try {
-      const { error } = await supabase
-        .from("employees")
-        .update({
-          account_status: "rejected",
-          approved_by: employee.id,
-          approved_at: new Date().toISOString(),
-          rejection_reason: rejectionReason,
-        })
-        .eq("id", selectedEmployee.id);
-
-      if (error) throw error;
-
-      toast.success("สำเร็จ", "ปฏิเสธบัญชีพนักงานแล้ว");
-      setShowRejectModal(false);
-      setSelectedEmployee(null);
-      setRejectionReason("");
-      fetchPendingEmployees();
-    } catch (error: any) {
-      console.error("Error:", error);
-      toast.error("เกิดข้อผิดพลาด", error.message || "ไม่สามารถปฏิเสธได้");
+      for (const key of selected) {
+        const [type, id] = key.split("_");
+        await handleApprove(type, id, approved);
+      }
+      setSelected(new Set());
+      toast.success("สำเร็จ", `ดำเนินการ ${selected.size} รายการเรียบร้อย`);
+    } catch (error) {
+      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถดำเนินการบางรายการได้");
     } finally {
       setProcessing(false);
     }
   };
 
-  if (loading) {
-    return (
-      <AdminLayout title="อนุมัติบัญชี">
-        <div className="flex items-center justify-center h-[60vh]">
-          <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
-        </div>
-      </AdminLayout>
-    );
-  }
+  const toggleSelect = (type: string, id: string) => {
+    const key = `${type}_${id}`;
+    const newSelected = new Set(selected);
+    if (newSelected.has(key)) {
+      newSelected.delete(key);
+    } else {
+      newSelected.add(key);
+    }
+    setSelected(newSelected);
+  };
+
+  const getFilteredItems = () => {
+    const allItems: PendingItem[] = [];
+
+    if (activeTab === "all" || activeTab === "ot") {
+      otRequests.forEach((r) =>
+        allItems.push({
+          id: r.id,
+          type: "ot",
+          employee: r.employee,
+          date: r.request_date,
+          details: `${format(new Date(r.requested_start_time), "HH:mm")} - ${format(new Date(r.requested_end_time), "HH:mm")}`,
+          reason: r.reason,
+          created_at: r.created_at,
+        })
+      );
+    }
+
+    if (activeTab === "all" || activeTab === "leave") {
+      leaveRequests.forEach((r) =>
+        allItems.push({
+          id: r.id,
+          type: "leave",
+          employee: r.employee,
+          date: r.start_date,
+          details: r.is_half_day ? "ครึ่งวัน" : `${r.start_date} - ${r.end_date}`,
+          reason: r.reason,
+          created_at: r.created_at,
+        })
+      );
+    }
+
+    if (activeTab === "all" || activeTab === "wfh") {
+      wfhRequests.forEach((r) =>
+        allItems.push({
+          id: r.id,
+          type: "wfh",
+          employee: r.employee,
+          date: r.date,
+          details: r.is_half_day ? "ครึ่งวัน" : "เต็มวัน",
+          reason: r.reason,
+          created_at: r.created_at,
+        })
+      );
+    }
+
+    if (activeTab === "all" || activeTab === "late") {
+      lateRequests.forEach((r) =>
+        allItems.push({
+          id: r.id,
+          type: "late",
+          employee: r.employees,
+          date: r.request_date,
+          details: `สาย ${r.actual_late_minutes || 0} นาที`,
+          reason: r.reason,
+          created_at: r.created_at,
+        })
+      );
+    }
+
+    return allItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  };
+
+  const getTypeBadge = (type: string) => {
+    switch (type) {
+      case "ot":
+        return <Badge variant="warning"><Clock className="w-3 h-3 mr-1" />OT</Badge>;
+      case "leave":
+        return <Badge variant="info"><Calendar className="w-3 h-3 mr-1" />ลา</Badge>;
+      case "wfh":
+        return <Badge variant="success"><Home className="w-3 h-3 mr-1" />WFH</Badge>;
+      case "late":
+        return <Badge variant="danger"><AlertTriangle className="w-3 h-3 mr-1" />สาย</Badge>;
+      default:
+        return <Badge>{type}</Badge>;
+    }
+  };
+
+  const tabs = [
+    { key: "all", label: "ทั้งหมด", count: otRequests.length + leaveRequests.length + wfhRequests.length + lateRequests.length },
+    { key: "ot", label: "OT", count: otRequests.length },
+    { key: "leave", label: "ลางาน", count: leaveRequests.length },
+    { key: "wfh", label: "WFH", count: wfhRequests.length },
+    { key: "late", label: "มาสาย", count: lateRequests.length },
+  ];
+
+  const items = getFilteredItems();
 
   return (
-    <AdminLayout
-      title="อนุมัติบัญชีพนักงาน"
-      description={`มี ${pendingEmployees.length} คำขอรออนุมัติ`}
-    >
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <Card elevated>
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-[#ff9500] rounded-2xl flex items-center justify-center">
-              <Clock className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <p className="text-[13px] text-[#86868b] uppercase tracking-wide">
-                รออนุมัติ
-              </p>
-              <p className="text-[28px] font-semibold text-[#1d1d1f]">
-                {pendingEmployees.length}
-              </p>
-            </div>
-          </div>
-        </Card>
+    <AdminLayout title="อนุมัติคำขอ">
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key as TabType)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[14px] font-medium whitespace-nowrap transition-all ${activeTab === tab.key
+                ? "bg-[#0071e3] text-white"
+                : "bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e8e8ed]"
+              }`}
+          >
+            {tab.label}
+            {tab.count > 0 && (
+              <span className={`px-2 py-0.5 rounded-full text-[12px] ${activeTab === tab.key ? "bg-white/20" : "bg-[#0071e3] text-white"
+                }`}>
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
+
+        <div className="flex-1" />
+
+        <Button variant="secondary" size="sm" onClick={fetchAllPending} disabled={loading}>
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          รีเฟรช
+        </Button>
       </div>
 
-      {/* Pending Employees List */}
-      {pendingEmployees.length === 0 ? (
-        <Card elevated>
-          <div className="text-center py-16">
-            <UserCheck className="w-16 h-16 text-[#86868b] mx-auto mb-4" />
-            <h3 className="text-[21px] font-semibold text-[#1d1d1f] mb-2">
-              ไม่มีคำขอรออนุมัติ
-            </h3>
-            <p className="text-[15px] text-[#86868b]">
-              ทุกบัญชีได้รับการอนุมัติแล้ว
-            </p>
-          </div>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {pendingEmployees.map((emp) => (
-            <Card key={emp.id} elevated>
-              <div className="flex items-start gap-4 mb-4">
-                <Avatar name={emp.name} size="lg" />
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-[17px] font-semibold text-[#1d1d1f] mb-1">
-                    {emp.name}
-                  </h3>
-                  <Badge variant="warning">รออนุมัติ</Badge>
-                </div>
-              </div>
-
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center gap-2 text-[14px] text-[#6e6e73]">
-                  <Mail className="w-4 h-4 text-[#86868b]" />
-                  {emp.email}
-                </div>
-                <div className="flex items-center gap-2 text-[14px] text-[#6e6e73]">
-                  <Phone className="w-4 h-4 text-[#86868b]" />
-                  {emp.phone}
-                </div>
-                <div className="flex items-center gap-2 text-[14px] text-[#6e6e73]">
-                  <Clock className="w-4 h-4 text-[#86868b]" />
-                  สมัครเมื่อ {format(new Date(emp.created_at), "d MMM yyyy, HH:mm", { locale: th })}
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => handleApprove(emp.id)}
-                  disabled={processing}
-                  className="flex-1"
-                  icon={<CheckCircle className="w-4 h-4" />}
-                >
-                  อนุมัติ
-                </Button>
-                <Button
-                  variant="danger"
-                  onClick={() => {
-                    setSelectedEmployee(emp);
-                    setShowRejectModal(true);
-                  }}
-                  disabled={processing}
-                  className="flex-1"
-                  icon={<XCircle className="w-4 h-4" />}
-                >
-                  ปฏิเสธ
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Reject Modal */}
-      {showRejectModal && selectedEmployee && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6">
-          <Card className="max-w-[480px] w-full">
-            <h3 className="text-[21px] font-semibold text-[#1d1d1f] mb-4">
-              ปฏิเสธบัญชี
-            </h3>
-            <p className="text-[15px] text-[#86868b] mb-4">
-              คุณกำลังปฏิเสธบัญชีของ <strong>{selectedEmployee.name}</strong>
-            </p>
-            
-            <Textarea
-              label="เหตุผลในการปฏิเสธ"
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="ระบุเหตุผลในการปฏิเสธ..."
-              rows={4}
-              required
-            />
-
-            <div className="flex gap-3 mt-6">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setShowRejectModal(false);
-                  setSelectedEmployee(null);
-                  setRejectionReason("");
-                }}
-                fullWidth
-              >
-                ยกเลิก
+      {/* Batch Actions */}
+      {selected.size > 0 && (
+        <Card elevated className="mb-4 bg-[#0071e3]/5 border border-[#0071e3]/20">
+          <div className="flex items-center justify-between">
+            <span className="text-[14px] text-[#0071e3]">
+              เลือก {selected.size} รายการ
+            </span>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => handleBatchApprove(true)} loading={processing}>
+                <CheckCircle className="w-4 h-4" />
+                อนุมัติทั้งหมด
               </Button>
-              <Button
-                variant="danger"
-                onClick={handleReject}
-                loading={processing}
-                fullWidth
-              >
-                ยืนยันปฏิเสธ
+              <Button size="sm" variant="danger" onClick={() => handleBatchApprove(false)} loading={processing}>
+                <XCircle className="w-4 h-4" />
+                ปฏิเสธทั้งหมด
               </Button>
             </div>
-          </Card>
-        </div>
+          </div>
+        </Card>
       )}
+
+      {/* List */}
+      <Card elevated padding="none">
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : items.length === 0 ? (
+          <div className="text-center py-20">
+            <CheckCircle className="w-12 h-12 text-[#34c759] mx-auto mb-3" />
+            <p className="text-[17px] font-medium text-[#1d1d1f]">ไม่มีรายการรออนุมัติ</p>
+            <p className="text-[14px] text-[#86868b]">คุณจัดการคำขอทั้งหมดเรียบร้อยแล้ว</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-[#e8e8ed]">
+            {items.map((item) => (
+              <div
+                key={`${item.type}_${item.id}`}
+                className="flex items-center gap-4 p-4 hover:bg-[#f5f5f7] transition-colors"
+              >
+                {/* Checkbox */}
+                <input
+                  type="checkbox"
+                  checked={selected.has(`${item.type}_${item.id}`)}
+                  onChange={() => toggleSelect(item.type, item.id)}
+                  className="w-5 h-5 rounded border-[#d2d2d7]"
+                />
+
+                {/* Avatar */}
+                <Avatar name={item.employee?.name || "?"} size="sm" />
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    {getTypeBadge(item.type)}
+                    <span className="text-[14px] font-medium text-[#1d1d1f] truncate">
+                      {item.employee?.name}
+                    </span>
+                  </div>
+                  <p className="text-[13px] text-[#86868b]">
+                    {format(new Date(item.date), "d MMM yyyy", { locale: th })} • {item.details}
+                  </p>
+                  {item.reason && (
+                    <p className="text-[12px] text-[#6e6e73] truncate mt-0.5">
+                      <FileText className="w-3 h-3 inline mr-1" />
+                      {item.reason}
+                    </p>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleApprove(item.type, item.id, true)}
+                    disabled={processing}
+                    className="flex items-center gap-1 px-3 py-1.5 text-[13px] font-medium text-[#34c759] bg-[#34c759]/10 rounded-lg hover:bg-[#34c759]/20 transition-colors disabled:opacity-50"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    อนุมัติ
+                  </button>
+                  <button
+                    onClick={() => handleApprove(item.type, item.id, false)}
+                    disabled={processing}
+                    className="flex items-center gap-1 px-3 py-1.5 text-[13px] font-medium text-[#ff3b30] bg-[#ff3b30]/10 rounded-lg hover:bg-[#ff3b30]/20 transition-colors disabled:opacity-50"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    ปฏิเสธ
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </AdminLayout>
   );
 }
 
 export default function ApprovalsPage() {
   return (
-    <ProtectedRoute allowedRoles={["admin"]}>
+    <ProtectedRoute allowedRoles={["admin", "supervisor"]}>
       <ApprovalsContent />
     </ProtectedRoute>
   );
 }
-

@@ -29,48 +29,9 @@ import {
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, differenceInMinutes } from "date-fns";
 import { th } from "date-fns/locale";
+import type { Employee, Branch, PayrollData, OTDetailData } from "@/lib/types";
 
-interface Employee {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  branch_id: string | null;
-  base_salary: number;
-  commission: number;
-  is_system_account: boolean;
-}
-
-interface PayrollData {
-  employee: Employee;
-  workDays: number;
-  totalWorkHours: number;
-  lateDays: number;
-  lateMinutes: number;
-  leaveDays: number;
-  // OT แยกตามประเภท
-  ot1xHours: number;
-  ot1xAmount: number;
-  ot15xHours: number;
-  ot15xAmount: number;
-  ot2xHours: number;
-  ot2xAmount: number;
-  otTotalAmount: number;
-  basePay: number;
-  commission: number;
-  latePenalty: number;
-  totalPay: number;
-}
-
-interface OTDetailData {
-  id: string;
-  request_date: string;
-  actual_ot_hours: number;
-  ot_amount: number;
-  ot_rate: number;
-  ot_type: string;
-}
-
+// Settings interface (local, specific format for this page)
 interface Settings {
   work_hours_per_day: number;
   late_deduction_per_minute: number;
@@ -78,10 +39,6 @@ interface Settings {
   work_start_time: string;
 }
 
-interface Branch {
-  id: string;
-  name: string;
-}
 
 function PayrollContent() {
   const [loading, setLoading] = useState(true);

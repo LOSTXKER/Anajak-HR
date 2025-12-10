@@ -30,212 +30,51 @@ import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { format, differenceInCalendarDays, parseISO, startOfDay, isSameDay } from "date-fns";
 import { th } from "date-fns/locale";
+import { useDashboard } from "@/lib/hooks";
+
 
 export default function HomePage() {
-  const { user, employee, loading, signOut } = useAuth();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [todayAttendance, setTodayAttendance] = useState<any>(null);
-  const [activeOT, setActiveOT] = useState<any>(null);
-  const [pendingOT, setPendingOT] = useState<any[]>([]);
-  const [workSettings, setWorkSettings] = useState({ startTime: "09:00", endTime: "18:00", hoursPerDay: 8 });
-
-  // Timer states
-  const [workDuration, setWorkDuration] = useState<string>("00:00:00");
-  const [otDuration, setOtDuration] = useState<string>("00:00:00");
-  const [timeRemaining, setTimeRemaining] = useState<string>("");
-  const [workProgress, setWorkProgress] = useState(0);
-  const [isOvertime, setIsOvertime] = useState(false);
-
-  // Holiday states
-  const [todayHoliday, setTodayHoliday] = useState<any>(null);
-  const [upcomingHolidays, setUpcomingHolidays] = useState<any[]>([]);
   const [showAllHolidays, setShowAllHolidays] = useState(false);
+
+  // Use the new dashboard hook for all data fetching
+  const {
+    user,
+    employee,
+    loading,
+    signOut,
+    todayAttendance,
+    workDuration,
+    workProgress,
+    isOvertime,
+    timeRemaining,
+    activeOT,
+    pendingOT,
+    otDuration,
+    todayHoliday,
+    upcomingHolidays,
+    workSettings,
+    isLoading: dataLoading,
+    refetchAll,
+  } = useDashboard();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Fetch today's data (attendance, OT, settings)
-  useEffect(() => {
-    if (employee) {
-      fetchTodayData();
-
-      // Auto-refresh every 30 seconds
-      const interval = setInterval(fetchTodayData, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [employee]);
-
   // Refresh when page becomes visible
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && employee) {
-        fetchTodayData();
+        refetchAll();
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [employee]);
-
-  // Live timer update every second
-  useEffect(() => {
-    const updateTimers = () => {
-      const now = new Date();
-
-      // Work Duration
-      if (todayAttendance?.clock_in_time && !todayAttendance?.clock_out_time) {
-        const clockInTime = new Date(todayAttendance.clock_in_time);
-        const diffMs = now.getTime() - clockInTime.getTime();
-
-        const hours = Math.floor(diffMs / (1000 * 60 * 60));
-        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
-
-        setWorkDuration(`${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`);
-
-        // Progress (based on standard hours)
-        const progressPercent = Math.min((diffMs / (workSettings.hoursPerDay * 60 * 60 * 1000)) * 100, 100);
-        setWorkProgress(progressPercent);
-
-        // Time remaining until end of work
-        const [endHour, endMinute] = workSettings.endTime.split(":").map(Number);
-        const endOfWork = new Date(now);
-        endOfWork.setHours(endHour, endMinute, 0, 0);
-
-        const remainingMs = endOfWork.getTime() - now.getTime();
-        if (remainingMs > 0) {
-          const remHours = Math.floor(remainingMs / (1000 * 60 * 60));
-          const remMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
-          setTimeRemaining(`${remHours} ชม. ${remMinutes} นาที`);
-          setIsOvertime(false);
-        } else {
-          const overtimeMs = Math.abs(remainingMs);
-          const otHours = Math.floor(overtimeMs / (1000 * 60 * 60));
-          const otMinutes = Math.floor((overtimeMs % (1000 * 60 * 60)) / (1000 * 60));
-          setTimeRemaining(`เกินเวลา ${otHours} ชม. ${otMinutes} นาที`);
-          setIsOvertime(true);
-        }
-      } else if (todayAttendance?.clock_out_time) {
-        // Already checked out - show total
-        const clockInTime = new Date(todayAttendance.clock_in_time);
-        const clockOutTime = new Date(todayAttendance.clock_out_time);
-        const diffMs = clockOutTime.getTime() - clockInTime.getTime();
-
-        const hours = Math.floor(diffMs / (1000 * 60 * 60));
-        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-
-        setWorkDuration(`${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:00`);
-        setWorkProgress(Math.min((diffMs / (workSettings.hoursPerDay * 60 * 60 * 1000)) * 100, 100));
-        setTimeRemaining("");
-        setIsOvertime(false);
-      } else {
-        setWorkDuration("00:00:00");
-        setWorkProgress(0);
-        setTimeRemaining("");
-        setIsOvertime(false);
-      }
-
-      // OT Duration
-      if (activeOT?.actual_start_time && !activeOT?.actual_end_time) {
-        const otStartTime = new Date(activeOT.actual_start_time);
-        const diffMs = now.getTime() - otStartTime.getTime();
-
-        const hours = Math.floor(diffMs / (1000 * 60 * 60));
-        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
-
-        setOtDuration(`${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`);
-      } else {
-        setOtDuration("00:00:00");
-      }
-    };
-
-    updateTimers();
-    const interval = setInterval(updateTimers, 1000);
-    return () => clearInterval(interval);
-  }, [todayAttendance, activeOT, workSettings]);
-
-  const fetchTodayData = async () => {
-    if (!employee) return;
-    const today = format(new Date(), "yyyy-MM-dd");
-
-    // Fetch attendance, active OT, pending OT, settings, and holidays in parallel
-    const [attendanceRes, otRes, pendingOTRes, settingsRes, holidaysRes] = await Promise.all([
-      supabase
-        .from("attendance_logs")
-        .select("*")
-        .eq("employee_id", employee.id)
-        .eq("work_date", today)
-        .maybeSingle(),
-      supabase
-        .from("ot_requests")
-        .select("*")
-        .eq("employee_id", employee.id)
-        .eq("request_date", today)
-        .eq("status", "approved")
-        .not("actual_start_time", "is", null)
-        .is("actual_end_time", null)
-        .maybeSingle(),
-      supabase
-        .from("ot_requests")
-        .select("*")
-        .eq("employee_id", employee.id)
-        .eq("request_date", today)
-        .eq("status", "approved")
-        .is("actual_start_time", null)
-        .order("requested_start_time", { ascending: true }),
-      supabase
-        .from("system_settings")
-        .select("setting_key, setting_value")
-        .in("setting_key", ["work_start_time", "work_end_time", "work_hours_per_day"]),
-      supabase
-        .from("holidays")
-        .select("*")
-        .gte("date", today)
-        .order("date", { ascending: true })
-        .limit(10),
-    ]);
-
-    setTodayAttendance(attendanceRes.data);
-    setActiveOT(otRes.data);
-    setPendingOT(pendingOTRes.data || []);
-
-    // Parse settings
-    if (settingsRes.data) {
-      const settings: Record<string, string> = {};
-      settingsRes.data.forEach((s: any) => {
-        settings[s.setting_key] = s.setting_value;
-      });
-      setWorkSettings({
-        startTime: settings.work_start_time || "09:00",
-        endTime: settings.work_end_time || "18:00",
-        hoursPerDay: parseFloat(settings.work_hours_per_day || "8"),
-      });
-    }
-
-    // Parse holidays
-    if (holidaysRes.data) {
-      const holidays = holidaysRes.data;
-      const todayDate = startOfDay(new Date());
-
-      // Check if today is a holiday
-      const todayHol = holidays.find((h: any) => {
-        const holidayDate = parseISO(h.date);
-        return isSameDay(holidayDate, todayDate);
-      });
-      setTodayHoliday(todayHol);
-
-      // Get upcoming holidays (next 3, excluding today)
-      const upcoming = holidays.filter((h: any) => {
-        const holidayDate = parseISO(h.date);
-        return holidayDate > todayDate;
-      }).slice(0, 3);
-      setUpcomingHolidays(upcoming);
-    }
-  };
+  }, [employee, refetchAll]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -503,141 +342,143 @@ export default function HomePage() {
           </h1>
         </div>
 
-        {/* Today's Status Card */}
-        <div className={`rounded-2xl p-5 mb-4 ${todayAttendance
-          ? isOvertime
-            ? "bg-gradient-to-br from-[#ff9500] to-[#ff6b00]"
-            : "bg-gradient-to-br from-[#34c759] to-[#248a3d]"
-          : "bg-gradient-to-br from-[#1d1d1f] to-[#3d3d3d]"
-          }`}>
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[13px] text-white/70 font-medium">สถานะวันนี้</span>
-            <div className={`w-2.5 h-2.5 rounded-full ${todayAttendance ? "bg-white" : "bg-[#ff9500]"} animate-pulse`} />
+        {/* Today's Status Card - Hide on holidays when actively doing OT */}
+        {!(todayHoliday && activeOT) && (
+          <div className={`rounded-2xl p-5 mb-4 ${todayAttendance
+            ? isOvertime
+              ? "bg-gradient-to-br from-[#ff9500] to-[#ff6b00]"
+              : "bg-gradient-to-br from-[#34c759] to-[#248a3d]"
+            : "bg-gradient-to-br from-[#1d1d1f] to-[#3d3d3d]"
+            }`}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[13px] text-white/70 font-medium">สถานะวันนี้</span>
+              <div className={`w-2.5 h-2.5 rounded-full ${todayAttendance ? "bg-white" : "bg-[#ff9500]"} animate-pulse`} />
+            </div>
+
+            {todayAttendance ? (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                      <UserCheck className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-[15px] font-medium text-white/80">
+                        {todayAttendance.clock_out_time ? "เสร็จสิ้น" : isOvertime ? "⚠️ ทำงานเกินเวลา" : "กำลังทำงาน"}
+                      </p>
+                      <p className="text-[13px] text-white/60">
+                        เข้า {todayAttendance.clock_in_time ? format(new Date(todayAttendance.clock_in_time), "HH:mm") : "-"} น.
+                        {todayAttendance.clock_out_time && ` - ออก ${format(new Date(todayAttendance.clock_out_time), "HH:mm")} น.`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Work Timer */}
+                <div className="text-center mb-4">
+                  <p className="text-[42px] font-bold text-white tracking-tight font-mono">
+                    {workDuration}
+                  </p>
+                  <p className="text-[13px] text-white/60">
+                    {todayAttendance.clock_out_time ? "ชั่วโมงทำงานวันนี้" : "เวลาทำงาน"}
+                  </p>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="mb-4">
+                  <div className="flex justify-between text-[12px] text-white/70 mb-1.5">
+                    <span>ความคืบหน้า</span>
+                    <span>{Math.round(workProgress)}%</span>
+                  </div>
+                  <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-white rounded-full transition-all duration-500"
+                      style={{ width: `${workProgress}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Time Remaining / Overtime Alert */}
+                {!todayAttendance.clock_out_time && timeRemaining && (
+                  <div className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl mb-3 ${isOvertime ? "bg-white/20" : "bg-white/10"
+                    }`}>
+                    {isOvertime ? (
+                      <AlertCircle className="w-4 h-4 text-white" />
+                    ) : (
+                      <Clock className="w-4 h-4 text-white/70" />
+                    )}
+                    <span className="text-[14px] text-white font-medium">
+                      {timeRemaining}
+                    </span>
+                  </div>
+                )}
+
+                {!todayAttendance.clock_out_time && (
+                  <Link href="/checkout">
+                    <button className="w-full py-3 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-xl transition-all">
+                      เช็คเอาท์
+                    </button>
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <div>
+                {/* On holiday with pending OT - show different message */}
+                {todayHoliday && pendingOT.length > 0 ? (
+                  <>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
+                        <Timer className="w-6 h-6 text-white/70" />
+                      </div>
+                      <div>
+                        <p className="text-[22px] font-bold text-white">วันหยุด - มี OT รอเริ่ม</p>
+                        <p className="text-[14px] text-white/60">กดเริ่ม OT ด้านล่างได้เลย</p>
+                      </div>
+                    </div>
+                  </>
+                ) : todayHoliday ? (
+                  <>
+                    {/* Holiday without OT - must request OT first */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
+                        <Calendar className="w-6 h-6 text-white/70" />
+                      </div>
+                      <div>
+                        <p className="text-[22px] font-bold text-white">วันหยุด</p>
+                        <p className="text-[14px] text-white/60">ต้องขอ OT ก่อนถึงจะเข้างานได้</p>
+                      </div>
+                    </div>
+                    <Link href="/ot/request">
+                      <button className="w-full py-3.5 bg-[#ff9500] hover:bg-[#ff8000] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
+                        <Timer className="w-5 h-5" />
+                        ขอทำ OT
+                      </button>
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    {/* Normal day - can check in */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
+                        <Clock className="w-6 h-6 text-white/70" />
+                      </div>
+                      <div>
+                        <p className="text-[22px] font-bold text-white">ยังไม่ได้เช็คอิน</p>
+                        <p className="text-[14px] text-white/60">กดปุ่มด้านล่างเพื่อเริ่มงาน</p>
+                      </div>
+                    </div>
+                    <Link href="/checkin">
+                      <button className="w-full py-3.5 bg-[#0071e3] hover:bg-[#0077ed] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
+                        <UserCheck className="w-5 h-5" />
+                        เช็คอินเลย
+                      </button>
+                    </Link>
+                  </>
+                )}
+              </div>
+            )}
           </div>
-
-          {todayAttendance ? (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                    <UserCheck className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-[15px] font-medium text-white/80">
-                      {todayAttendance.clock_out_time ? "เสร็จสิ้น" : isOvertime ? "⚠️ ทำงานเกินเวลา" : "กำลังทำงาน"}
-                    </p>
-                    <p className="text-[13px] text-white/60">
-                      เข้า {format(new Date(todayAttendance.clock_in_time), "HH:mm")} น.
-                      {todayAttendance.clock_out_time && ` - ออก ${format(new Date(todayAttendance.clock_out_time), "HH:mm")} น.`}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Work Timer */}
-              <div className="text-center mb-4">
-                <p className="text-[42px] font-bold text-white tracking-tight font-mono">
-                  {workDuration}
-                </p>
-                <p className="text-[13px] text-white/60">
-                  {todayAttendance.clock_out_time ? "ชั่วโมงทำงานวันนี้" : "เวลาทำงาน"}
-                </p>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="mb-4">
-                <div className="flex justify-between text-[12px] text-white/70 mb-1.5">
-                  <span>ความคืบหน้า</span>
-                  <span>{Math.round(workProgress)}%</span>
-                </div>
-                <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-white rounded-full transition-all duration-500"
-                    style={{ width: `${workProgress}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Time Remaining / Overtime Alert */}
-              {!todayAttendance.clock_out_time && timeRemaining && (
-                <div className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl mb-3 ${isOvertime ? "bg-white/20" : "bg-white/10"
-                  }`}>
-                  {isOvertime ? (
-                    <AlertCircle className="w-4 h-4 text-white" />
-                  ) : (
-                    <Clock className="w-4 h-4 text-white/70" />
-                  )}
-                  <span className="text-[14px] text-white font-medium">
-                    {timeRemaining}
-                  </span>
-                </div>
-              )}
-
-              {!todayAttendance.clock_out_time && (
-                <Link href="/checkout">
-                  <button className="w-full py-3 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-xl transition-all">
-                    เช็คเอาท์
-                  </button>
-                </Link>
-              )}
-            </div>
-          ) : (
-            <div>
-              {/* On holiday with pending OT - show different message */}
-              {todayHoliday && pendingOT.length > 0 ? (
-                <>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
-                      <Timer className="w-6 h-6 text-white/70" />
-                    </div>
-                    <div>
-                      <p className="text-[22px] font-bold text-white">วันหยุด - มี OT รอเริ่ม</p>
-                      <p className="text-[14px] text-white/60">กดเริ่ม OT ด้านล่างได้เลย</p>
-                    </div>
-                  </div>
-                </>
-              ) : todayHoliday ? (
-                <>
-                  {/* Holiday without OT - must request OT first */}
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
-                      <Calendar className="w-6 h-6 text-white/70" />
-                    </div>
-                    <div>
-                      <p className="text-[22px] font-bold text-white">วันหยุด</p>
-                      <p className="text-[14px] text-white/60">ต้องขอ OT ก่อนถึงจะเข้างานได้</p>
-                    </div>
-                  </div>
-                  <Link href="/ot/request">
-                    <button className="w-full py-3.5 bg-[#ff9500] hover:bg-[#ff8000] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
-                      <Timer className="w-5 h-5" />
-                      ขอทำ OT
-                    </button>
-                  </Link>
-                </>
-              ) : (
-                <>
-                  {/* Normal day - can check in */}
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
-                      <Clock className="w-6 h-6 text-white/70" />
-                    </div>
-                    <div>
-                      <p className="text-[22px] font-bold text-white">ยังไม่ได้เช็คอิน</p>
-                      <p className="text-[14px] text-white/60">กดปุ่มด้านล่างเพื่อเริ่มงาน</p>
-                    </div>
-                  </div>
-                  <Link href="/checkin">
-                    <button className="w-full py-3.5 bg-[#0071e3] hover:bg-[#0077ed] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
-                      <UserCheck className="w-5 h-5" />
-                      เช็คอินเลย
-                    </button>
-                  </Link>
-                </>
-              )}
-            </div>
-          )}
-        </div>
+        )}
 
         {/* OT Timer Card */}
         {activeOT && (
@@ -657,7 +498,7 @@ export default function HomePage() {
                 {otDuration}
               </p>
               <p className="text-[13px] text-white/60">
-                เริ่ม {format(new Date(activeOT.actual_start_time), "HH:mm")} น.
+                เริ่ม {activeOT.actual_start_time ? format(new Date(activeOT.actual_start_time), "HH:mm") : "-"} น.
               </p>
             </div>
 

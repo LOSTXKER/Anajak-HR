@@ -37,10 +37,7 @@ function WorkingDaysSettingsContent() {
   const [otRateWeekend, setOtRateWeekend] = useState(1.5);
   const [otRateHoliday, setOtRateHoliday] = useState(2.0);
 
-  // Require check-in settings
-  const [requireCheckinWorkday, setRequireCheckinWorkday] = useState(true);
-  const [requireCheckinWeekend, setRequireCheckinWeekend] = useState(false);
-  const [requireCheckinHoliday, setRequireCheckinHoliday] = useState(false);
+
 
   useEffect(() => {
     fetchSettings();
@@ -56,9 +53,6 @@ function WorkingDaysSettingsContent() {
           "ot_rate_workday",
           "ot_rate_weekend",
           "ot_rate_holiday",
-          "ot_require_checkin_workday",
-          "ot_require_checkin_weekend",
-          "ot_require_checkin_holiday",
         ]);
 
       if (error) throw error;
@@ -74,9 +68,6 @@ function WorkingDaysSettingsContent() {
       if (settings.ot_rate_workday) setOtRateWorkday(parseFloat(settings.ot_rate_workday));
       if (settings.ot_rate_weekend) setOtRateWeekend(parseFloat(settings.ot_rate_weekend));
       if (settings.ot_rate_holiday) setOtRateHoliday(parseFloat(settings.ot_rate_holiday));
-      if (settings.ot_require_checkin_workday) setRequireCheckinWorkday(settings.ot_require_checkin_workday === "true");
-      if (settings.ot_require_checkin_weekend) setRequireCheckinWeekend(settings.ot_require_checkin_weekend === "true");
-      if (settings.ot_require_checkin_holiday) setRequireCheckinHoliday(settings.ot_require_checkin_holiday === "true");
     } catch (error) {
       console.error("Error fetching settings:", error);
       toast.error("เกิดข้อผิดพลาด", "ไม่สามารถโหลดการตั้งค่าได้");
@@ -106,9 +97,6 @@ function WorkingDaysSettingsContent() {
         { setting_key: "ot_rate_workday", setting_value: otRateWorkday.toString() },
         { setting_key: "ot_rate_weekend", setting_value: otRateWeekend.toString() },
         { setting_key: "ot_rate_holiday", setting_value: otRateHoliday.toString() },
-        { setting_key: "ot_require_checkin_workday", setting_value: requireCheckinWorkday.toString() },
-        { setting_key: "ot_require_checkin_weekend", setting_value: requireCheckinWeekend.toString() },
-        { setting_key: "ot_require_checkin_holiday", setting_value: requireCheckinHoliday.toString() },
       ];
 
       for (const update of updates) {
@@ -180,10 +168,9 @@ function WorkingDaysSettingsContent() {
               onClick={() => toggleDay(day.value)}
               className={`
                 p-3 rounded-xl border-2 transition-all text-center
-                ${
-                  workingDays.includes(day.value)
-                    ? "border-[#0071e3] bg-[#0071e3] text-white"
-                    : "border-[#e8e8ed] bg-white text-[#6e6e73] hover:border-[#0071e3]/50"
+                ${workingDays.includes(day.value)
+                  ? "border-[#0071e3] bg-[#0071e3] text-white"
+                  : "border-[#e8e8ed] bg-white text-[#6e6e73] hover:border-[#0071e3]/50"
                 }
               `}
             >
@@ -249,13 +236,7 @@ function WorkingDaysSettingsContent() {
                 <span className="text-[14px] font-semibold text-[#0071e3]">x</span>
               </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] text-[#6e6e73]">ต้องเช็คอินก่อนทำ OT</span>
-              <Toggle
-                checked={requireCheckinWorkday}
-                onChange={setRequireCheckinWorkday}
-              />
-            </div>
+            <p className="text-[12px] text-[#0071e3] mt-2 opacity-70">💡 ต้องเช็คอินก่อนทำ OT เสมอ</p>
           </div>
 
           {/* Weekend OT */}
@@ -281,13 +262,7 @@ function WorkingDaysSettingsContent() {
                 <span className="text-[14px] font-semibold text-[#ff9500]">x</span>
               </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] text-[#6e6e73]">ต้องเช็คอินก่อนทำ OT</span>
-              <Toggle
-                checked={requireCheckinWeekend}
-                onChange={setRequireCheckinWeekend}
-              />
-            </div>
+            <p className="text-[12px] text-[#ff9500] mt-2 opacity-70">💡 ไม่ต้องเช็คอิน - เริ่ม OT ได้เลย</p>
           </div>
 
           {/* Holiday OT */}
@@ -309,13 +284,7 @@ function WorkingDaysSettingsContent() {
                 <span className="text-[14px] font-semibold text-[#ff3b30]">x</span>
               </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] text-[#6e6e73]">ต้องเช็คอินก่อนทำ OT</span>
-              <Toggle
-                checked={requireCheckinHoliday}
-                onChange={setRequireCheckinHoliday}
-              />
-            </div>
+            <p className="text-[12px] text-[#ff3b30] mt-2 opacity-70">💡 ไม่ต้องเช็คอิน - เริ่ม OT ได้เลย</p>
           </div>
         </div>
       </Card>
