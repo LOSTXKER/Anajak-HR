@@ -622,7 +622,7 @@ export default function HomePage() {
         )}
 
         {/* Quick Actions Grid */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#e8e8ed] mb-6">
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#e8e8ed] mb-4">
           <h3 className="text-[15px] font-semibold text-[#1d1d1f] mb-4 px-1">เมนูด่วน</h3>
           <div className="grid grid-cols-4 gap-2">
             {[
@@ -645,6 +645,22 @@ export default function HomePage() {
             ))}
           </div>
         </div>
+
+        {/* My Profile Link */}
+        <Link href="/my-profile">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#e8e8ed] mb-4 hover:bg-[#f5f5f7] transition-colors cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Avatar name={employee?.name || "User"} size="md" />
+                <div>
+                  <h3 className="text-[15px] font-semibold text-[#1d1d1f]">ประวัติของฉัน</h3>
+                  <p className="text-[13px] text-[#86868b]">ดู OT, ลา, WFH, สถิติ</p>
+                </div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-[#86868b]" />
+            </div>
+          </div>
+        </Link>
 
         {/* History Link */}
         <Link href="/history">
