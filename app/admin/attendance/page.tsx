@@ -182,6 +182,14 @@ function AttendanceContent() {
       const wfhData = wfhRes.data || [];
       const lateReqData = lateReqRes.data || [];
 
+      // Check if we're before work start time (default 09:00)
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      const workStartHour = 9; // TODO: Get from settings
+      const isBeforeWorkStart = currentHour < workStartHour || (currentHour === workStartHour && currentMinute < 0);
+      const isToday = format(selectedDate, "yyyy-MM-dd") === format(now, "yyyy-MM-dd");
+
       // For single date mode
       if (dateMode === "single") {
         const dateStr = format(selectedDate, "yyyy-MM-dd");
@@ -216,6 +224,9 @@ function AttendanceContent() {
             status = "wfh";
           } else if (isNonWorkingDay && empOt.length > 0) {
             status = "holiday_ot";
+          } else if (isToday && isBeforeWorkStart) {
+            // Today but before work start time - not absent yet
+            status = "pending";
           }
 
           rows.push({
@@ -439,6 +450,9 @@ function AttendanceContent() {
   const getStatusBadge = (row: AttendanceRow) => {
     if (row.status === "holiday_ot") {
       return <Badge variant="warning">OT วันหยุด</Badge>;
+    }
+    if (row.status === "pending") {
+      return <Badge variant="default">รอเข้างาน</Badge>;
     }
     if (row.leaveType) {
       const leaveLabels: Record<string, string> = {
