@@ -9,17 +9,16 @@ import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import {
   Clock,
-  Shield,
   Save,
-  MessageCircle,
   ChevronRight,
   Bell,
-  UserCheck,
   DollarSign,
   Calendar,
   Building2,
+  MessageCircle,
   Settings2,
-  AlertCircle,
+  UserCheck,
+  Shield,
 } from "lucide-react";
 import Link from "next/link";
 import { TimeInput } from "@/components/ui/TimeInput";
@@ -64,7 +63,7 @@ const SettingLink = ({
   description: string;
 }) => (
   <Link href={href}>
-    <div className={`flex items-center justify-between p-4 bg-[#f5f5f7] rounded-xl hover:bg-[#e8e8ed] transition-colors cursor-pointer`}>
+    <div className="flex items-center justify-between p-4 bg-[#f5f5f7] rounded-xl hover:bg-[#e8e8ed] transition-colors cursor-pointer">
       <div className="flex items-center gap-3">
         <div className={`w-10 h-10 ${color}/10 rounded-xl flex items-center justify-center`}>
           <Icon className={`w-5 h-5 ${color}`} />
@@ -79,12 +78,62 @@ const SettingLink = ({
   </Link>
 );
 
+// Day Selector Component
+const DaySelector = ({
+  selectedDays,
+  onChange,
+}: {
+  selectedDays: number[];
+  onChange: (days: number[]) => void;
+}) => {
+  const DAYS = [
+    { value: 1, label: "จ" },
+    { value: 2, label: "อ" },
+    { value: 3, label: "พ" },
+    { value: 4, label: "พฤ" },
+    { value: 5, label: "ศ" },
+    { value: 6, label: "ส" },
+    { value: 7, label: "อา" },
+  ];
+
+  const toggleDay = (day: number) => {
+    if (selectedDays.includes(day)) {
+      onChange(selectedDays.filter((d) => d !== day));
+    } else {
+      onChange([...selectedDays, day].sort((a, b) => a - b));
+    }
+  };
+
+  return (
+    <div className="flex gap-2">
+      {DAYS.map((day) => (
+        <button
+          key={day.value}
+          type="button"
+          onClick={() => toggleDay(day.value)}
+          className={`
+            w-10 h-10 rounded-xl text-sm font-medium transition-all
+            ${selectedDays.includes(day.value)
+              ? "bg-[#0071e3] text-white"
+              : day.value >= 6
+                ? "bg-[#ff9500]/10 text-[#ff9500] hover:bg-[#ff9500]/20"
+                : "bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e8e8ed]"
+            }
+          `}
+        >
+          {day.label}
+        </button>
+      ))}
+    </div>
+  );
+};
+
 function SettingsContent() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // Basic Settings (shown directly)
+  // Work Time Settings
   const [settings, setSettings] = useState({
     workStartTime: "09:00",
     workEndTime: "18:00",
@@ -93,6 +142,7 @@ function SettingsContent() {
     checkoutTimeStart: "15:00",
     checkoutTimeEnd: "22:00",
     lateThreshold: "15",
+    workingDays: [1, 2, 3, 4, 5],
     requirePhoto: true,
     requireGPS: true,
     requireAccountApproval: true,
@@ -126,6 +176,9 @@ function SettingsContent() {
           checkoutTimeStart: settingsMap.checkout_time_start || "15:00",
           checkoutTimeEnd: settingsMap.checkout_time_end || "22:00",
           lateThreshold: settingsMap.late_threshold_minutes || "15",
+          workingDays: settingsMap.working_days 
+            ? settingsMap.working_days.split(",").map(Number).filter(Boolean)
+            : [1, 2, 3, 4, 5],
           requirePhoto: settingsMap.require_photo === "true",
           requireGPS: settingsMap.require_gps === "true",
           requireAccountApproval: settingsMap.require_account_approval !== "false",
@@ -151,6 +204,7 @@ function SettingsContent() {
         { key: "checkout_time_start", value: settings.checkoutTimeStart },
         { key: "checkout_time_end", value: settings.checkoutTimeEnd },
         { key: "late_threshold_minutes", value: settings.lateThreshold },
+        { key: "working_days", value: settings.workingDays.join(",") },
         { key: "require_photo", value: settings.requirePhoto.toString() },
         { key: "require_gps", value: settings.requireGPS.toString() },
         { key: "require_account_approval", value: settings.requireAccountApproval.toString() },
@@ -189,7 +243,7 @@ function SettingsContent() {
   return (
     <AdminLayout title="ตั้งค่าระบบ" description="จัดการการตั้งค่าต่างๆ ของระบบ">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column - Basic Settings */}
+        {/* Left Column - Time & Work Settings */}
         <div className="space-y-6">
           {/* Work Time Settings */}
           <Card elevated>
@@ -203,31 +257,64 @@ function SettingsContent() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <TimeInput
-                label="เวลาเข้างาน"
-                value={settings.workStartTime}
-                onChange={(val) => setSettings({ ...settings, workStartTime: val })}
-              />
-              <TimeInput
-                label="เวลาเลิกงาน"
-                value={settings.workEndTime}
-                onChange={(val) => setSettings({ ...settings, workEndTime: val })}
-              />
-            </div>
-            
-            <div className="mt-6 p-4 bg-[#ff9500]/10 border border-[#ff9500]/30 rounded-xl">
-              <div className="flex items-center gap-2 mb-3">
-                <AlertCircle className="w-5 h-5 text-[#ff9500]" />
-                <h4 className="text-[15px] font-semibold text-[#ff9500]">
-                  ช่วงเวลาที่อนุญาตให้เช็คอิน/เอาท์
-                </h4>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <TimeInput
+                  label="เวลาเข้างาน"
+                  value={settings.workStartTime}
+                  onChange={(val) => setSettings({ ...settings, workStartTime: val })}
+                />
+                <TimeInput
+                  label="เวลาเลิกงาน"
+                  value={settings.workEndTime}
+                  onChange={(val) => setSettings({ ...settings, workEndTime: val })}
+                />
               </div>
-              <p className="text-[13px] text-[#86868b] mb-4">
-                กำหนดช่วงเวลาที่พนักงานสามารถเช็คอิน/เอาท์ได้ (ป้องกันการทำงานนอกเวลา)
-              </p>
-              
-              <div className="grid grid-cols-2 gap-4 mb-3">
+
+              <div>
+                <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
+                  วันทำงาน
+                </label>
+                <DaySelector
+                  selectedDays={settings.workingDays}
+                  onChange={(days) => setSettings({ ...settings, workingDays: days })}
+                />
+                <p className="text-xs text-[#86868b] mt-2">
+                  {settings.workingDays.length} วัน/สัปดาห์ • วันที่ไม่เลือกถือเป็นวันหยุด
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
+                  เกณฑ์มาสาย (นาที)
+                </label>
+                <input
+                  type="number"
+                  value={settings.lateThreshold}
+                  onChange={(e) => setSettings({ ...settings, lateThreshold: e.target.value })}
+                  className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
+                />
+                <p className="text-xs text-[#86868b] mt-1">
+                  มาหลังเวลา {settings.workStartTime} เกิน {settings.lateThreshold} นาที = มาสาย
+                </p>
+              </div>
+            </div>
+          </Card>
+          
+          {/* Checkin Time Window */}
+          <Card elevated>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-[#ff9500]/10 rounded-xl flex items-center justify-center">
+                <Clock className="w-5 h-5 text-[#ff9500]" />
+              </div>
+              <div>
+                <h3 className="text-[17px] font-semibold text-[#1d1d1f]">ช่วงเวลาเช็คอิน</h3>
+                <p className="text-[13px] text-[#86868b]">ป้องกันการทำงานนอกเวลา</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <TimeInput
                   label="เช็คอินได้ตั้งแต่"
                   value={settings.checkinTimeStart}
@@ -253,28 +340,13 @@ function SettingsContent() {
                 />
               </div>
             </div>
-
-            <div className="mt-4">
-              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
-                เกณฑ์มาสาย (นาที)
-              </label>
-              <input
-                type="number"
-                value={settings.lateThreshold}
-                onChange={(e) => setSettings({ ...settings, lateThreshold: e.target.value })}
-                className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
-              />
-              <p className="text-[13px] text-[#86868b] mt-1">
-                หลังเวลาเข้างานกี่นาทีถือว่ามาสาย
-              </p>
-            </div>
           </Card>
 
           {/* Security Settings */}
           <Card elevated>
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-[#ff9500]/10 rounded-xl flex items-center justify-center">
-                <Shield className="w-5 h-5 text-[#ff9500]" />
+              <div className="w-10 h-10 bg-[#af52de]/10 rounded-xl flex items-center justify-center">
+                <Shield className="w-5 h-5 text-[#af52de]" />
               </div>
               <div>
                 <h3 className="text-[17px] font-semibold text-[#1d1d1f]">ความปลอดภัย</h3>
@@ -296,17 +368,6 @@ function SettingsContent() {
                 <ToggleSwitch 
                   enabled={settings.requireGPS} 
                   onChange={() => setSettings({ ...settings, requireGPS: !settings.requireGPS })}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                <div>
-                  <span className="text-[14px] text-[#1d1d1f] block">เปิดการแจ้งเตือน</span>
-                  <span className="text-[12px] text-[#86868b]">เปิด/ปิดการแจ้งเตือนทั้งหมด</span>
-                </div>
-                <ToggleSwitch 
-                  enabled={settings.enableNotifications} 
-                  onChange={() => setSettings({ ...settings, enableNotifications: !settings.enableNotifications })}
                 />
               </div>
 
@@ -337,65 +398,71 @@ function SettingsContent() {
 
         {/* Right Column - Setting Links */}
         <div className="space-y-6">
-          {/* Notifications Section */}
+          {/* OT & Payroll */}
           <Card elevated>
             <div className="flex items-center gap-3 mb-4">
-              <Bell className="w-5 h-5 text-[#0071e3]" />
+              <DollarSign className="w-5 h-5 text-[#34c759]" />
+              <h3 className="text-[15px] font-semibold text-[#1d1d1f]">OT & เงินเดือน</h3>
+            </div>
+            <div className="space-y-3">
+              <SettingLink
+                href="/admin/settings/ot-payroll"
+                icon={DollarSign}
+                color="text-[#34c759]"
+                title="ตั้งค่า OT & เงินเดือน"
+                description="อัตรา OT, ชั่วโมงทำงาน, กฎ OT, จำกัดชั่วโมง"
+              />
+              <SettingLink
+                href="/admin/settings/leave-quota"
+                icon={Calendar}
+                color="text-[#5ac8fa]"
+                title="โควต้าวันลาเริ่มต้น"
+                description="กำหนดวันลาพักร้อน, ป่วย, กิจสำหรับพนักงานใหม่"
+              />
+            </div>
+          </Card>
+
+          {/* Notifications */}
+          <Card elevated>
+            <div className="flex items-center gap-3 mb-4">
+              <Bell className="w-5 h-5 text-[#ff9500]" />
               <h3 className="text-[15px] font-semibold text-[#1d1d1f]">การแจ้งเตือน</h3>
             </div>
             <div className="space-y-3">
               <SettingLink
                 href="/admin/settings/notifications"
                 icon={Bell}
-                color="text-[#5ac8fa]"
-                title="แจ้งเตือนเข้า-ออกงาน"
-                description="ตั้งค่าการแจ้งเตือนเมื่อมีการบันทึกเวลา"
-              />
-              <SettingLink
-                href="/admin/settings/auto-checkout"
-                icon={Clock}
                 color="text-[#ff9500]"
-                title="Auto Check-out & เตือนความจำ"
-                description="ระบบเช็คเอาท์อัตโนมัติและการแจ้งเตือน"
+                title="ตั้งค่าการแจ้งเตือน"
+                description="แจ้งเตือนเข้า-ออก, OT, Auto-checkout"
               />
             </div>
           </Card>
 
-          {/* HR & Payroll Section */}
+          {/* LINE Integration */}
           <Card elevated>
             <div className="flex items-center gap-3 mb-4">
-              <DollarSign className="w-5 h-5 text-[#34c759]" />
-              <h3 className="text-[15px] font-semibold text-[#1d1d1f]">HR & เงินเดือน</h3>
+              <MessageCircle className="w-5 h-5 text-[#06C755]" />
+              <h3 className="text-[15px] font-semibold text-[#1d1d1f]">LINE Integration</h3>
             </div>
             <div className="space-y-3">
               <SettingLink
-                href="/admin/settings/payroll"
-                icon={DollarSign}
-                color="text-[#34c759]"
-                title="ตั้งค่าเงินเดือน (Payroll)"
-                description="กำหนดอัตราหัก/เพิ่ม สำหรับคำนวณเงินเดือน"
+                href="/admin/settings/line"
+                icon={MessageCircle}
+                color="text-[#06C755]"
+                title="ตั้งค่า LINE"
+                description="เชื่อมต่อ LINE API และปรับแต่งข้อความ"
               />
-              <SettingLink
-                href="/admin/settings/leave-quota"
-                icon={Calendar}
-                color="text-[#5ac8fa]"
-                title="โควต้าวันลา (Leave Quota)"
-                description="กำหนดจำนวนวันลาพักร้อน, ป่วย, กิจส่วนตัว"
-              />
-              <SettingLink
-                href="/admin/settings/working-days"
-                icon={Calendar}
-                color="text-[#0071e3]"
-                title="วันทำงานและ OT Rate"
-                description="ตั้งค่าวันทำงาน (จ-ศ/จ-ส) และอัตรา OT ตามประเภทวัน"
-              />
-              <SettingLink
-                href="/admin/settings/ot"
-                icon={Clock}
-                color="text-[#ff9500]"
-                title="กฎและข้อจำกัด OT"
-                description="กำหนดกฎการขอ OT, ถ่ายรูป, แจ้งเตือน, และจำกัดชั่วโมง"
-              />
+            </div>
+          </Card>
+
+          {/* Data Management */}
+          <Card elevated>
+            <div className="flex items-center gap-3 mb-4">
+              <Settings2 className="w-5 h-5 text-[#86868b]" />
+              <h3 className="text-[15px] font-semibold text-[#1d1d1f]">จัดการข้อมูล</h3>
+            </div>
+            <div className="space-y-3">
               <SettingLink
                 href="/admin/holidays"
                 icon={Calendar}
@@ -410,44 +477,10 @@ function SettingsContent() {
                 title="จัดการสาขา"
                 description="เพิ่ม/แก้ไข สาขาและตำแหน่ง GPS"
               />
-            </div>
-          </Card>
-
-          {/* LINE Integration Section */}
-          <Card elevated>
-            <div className="flex items-center gap-3 mb-4">
-              <MessageCircle className="w-5 h-5 text-[#06C755]" />
-              <h3 className="text-[15px] font-semibold text-[#1d1d1f]">LINE Integration</h3>
-            </div>
-            <div className="space-y-3">
-              <SettingLink
-                href="/admin/settings/line"
-                icon={MessageCircle}
-                color="text-[#06C755]"
-                title="ตั้งค่า LINE API"
-                description="เชื่อมต่อ LINE Messaging API"
-              />
-              <SettingLink
-                href="/admin/settings/line-messages"
-                icon={MessageCircle}
-                color="text-[#06C755]"
-                title="ข้อความแจ้งเตือน"
-                description="ปรับแต่งข้อความที่ส่งไปใน LINE"
-              />
-            </div>
-          </Card>
-
-          {/* System Section */}
-          <Card elevated>
-            <div className="flex items-center gap-3 mb-4">
-              <Settings2 className="w-5 h-5 text-[#86868b]" />
-              <h3 className="text-[15px] font-semibold text-[#1d1d1f]">ระบบ</h3>
-            </div>
-            <div className="space-y-3">
               <SettingLink
                 href="/admin/approvals"
                 icon={UserCheck}
-                color="text-[#af52de]"
+                color="text-[#0071e3]"
                 title="อนุมัติบัญชีพนักงาน"
                 description="อนุมัติพนักงานใหม่ที่รอการอนุมัติ"
               />
