@@ -478,11 +478,11 @@ function SettingsContent() {
                 description="เพิ่ม/แก้ไข สาขาและตำแหน่ง GPS"
               />
               <SettingLink
-                href="/admin/approvals"
+                href="/admin/employees?filter=pending"
                 icon={UserCheck}
                 color="text-[#0071e3]"
-                title="อนุมัติบัญชีพนักงาน"
-                description="อนุมัติพนักงานใหม่ที่รอการอนุมัติ"
+                title="จัดการพนักงาน"
+                description="ดูรายชื่อพนักงาน, อนุมัติบัญชีใหม่"
               />
             </div>
           </Card>

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Modal } from "@/components/ui/Modal";
+import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Select } from "@/components/ui/Select";
@@ -25,6 +26,9 @@ import {
   DollarSign,
   UserCircle,
   Shield,
+  CheckCircle,
+  XCircle,
+  Clock,
 } from "lucide-react";
 
 interface Employee {
@@ -53,11 +57,15 @@ interface LeaveBalance {
 
 function EmployeesContent() {
   const toast = useToast();
+  const searchParams = useSearchParams();
+  const initialFilter = searchParams.get("filter") || "all";
+  
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [balances, setBalances] = useState<Record<string, LeaveBalance>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>(initialFilter);
   const [editModal, setEditModal] = useState<Employee | null>(null);
   const [editForm, setEditForm] = useState({
     name: "",
@@ -70,6 +78,7 @@ function EmployeesContent() {
     personalQuota: 3,
   });
   const [saving, setSaving] = useState(false);
+  const [approvalModal, setApprovalModal] = useState<{ emp: Employee | null; action: "approve" | "reject" | null }>({ emp: null, action: null });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -118,9 +127,36 @@ function EmployeesContent() {
       const matchSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          emp.email.toLowerCase().includes(searchTerm.toLowerCase());
       const matchRole = filterRole === "all" || emp.role === filterRole;
-      return matchSearch && matchRole;
+      const matchStatus = filterStatus === "all" || emp.account_status === filterStatus;
+      return matchSearch && matchRole && matchStatus;
     });
-  }, [employees, searchTerm, filterRole]);
+  }, [employees, searchTerm, filterRole, filterStatus]);
+
+  // Handle account approval/rejection
+  const handleApproval = async () => {
+    if (!approvalModal.emp || !approvalModal.action) return;
+    setSaving(true);
+    try {
+      const newStatus = approvalModal.action === "approve" ? "approved" : "rejected";
+      const { error } = await supabase
+        .from("employees")
+        .update({ account_status: newStatus })
+        .eq("id", approvalModal.emp.id);
+
+      if (error) throw error;
+
+      toast.success(
+        approvalModal.action === "approve" ? "อนุมัติสำเร็จ" : "ปฏิเสธสำเร็จ",
+        `${approvalModal.emp.name} ${approvalModal.action === "approve" ? "ได้รับการอนุมัติแล้ว" : "ถูกปฏิเสธแล้ว"}`
+      );
+      setApprovalModal({ emp: null, action: null });
+      fetchData();
+    } catch (error: any) {
+      toast.error("เกิดข้อผิดพลาด", error?.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Stats
   const stats = useMemo(() => {
@@ -265,6 +301,28 @@ function EmployeesContent() {
         </Card>
       </div>
 
+      {/* Pending Alert */}
+      {stats.pending > 0 && filterStatus !== "pending" && (
+        <Card elevated className="mb-6 bg-[#ff9500]/5 border border-[#ff9500]/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#ff9500]/10 rounded-xl flex items-center justify-center">
+                <Clock className="w-5 h-5 text-[#ff9500]" />
+              </div>
+              <div>
+                <p className="text-[15px] font-medium text-[#1d1d1f]">
+                  มี {stats.pending} บัญชีรออนุมัติ
+                </p>
+                <p className="text-[13px] text-[#86868b]">คลิกเพื่อดูและอนุมัติ</p>
+              </div>
+            </div>
+            <Button variant="primary" size="sm" onClick={() => setFilterStatus("pending")}>
+              ดูรายการ
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {/* Filters */}
       <Card elevated className="mb-6">
         <div className="flex flex-col md:flex-row gap-4">
@@ -280,6 +338,16 @@ function EmployeesContent() {
               />
             </div>
           </div>
+          <Select
+            value={filterStatus}
+            onChange={setFilterStatus}
+            options={[
+              { value: "all", label: "ทุกสถานะ" },
+              { value: "pending", label: `⏳ รออนุมัติ (${stats.pending})` },
+              { value: "approved", label: "✅ อนุมัติแล้ว" },
+              { value: "rejected", label: "❌ ปฏิเสธ" },
+            ]}
+          />
           <Select
             value={filterRole}
             onChange={setFilterRole}
@@ -373,12 +441,33 @@ function EmployeesContent() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => handleEdit(emp)}
-                          className="p-2 text-[#0071e3] hover:bg-[#0071e3]/10 rounded-lg transition-colors"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          {emp.account_status === "pending" && (
+                            <>
+                              <button
+                                onClick={() => setApprovalModal({ emp, action: "approve" })}
+                                className="p-2 text-[#34c759] hover:bg-[#34c759]/10 rounded-lg transition-colors"
+                                title="อนุมัติ"
+                              >
+                                <CheckCircle className="w-5 h-5" />
+                              </button>
+                              <button
+                                onClick={() => setApprovalModal({ emp, action: "reject" })}
+                                className="p-2 text-[#ff3b30] hover:bg-[#ff3b30]/10 rounded-lg transition-colors"
+                                title="ปฏิเสธ"
+                              >
+                                <XCircle className="w-5 h-5" />
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => handleEdit(emp)}
+                            className="p-2 text-[#0071e3] hover:bg-[#0071e3]/10 rounded-lg transition-colors"
+                            title="แก้ไข"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -390,6 +479,22 @@ function EmployeesContent() {
       )}
 
       {/* Edit Modal */}
+      {/* Approval Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={approvalModal.emp !== null}
+        onClose={() => setApprovalModal({ emp: null, action: null })}
+        onConfirm={handleApproval}
+        title={approvalModal.action === "approve" ? "อนุมัติบัญชี" : "ปฏิเสธบัญชี"}
+        message={
+          approvalModal.action === "approve"
+            ? `อนุมัติบัญชีของ "${approvalModal.emp?.name}" ?\nพนักงานจะสามารถเข้าสู่ระบบได้`
+            : `ปฏิเสธบัญชีของ "${approvalModal.emp?.name}" ?\nพนักงานจะไม่สามารถเข้าสู่ระบบได้`
+        }
+        type={approvalModal.action === "approve" ? "info" : "danger"}
+        confirmText={approvalModal.action === "approve" ? "อนุมัติ" : "ปฏิเสธ"}
+        loading={saving}
+      />
+
       {editModal && (
         <Modal
           isOpen={true}
