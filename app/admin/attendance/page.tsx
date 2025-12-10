@@ -210,10 +210,17 @@ function AttendanceContent() {
         });
         setAttendanceRows(rows);
       } else {
-        // Range mode - show only actual attendance records
-        const rows: AttendanceRow[] = attData.map((att: any) => {
+        // Range mode - show attendance records + OT without attendance (holiday OT)
+        const rows: AttendanceRow[] = [];
+        const processedKeys = new Set<string>();
+
+        // First, add all attendance records
+        attData.forEach((att: any) => {
           const emp = att.employee || employees.find((e) => e.id === att.employee_id);
           const dateStr = att.work_date;
+          const key = `${att.employee_id}-${dateStr}`;
+          processedKeys.add(key);
+
           const empOt = otData.filter((o: any) => o.employee_id === att.employee_id && o.request_date === dateStr);
           const empLeave = leaveData.find(
             (l: any) => l.employee_id === att.employee_id && l.start_date <= dateStr && l.end_date >= dateStr
@@ -223,7 +230,7 @@ function AttendanceContent() {
             (lr: any) => lr.employee_id === att.employee_id && lr.request_date === dateStr
           );
 
-          return {
+          rows.push({
             id: att.id,
             employee: emp || { id: att.employee_id, name: "Unknown", email: "", branch_id: null, role: "staff" },
             workDate: dateStr,
@@ -242,8 +249,43 @@ function AttendanceContent() {
             leaveType: empLeave?.leave_type || null,
             isWFH: !!empWfh,
             lateRequestStatus: empLateReq?.status || null,
-          };
+          });
         });
+
+        // Then, add OT records that don't have attendance (holiday OT)
+        otData.forEach((ot: any) => {
+          const key = `${ot.employee_id}-${ot.request_date}`;
+          if (!processedKeys.has(key)) {
+            processedKeys.add(key);
+            const emp = employees.find((e) => e.id === ot.employee_id);
+            const dateStr = ot.request_date;
+            const empOt = otData.filter((o: any) => o.employee_id === ot.employee_id && o.request_date === dateStr);
+
+            rows.push({
+              id: `ot-${ot.id}`,
+              employee: emp || { id: ot.employee_id, name: "Unknown", email: "", branch_id: null, role: "staff" },
+              workDate: dateStr,
+              clockIn: null,
+              clockOut: null,
+              workHours: null,
+              isLate: false,
+              lateMinutes: 0,
+              status: "holiday_ot",
+              autoCheckout: false,
+              clockInPhotoUrl: null,
+              clockOutPhotoUrl: null,
+              otCount: empOt.length,
+              otHours: empOt.reduce((sum: number, o: any) => sum + (o.actual_ot_hours || 0), 0),
+              otAmount: empOt.reduce((sum: number, o: any) => sum + (o.ot_amount || 0), 0),
+              leaveType: null,
+              isWFH: false,
+              lateRequestStatus: null,
+            });
+          }
+        });
+
+        // Sort by date descending
+        rows.sort((a, b) => b.workDate.localeCompare(a.workDate));
         setAttendanceRows(rows);
       }
     } catch (error: any) {
@@ -363,6 +405,9 @@ function AttendanceContent() {
 
   // Status badge
   const getStatusBadge = (row: AttendanceRow) => {
+    if (row.status === "holiday_ot") {
+      return <Badge variant="warning">OT วันหยุด</Badge>;
+    }
     if (row.leaveType) {
       const leaveLabels: Record<string, string> = {
         sick: "ลาป่วย",
