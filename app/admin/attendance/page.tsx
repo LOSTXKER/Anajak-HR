@@ -137,7 +137,7 @@ function AttendanceContent() {
       const toDate = dateMode === "single" ? format(selectedDate, "yyyy-MM-dd") : endDate;
 
       // Fetch all related data
-      const [attRes, otRes, leaveRes, wfhRes, lateReqRes] = await Promise.all([
+      const [attRes, otRes, leaveRes, wfhRes, lateReqRes, holidayRes] = await Promise.all([
         supabase
           .from("attendance_logs")
           .select("*, employee:employees!employee_id(id, name, email, branch_id, role)")
@@ -167,7 +167,14 @@ function AttendanceContent() {
           .select("*")
           .gte("request_date", fromDate)
           .lte("request_date", toDate),
+        supabase
+          .from("holidays")
+          .select("date")
+          .gte("date", fromDate)
+          .lte("date", toDate),
       ]);
+      
+      const holidayDates = new Set((holidayRes.data || []).map((h: any) => h.date));
 
       const attData = attRes.data || [];
       const otData = otRes.data || [];
@@ -175,10 +182,17 @@ function AttendanceContent() {
       const wfhData = wfhRes.data || [];
       const lateReqData = lateReqRes.data || [];
 
-      // For single date mode, show all employees even without attendance
+      // For single date mode
       if (dateMode === "single") {
         const dateStr = format(selectedDate, "yyyy-MM-dd");
-        const rows: AttendanceRow[] = employees.map((emp) => {
+        const isHoliday = holidayDates.has(dateStr);
+        const dayOfWeek = selectedDate.getDay(); // 0 = Sunday, 6 = Saturday
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const isNonWorkingDay = isHoliday || isWeekend;
+
+        const rows: AttendanceRow[] = [];
+
+        employees.forEach((emp) => {
           const att = attData.find((a: any) => a.employee_id === emp.id);
           const empOt = otData.filter((o: any) => o.employee_id === emp.id);
           const empLeave = leaveData.find(
@@ -187,7 +201,24 @@ function AttendanceContent() {
           const empWfh = wfhData.find((w: any) => w.employee_id === emp.id && w.date === dateStr);
           const empLateReq = lateReqData.find((lr: any) => lr.employee_id === emp.id);
 
-          return {
+          // If it's a non-working day and employee has no attendance/OT, skip
+          if (isNonWorkingDay && !att && empOt.length === 0) {
+            return;
+          }
+
+          // Determine status
+          let status = "absent";
+          if (att?.status) {
+            status = att.status;
+          } else if (empLeave) {
+            status = "leave";
+          } else if (empWfh) {
+            status = "wfh";
+          } else if (isNonWorkingDay && empOt.length > 0) {
+            status = "holiday_ot";
+          }
+
+          rows.push({
             id: att?.id || `${emp.id}-${dateStr}`,
             employee: emp,
             workDate: dateStr,
@@ -196,7 +227,7 @@ function AttendanceContent() {
             workHours: att?.total_hours || null,
             isLate: att?.is_late || false,
             lateMinutes: att?.late_minutes || 0,
-            status: att?.status || (empLeave ? "leave" : empWfh ? "wfh" : "absent"),
+            status,
             autoCheckout: att?.auto_checkout || false,
             clockInPhotoUrl: att?.clock_in_photo_url || null,
             clockOutPhotoUrl: att?.clock_out_photo_url || null,
@@ -206,8 +237,9 @@ function AttendanceContent() {
             leaveType: empLeave?.leave_type || null,
             isWFH: !!empWfh,
             lateRequestStatus: empLateReq?.status || null,
-          };
+          });
         });
+
         setAttendanceRows(rows);
       } else {
         // Range mode - show attendance records + OT without attendance (holiday OT)
