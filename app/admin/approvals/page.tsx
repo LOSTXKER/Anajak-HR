@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -15,372 +15,442 @@ import {
   Calendar,
   Home,
   AlertTriangle,
-  CheckCircle,
+  CheckCircle2,
   XCircle,
   RefreshCw,
-  FileText,
-  User,
+  Inbox,
+  ChevronRight,
+  Check,
+  X,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { th } from "date-fns/locale";
 
-type TabType = "all" | "ot" | "leave" | "wfh" | "late";
+// Types
+type RequestType = "ot" | "leave" | "wfh" | "late";
 
-interface PendingItem {
+interface PendingRequest {
   id: string;
-  type: "ot" | "leave" | "wfh" | "late";
-  employee: { name: string; email: string };
+  type: RequestType;
+  employeeId: string;
+  employeeName: string;
+  employeeEmail: string;
   date: string;
-  details: string;
+  title: string;
+  subtitle: string;
   reason?: string;
-  created_at: string;
+  createdAt: string;
+  rawData: any;
 }
+
+// Config - Apple Theme Colors
+const typeConfig: Record<RequestType, { label: string; icon: any; color: string; bgColor: string }> = {
+  ot: { label: "OT", icon: Clock, color: "text-[#ff9500]", bgColor: "bg-[#ff9500]/10" },
+  leave: { label: "ลา", icon: Calendar, color: "text-[#0071e3]", bgColor: "bg-[#0071e3]/10" },
+  wfh: { label: "WFH", icon: Home, color: "text-[#af52de]", bgColor: "bg-[#af52de]/10" },
+  late: { label: "มาสาย", icon: AlertTriangle, color: "text-[#ff3b30]", bgColor: "bg-[#ff3b30]/10" },
+};
 
 function ApprovalsContent() {
   const { employee: currentAdmin } = useAuth();
   const toast = useToast();
+  
+  // State
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>("all");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [processing, setProcessing] = useState(false);
+  const [activeType, setActiveType] = useState<RequestType | "all">("all");
+  const [requests, setRequests] = useState<PendingRequest[]>([]);
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
 
-  // Pending items
-  const [otRequests, setOtRequests] = useState<any[]>([]);
-  const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
-  const [wfhRequests, setWfhRequests] = useState<any[]>([]);
-  const [lateRequests, setLateRequests] = useState<any[]>([]);
+  // Stats
+  const stats = useMemo(() => {
+    const counts = { ot: 0, leave: 0, wfh: 0, late: 0 };
+    requests.forEach(r => counts[r.type]++);
+    return { ...counts, total: requests.length };
+  }, [requests]);
 
-  const fetchAllPending = useCallback(async () => {
+  // Fetch all pending requests
+  const fetchPending = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch pending OT
-      const { data: ot } = await supabase
-        .from("ot_requests")
-        .select("*, employee:employees!employee_id(name, email)")
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
+      const [otRes, leaveRes, wfhRes, lateRes] = await Promise.all([
+        // OT requests
+        supabase
+          .from("ot_requests")
+          .select("*, employee:employees!employee_id(id, name, email)")
+          .eq("status", "pending")
+          .order("created_at", { ascending: false }),
+        
+        // Leave requests
+        supabase
+          .from("leave_requests")
+          .select("*, employee:employees!employee_id(id, name, email)")
+          .eq("status", "pending")
+          .order("created_at", { ascending: false }),
+        
+        // WFH requests
+        supabase
+          .from("wfh_requests")
+          .select("*, employee:employees!employee_id(id, name, email)")
+          .eq("status", "pending")
+          .order("created_at", { ascending: false }),
+        
+        // Late requests
+        supabase
+          .from("late_requests")
+          .select("*, employee:employees!employee_id(id, name, email)")
+          .eq("status", "pending")
+          .order("created_at", { ascending: false }),
+      ]);
 
-      // Fetch pending Leave
-      const { data: leave } = await supabase
-        .from("leave_requests")
-        .select("*, employee:employees!employee_id(name, email)")
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
+      const allRequests: PendingRequest[] = [];
 
-      // Fetch pending WFH
-      const { data: wfh } = await supabase
-        .from("wfh_requests")
-        .select("*, employee:employees!employee_id(name, email)")
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
+      // Process OT
+      (otRes.data || []).forEach((r: any) => {
+        allRequests.push({
+          id: r.id,
+          type: "ot",
+          employeeId: r.employee?.id,
+          employeeName: r.employee?.name || "Unknown",
+          employeeEmail: r.employee?.email || "",
+          date: r.request_date,
+          title: `OT ${format(new Date(r.requested_start_time), "HH:mm")} - ${format(new Date(r.requested_end_time), "HH:mm")}`,
+          subtitle: format(new Date(r.request_date), "d MMM yyyy", { locale: th }),
+          reason: r.reason,
+          createdAt: r.created_at,
+          rawData: r,
+        });
+      });
 
-      // Fetch pending Late Requests
-      const { data: late } = await supabase
-        .from("late_requests")
-        .select("*, employees:employees!employee_id(name, email)")
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
+      // Process Leave
+      (leaveRes.data || []).forEach((r: any) => {
+        const leaveTypeLabels: Record<string, string> = {
+          sick: "ลาป่วย", personal: "ลากิจ", annual: "ลาพักร้อน",
+          maternity: "ลาคลอด", military: "ลากรณีทหาร", other: "อื่นๆ"
+        };
+        allRequests.push({
+          id: r.id,
+          type: "leave",
+          employeeId: r.employee?.id,
+          employeeName: r.employee?.name || "Unknown",
+          employeeEmail: r.employee?.email || "",
+          date: r.start_date,
+          title: leaveTypeLabels[r.leave_type] || r.leave_type,
+          subtitle: r.is_half_day 
+            ? `${format(new Date(r.start_date), "d MMM", { locale: th })} (ครึ่งวัน)`
+            : `${format(new Date(r.start_date), "d MMM", { locale: th })} - ${format(new Date(r.end_date), "d MMM", { locale: th })}`,
+          reason: r.reason,
+          createdAt: r.created_at,
+          rawData: r,
+        });
+      });
 
-      setOtRequests(ot || []);
-      setLeaveRequests(leave || []);
-      setWfhRequests(wfh || []);
-      setLateRequests(late || []);
+      // Process WFH
+      (wfhRes.data || []).forEach((r: any) => {
+        allRequests.push({
+          id: r.id,
+          type: "wfh",
+          employeeId: r.employee?.id,
+          employeeName: r.employee?.name || "Unknown",
+          employeeEmail: r.employee?.email || "",
+          date: r.date,
+          title: r.is_half_day ? "WFH ครึ่งวัน" : "WFH เต็มวัน",
+          subtitle: format(new Date(r.date), "EEEE d MMM yyyy", { locale: th }),
+          reason: r.reason,
+          createdAt: r.created_at,
+          rawData: r,
+        });
+      });
+
+      // Process Late
+      (lateRes.data || []).forEach((r: any) => {
+        allRequests.push({
+          id: r.id,
+          type: "late",
+          employeeId: r.employee?.id,
+          employeeName: r.employee?.name || "Unknown",
+          employeeEmail: r.employee?.email || "",
+          date: r.request_date,
+          title: r.actual_late_minutes ? `สาย ${r.actual_late_minutes} นาที` : "ขออนุมัติมาสาย",
+          subtitle: format(new Date(r.request_date), "d MMM yyyy", { locale: th }),
+          reason: r.reason,
+          createdAt: r.created_at,
+          rawData: r,
+        });
+      });
+
+      // Sort by createdAt
+      allRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      setRequests(allRequests);
     } catch (error) {
       console.error("Error fetching pending:", error);
+      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลได้");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
-    fetchAllPending();
-  }, [fetchAllPending]);
+    fetchPending();
+  }, [fetchPending]);
 
-  const handleApprove = async (type: string, id: string, approved: boolean) => {
-    setProcessing(true);
+  // Handle approve/reject
+  const handleAction = async (request: PendingRequest, approved: boolean) => {
+    if (!currentAdmin) return;
+    
+    const key = `${request.type}_${request.id}`;
+    setProcessingIds(prev => new Set(prev).add(key));
+
     try {
-      let table = "";
-      let updateData: any = {
+      const tableMap: Record<RequestType, string> = {
+        ot: "ot_requests",
+        leave: "leave_requests",
+        wfh: "wfh_requests",
+        late: "late_requests",
+      };
+
+      const updateData: any = {
         status: approved ? "approved" : "rejected",
-        approved_by: currentAdmin?.id,
+        approved_by: currentAdmin.id,
         approved_at: new Date().toISOString(),
       };
 
-      switch (type) {
-        case "ot":
-          table = "ot_requests";
-          break;
-        case "leave":
-          table = "leave_requests";
-          break;
-        case "wfh":
-          table = "wfh_requests";
-          break;
-        case "late":
-          table = "late_requests";
-          break;
+      // For OT, also set approved times
+      if (request.type === "ot" && approved) {
+        updateData.approved_start_time = request.rawData.requested_start_time;
+        updateData.approved_end_time = request.rawData.requested_end_time;
       }
 
       const { error } = await supabase
-        .from(table)
+        .from(tableMap[request.type])
         .update(updateData)
-        .eq("id", id);
+        .eq("id", request.id);
 
       if (error) throw error;
 
-      toast.success(approved ? "อนุมัติแล้ว" : "ปฏิเสธแล้ว", "ดำเนินการเรียบร้อย");
-      fetchAllPending();
+      // Send notification
+      try {
+        await fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: `${request.type}_approval`,
+            data: {
+              employeeName: request.employeeName,
+              approved,
+              date: request.date,
+            },
+          }),
+        });
+      } catch (e) {
+        console.error("Notification error:", e);
+      }
+
+      toast.success(
+        approved ? "อนุมัติแล้ว" : "ปฏิเสธแล้ว",
+        `${typeConfig[request.type].label} ของ ${request.employeeName}`
+      );
+
+      // Remove from list
+      setRequests(prev => prev.filter(r => !(r.type === request.type && r.id === request.id)));
     } catch (error: any) {
       toast.error("เกิดข้อผิดพลาด", error?.message || "ไม่สามารถดำเนินการได้");
     } finally {
-      setProcessing(false);
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
     }
   };
 
-  const handleBatchApprove = async (approved: boolean) => {
-    if (selected.size === 0) {
-      toast.error("กรุณาเลือก", "กรุณาเลือกรายการที่ต้องการ");
-      return;
-    }
-
-    setProcessing(true);
-    try {
-      for (const key of selected) {
-        const [type, id] = key.split("_");
-        await handleApprove(type, id, approved);
-      }
-      setSelected(new Set());
-      toast.success("สำเร็จ", `ดำเนินการ ${selected.size} รายการเรียบร้อย`);
-    } catch (error) {
-      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถดำเนินการบางรายการได้");
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const toggleSelect = (type: string, id: string) => {
-    const key = `${type}_${id}`;
-    const newSelected = new Set(selected);
-    if (newSelected.has(key)) {
-      newSelected.delete(key);
-    } else {
-      newSelected.add(key);
-    }
-    setSelected(newSelected);
-  };
-
-  const getFilteredItems = () => {
-    const allItems: PendingItem[] = [];
-
-    if (activeTab === "all" || activeTab === "ot") {
-      otRequests.forEach((r) =>
-        allItems.push({
-          id: r.id,
-          type: "ot",
-          employee: r.employee,
-          date: r.request_date,
-          details: `${format(new Date(r.requested_start_time), "HH:mm")} - ${format(new Date(r.requested_end_time), "HH:mm")}`,
-          reason: r.reason,
-          created_at: r.created_at,
-        })
-      );
-    }
-
-    if (activeTab === "all" || activeTab === "leave") {
-      leaveRequests.forEach((r) =>
-        allItems.push({
-          id: r.id,
-          type: "leave",
-          employee: r.employee,
-          date: r.start_date,
-          details: r.is_half_day ? "ครึ่งวัน" : `${r.start_date} - ${r.end_date}`,
-          reason: r.reason,
-          created_at: r.created_at,
-        })
-      );
-    }
-
-    if (activeTab === "all" || activeTab === "wfh") {
-      wfhRequests.forEach((r) =>
-        allItems.push({
-          id: r.id,
-          type: "wfh",
-          employee: r.employee,
-          date: r.date,
-          details: r.is_half_day ? "ครึ่งวัน" : "เต็มวัน",
-          reason: r.reason,
-          created_at: r.created_at,
-        })
-      );
-    }
-
-    if (activeTab === "all" || activeTab === "late") {
-      lateRequests.forEach((r) =>
-        allItems.push({
-          id: r.id,
-          type: "late",
-          employee: r.employees,
-          date: r.request_date,
-          details: `สาย ${r.actual_late_minutes || 0} นาที`,
-          reason: r.reason,
-          created_at: r.created_at,
-        })
-      );
-    }
-
-    return allItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  };
-
-  const getTypeBadge = (type: string) => {
-    switch (type) {
-      case "ot":
-        return <Badge variant="warning"><Clock className="w-3 h-3 mr-1" />OT</Badge>;
-      case "leave":
-        return <Badge variant="info"><Calendar className="w-3 h-3 mr-1" />ลา</Badge>;
-      case "wfh":
-        return <Badge variant="success"><Home className="w-3 h-3 mr-1" />WFH</Badge>;
-      case "late":
-        return <Badge variant="danger"><AlertTriangle className="w-3 h-3 mr-1" />สาย</Badge>;
-      default:
-        return <Badge>{type}</Badge>;
-    }
-  };
-
-  const tabs = [
-    { key: "all", label: "ทั้งหมด", count: otRequests.length + leaveRequests.length + wfhRequests.length + lateRequests.length },
-    { key: "ot", label: "OT", count: otRequests.length },
-    { key: "leave", label: "ลางาน", count: leaveRequests.length },
-    { key: "wfh", label: "WFH", count: wfhRequests.length },
-    { key: "late", label: "มาสาย", count: lateRequests.length },
-  ];
-
-  const items = getFilteredItems();
+  // Filtered requests
+  const filteredRequests = activeType === "all" 
+    ? requests 
+    : requests.filter(r => r.type === activeType);
 
   return (
     <AdminLayout title="อนุมัติคำขอ">
-      {/* Tabs */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key as TabType)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[14px] font-medium whitespace-nowrap transition-all ${activeTab === tab.key
-                ? "bg-[#0071e3] text-white"
-                : "bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e8e8ed]"
+      {/* Stats Bar */}
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-6 -mx-1 px-1">
+        <button
+          onClick={() => setActiveType("all")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium whitespace-nowrap transition-all ${
+            activeType === "all"
+              ? "bg-[#1d1d1f] text-white shadow-lg"
+              : "bg-white text-[#1d1d1f] border border-[#e8e8ed] hover:border-[#1d1d1f]"
+          }`}
+        >
+          ทั้งหมด
+          {stats.total > 0 && (
+            <span className={`px-2 py-0.5 rounded-full text-xs ${
+              activeType === "all" ? "bg-white/20" : "bg-[#ff3b30] text-white"
+            }`}>
+              {stats.total}
+            </span>
+          )}
+        </button>
+
+        {(Object.keys(typeConfig) as RequestType[]).map((type) => {
+          const config = typeConfig[type];
+          const count = stats[type];
+          const Icon = config.icon;
+          
+          return (
+            <button
+              key={type}
+              onClick={() => setActiveType(type)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium whitespace-nowrap transition-all ${
+                activeType === type
+                  ? `${config.bgColor} ${config.color} shadow-sm`
+                  : "bg-white text-[#6e6e73] border border-[#e8e8ed] hover:border-[#d2d2d7]"
               }`}
-          >
-            {tab.label}
-            {tab.count > 0 && (
-              <span className={`px-2 py-0.5 rounded-full text-[12px] ${activeTab === tab.key ? "bg-white/20" : "bg-[#0071e3] text-white"
+            >
+              <Icon className="w-4 h-4" />
+              {config.label}
+              {count > 0 && (
+                <span className={`px-2 py-0.5 rounded-full text-xs ${
+                  activeType === type ? "bg-white/50" : "bg-[#f5f5f7]"
                 }`}>
-                {tab.count}
-              </span>
-            )}
-          </button>
-        ))}
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
 
         <div className="flex-1" />
 
-        <Button variant="secondary" size="sm" onClick={fetchAllPending} disabled={loading}>
+        <Button 
+          variant="text" 
+          size="sm" 
+          onClick={fetchPending} 
+          disabled={loading}
+          className="!px-3"
+        >
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          รีเฟรช
         </Button>
       </div>
 
-      {/* Batch Actions */}
-      {selected.size > 0 && (
-        <Card elevated className="mb-4 bg-[#0071e3]/5 border border-[#0071e3]/20">
-          <div className="flex items-center justify-between">
-            <span className="text-[14px] text-[#0071e3]">
-              เลือก {selected.size} รายการ
-            </span>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={() => handleBatchApprove(true)} loading={processing}>
-                <CheckCircle className="w-4 h-4" />
-                อนุมัติทั้งหมด
-              </Button>
-              <Button size="sm" variant="danger" onClick={() => handleBatchApprove(false)} loading={processing}>
-                <XCircle className="w-4 h-4" />
-                ปฏิเสธทั้งหมด
-              </Button>
+      {/* Requests List */}
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : filteredRequests.length === 0 ? (
+        <Card elevated className="!py-16">
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-[#34c759]/10 rounded-full flex items-center justify-center">
+              <Inbox className="w-8 h-8 text-[#34c759]" />
             </div>
+            <h3 className="text-lg font-semibold text-[#1d1d1f] mb-1">
+              ไม่มีคำขอรออนุมัติ
+            </h3>
+            <p className="text-sm text-[#86868b]">
+              คุณจัดการคำขอทั้งหมดเรียบร้อยแล้ว 🎉
+            </p>
           </div>
         </Card>
+      ) : (
+        <div className="space-y-3">
+          {filteredRequests.map((request) => {
+            const config = typeConfig[request.type];
+            const Icon = config.icon;
+            const isProcessing = processingIds.has(`${request.type}_${request.id}`);
+
+            return (
+              <Card 
+                key={`${request.type}_${request.id}`} 
+                elevated 
+                className="!p-0 overflow-hidden hover:shadow-lg transition-shadow"
+              >
+                <div className="flex items-stretch">
+                  {/* Left Color Bar */}
+                  <div className={`w-1.5 ${config.bgColor}`} />
+                  
+                  {/* Content */}
+                  <div className="flex-1 p-4">
+                    <div className="flex items-start gap-3">
+                      {/* Avatar */}
+                      <Avatar name={request.employeeName} size="md" />
+                      
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-[15px] font-semibold text-[#1d1d1f] truncate">
+                            {request.employeeName}
+                          </span>
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${config.bgColor} ${config.color}`}>
+                            <Icon className="w-3 h-3" />
+                            {config.label}
+                          </span>
+                        </div>
+                        
+                        <p className="text-[14px] font-medium text-[#1d1d1f]">
+                          {request.title}
+                        </p>
+                        <p className="text-[13px] text-[#86868b]">
+                          {request.subtitle}
+                        </p>
+                        
+                        {request.reason && (
+                          <p className="text-[12px] text-[#6e6e73] mt-1.5 line-clamp-2 bg-[#f5f5f7] rounded-lg px-2.5 py-1.5">
+                            {request.reason}
+                          </p>
+                        )}
+
+                        <p className="text-[11px] text-[#86868b] mt-2">
+                          {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true, locale: th })}
+                        </p>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex flex-col gap-2 ml-2">
+                        <button
+                          onClick={() => handleAction(request, true)}
+                          disabled={isProcessing}
+                          className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#34c759] text-white hover:bg-[#30b350] active:scale-95 transition-all disabled:opacity-50"
+                          title="อนุมัติ"
+                        >
+                          {isProcessing ? (
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Check className="w-5 h-5" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleAction(request, false)}
+                          disabled={isProcessing}
+                          className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#ff3b30] text-white hover:bg-[#e0352b] active:scale-95 transition-all disabled:opacity-50"
+                          title="ปฏิเสธ"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
       )}
 
-      {/* List */}
-      <Card elevated padding="none">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : items.length === 0 ? (
-          <div className="text-center py-20">
-            <CheckCircle className="w-12 h-12 text-[#34c759] mx-auto mb-3" />
-            <p className="text-[17px] font-medium text-[#1d1d1f]">ไม่มีรายการรออนุมัติ</p>
-            <p className="text-[14px] text-[#86868b]">คุณจัดการคำขอทั้งหมดเรียบร้อยแล้ว</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-[#e8e8ed]">
-            {items.map((item) => (
-              <div
-                key={`${item.type}_${item.id}`}
-                className="flex items-center gap-4 p-4 hover:bg-[#f5f5f7] transition-colors"
-              >
-                {/* Checkbox */}
-                <input
-                  type="checkbox"
-                  checked={selected.has(`${item.type}_${item.id}`)}
-                  onChange={() => toggleSelect(item.type, item.id)}
-                  className="w-5 h-5 rounded border-[#d2d2d7]"
-                />
-
-                {/* Avatar */}
-                <Avatar name={item.employee?.name || "?"} size="sm" />
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    {getTypeBadge(item.type)}
-                    <span className="text-[14px] font-medium text-[#1d1d1f] truncate">
-                      {item.employee?.name}
-                    </span>
-                  </div>
-                  <p className="text-[13px] text-[#86868b]">
-                    {format(new Date(item.date), "d MMM yyyy", { locale: th })} • {item.details}
-                  </p>
-                  {item.reason && (
-                    <p className="text-[12px] text-[#6e6e73] truncate mt-0.5">
-                      <FileText className="w-3 h-3 inline mr-1" />
-                      {item.reason}
-                    </p>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleApprove(item.type, item.id, true)}
-                    disabled={processing}
-                    className="flex items-center gap-1 px-3 py-1.5 text-[13px] font-medium text-[#34c759] bg-[#34c759]/10 rounded-lg hover:bg-[#34c759]/20 transition-colors disabled:opacity-50"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    อนุมัติ
-                  </button>
-                  <button
-                    onClick={() => handleApprove(item.type, item.id, false)}
-                    disabled={processing}
-                    className="flex items-center gap-1 px-3 py-1.5 text-[13px] font-medium text-[#ff3b30] bg-[#ff3b30]/10 rounded-lg hover:bg-[#ff3b30]/20 transition-colors disabled:opacity-50"
-                  >
-                    <XCircle className="w-4 h-4" />
-                    ปฏิเสธ
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+      {/* Quick Stats Footer */}
+      {stats.total > 0 && (
+        <div className="fixed bottom-20 left-0 right-0 md:bottom-6 md:left-auto md:right-6 px-4 md:px-0">
+          <Card elevated className="!p-3 !rounded-2xl shadow-xl border border-[#e8e8ed] md:w-auto inline-flex items-center gap-4 mx-auto md:mx-0">
+            <span className="text-sm text-[#86868b]">รอดำเนินการ</span>
+            <span className="text-lg font-bold text-[#1d1d1f]">{stats.total}</span>
+            <div className="flex items-center gap-1">
+              {stats.ot > 0 && <span className="w-2 h-2 rounded-full bg-[#ff9500]" title={`OT: ${stats.ot}`} />}
+              {stats.leave > 0 && <span className="w-2 h-2 rounded-full bg-[#0071e3]" title={`ลา: ${stats.leave}`} />}
+              {stats.wfh > 0 && <span className="w-2 h-2 rounded-full bg-[#af52de]" title={`WFH: ${stats.wfh}`} />}
+              {stats.late > 0 && <span className="w-2 h-2 rounded-full bg-[#ff3b30]" title={`มาสาย: ${stats.late}`} />}
+            </div>
+          </Card>
+        </div>
+      )}
     </AdminLayout>
   );
 }

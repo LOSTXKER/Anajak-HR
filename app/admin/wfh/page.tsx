@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -9,59 +9,57 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
+import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { DateInput } from "@/components/ui/DateInput";
-import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import {
-  Calendar,
   Home,
-  CheckCircle,
-  XCircle,
-  Plus,
-  User,
+  Calendar,
   Search,
-  Trash2,
+  Plus,
   ChevronLeft,
   ChevronRight,
   Download,
+  Trash2,
+  RefreshCw,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { th } from "date-fns/locale";
 
+// Types
 interface WFHRequest {
   id: string;
+  employee_id: string;
   date: string;
   is_half_day: boolean;
   reason: string;
   status: string;
   created_at: string;
-  employee: {
-    name: string;
-    email: string;
-  };
+  employee: { id: string; name: string; email: string } | null;
 }
 
+type FilterStatus = "all" | "pending" | "approved" | "rejected";
+
 function WFHManagementContent() {
-  const { employee } = useAuth();
+  const { employee: currentAdmin } = useAuth();
   const toast = useToast();
-  const [wfhRequests, setWfhRequests] = useState<WFHRequest[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]);
+
+  // State
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("all");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [wfhRequests, setWfhRequests] = useState<WFHRequest[]>([]);
+  const [employees, setEmployees] = useState<{ id: string; name: string; email: string }[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Modals
+  const [addModal, setAddModal] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean; wfh: WFHRequest | null }>({ open: false, wfh: null });
   const [processing, setProcessing] = useState(false);
 
-  const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean;
-    id: string;
-    action: "approve" | "reject" | "cancel";
-    name: string;
-  }>({ open: false, id: "", action: "approve", name: "" });
-
-  // Add WFH Modal
-  const [addModal, setAddModal] = useState(false);
+  // Add form
   const [addForm, setAddForm] = useState({
     employeeId: "",
     date: format(new Date(), "yyyy-MM-dd"),
@@ -70,25 +68,8 @@ function WFHManagementContent() {
     status: "approved",
   });
 
-  useEffect(() => {
-    fetchWFHRequests();
-    fetchEmployees();
-  }, [filter, currentMonth]);
-
-  const fetchEmployees = async () => {
-    try {
-      const { data } = await supabase
-        .from("employees")
-        .select("id, name, email")
-        .eq("account_status", "approved")
-        .order("name");
-      setEmployees(data || []);
-    } catch (error) {
-      console.error("Error fetching employees:", error);
-    }
-  };
-
-  const fetchWFHRequests = async () => {
+  // Fetch data
+  const fetchWFH = useCallback(async () => {
     setLoading(true);
     try {
       const startDate = format(startOfMonth(currentMonth), "yyyy-MM-dd");
@@ -96,126 +77,104 @@ function WFHManagementContent() {
 
       let query = supabase
         .from("wfh_requests")
-        .select(`*, employee:employees!employee_id(name, email)`)
+        .select("*, employee:employees!employee_id(id, name, email)")
         .gte("date", startDate)
         .lte("date", endDate)
         .order("date", { ascending: false });
 
-      if (filter !== "all") query = query.eq("status", filter);
+      if (filterStatus !== "all") query = query.eq("status", filterStatus);
 
       const { data, error } = await query;
-
       if (error) throw error;
-
       setWfhRequests(data || []);
     } catch (error: any) {
-      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลได้");
+      toast.error("เกิดข้อผิดพลาด", error?.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentMonth, filterStatus, toast]);
 
-  const handleConfirm = async () => {
-    if (!employee) return;
+  const fetchEmployees = useCallback(async () => {
+    const { data } = await supabase.from("employees").select("id, name, email").eq("account_status", "approved").order("name");
+    setEmployees(data || []);
+  }, []);
 
+  useEffect(() => { fetchWFH(); fetchEmployees(); }, [fetchWFH, fetchEmployees]);
+
+  // Stats
+  const stats = useMemo(() => {
+    const all = wfhRequests.length;
+    const pending = wfhRequests.filter((w) => w.status === "pending").length;
+    const approved = wfhRequests.filter((w) => w.status === "approved").length;
+    const rejected = wfhRequests.filter((w) => w.status === "rejected").length;
+    const totalDays = wfhRequests
+      .filter((w) => w.status === "approved")
+      .reduce((sum, w) => sum + (w.is_half_day ? 0.5 : 1), 0);
+    return { all, pending, approved, rejected, totalDays };
+  }, [wfhRequests]);
+
+  // Filtered
+  const filteredWFH = useMemo(() => {
+    return wfhRequests.filter((w) => {
+      if (!searchTerm) return true;
+      return w.employee?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+  }, [wfhRequests, searchTerm]);
+
+  // Cancel WFH
+  const handleCancel = async () => {
+    if (!confirmModal.wfh) return;
     setProcessing(true);
     try {
-      const wfh = wfhRequests.find((w) => w.id === confirmDialog.id);
-      let newStatus = "";
-
-      if (confirmDialog.action === "approve") {
-        newStatus = "approved";
-      } else if (confirmDialog.action === "reject") {
-        newStatus = "rejected";
-      } else {
-        newStatus = "cancelled";
-      }
-
       const { error } = await supabase
         .from("wfh_requests")
-        .update({
-          status: newStatus,
-          approved_by: confirmDialog.action !== "cancel" ? employee.id : undefined,
-        })
-        .eq("id", confirmDialog.id);
-
+        .update({ status: "cancelled" })
+        .eq("id", confirmModal.wfh.id);
       if (error) throw error;
 
-      // Send LINE notification for approve/reject
-      if (confirmDialog.action !== "cancel") {
-        try {
-          await fetch("/api/notifications", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: "wfh_approval",
-              data: {
-                employeeName: wfh?.employee?.name || confirmDialog.name,
-                date: wfh?.date,
-                approved: confirmDialog.action === "approve",
-              },
-            }),
-          });
-        } catch (notifyError) {
-          console.error("Notification error:", notifyError);
-        }
-      }
-
-      const messages: Record<string, string> = {
-        approve: "อนุมัติคำขอ WFH แล้ว",
-        reject: "ปฏิเสธคำขอ WFH แล้ว",
-        cancel: "ยกเลิกคำขอ WFH แล้ว",
-      };
-
-      toast.success("สำเร็จ", messages[confirmDialog.action]);
-      setConfirmDialog({ open: false, id: "", action: "approve", name: "" });
-      fetchWFHRequests();
-    } catch (error) {
-      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถดำเนินการได้");
+      toast.success("สำเร็จ", "ยกเลิกคำขอ WFH แล้ว");
+      setConfirmModal({ open: false, wfh: null });
+      fetchWFH();
+    } catch (error: any) {
+      toast.error("เกิดข้อผิดพลาด", error?.message);
     } finally {
       setProcessing(false);
     }
   };
 
+  // Add WFH
   const handleAddWFH = async () => {
     if (!addForm.employeeId || !addForm.reason) {
       toast.error("กรุณากรอกข้อมูล", "เลือกพนักงานและเหตุผล");
       return;
     }
-
     setProcessing(true);
     try {
-      const { error } = await supabase
-        .from("wfh_requests")
-        .insert({
-          employee_id: addForm.employeeId,
-          date: addForm.date,
-          is_half_day: addForm.isHalfDay,
-          reason: addForm.reason,
-          status: addForm.status,
-          approved_by: addForm.status === "approved" ? employee?.id : null,
-        });
-
+      const { error } = await supabase.from("wfh_requests").insert({
+        employee_id: addForm.employeeId,
+        date: addForm.date,
+        is_half_day: addForm.isHalfDay,
+        reason: addForm.reason,
+        status: addForm.status,
+        approved_by: addForm.status === "approved" ? currentAdmin?.id : null,
+      });
       if (error) throw error;
 
-      toast.success("สำเร็จ", "เพิ่ม WFH เรียบร้อยแล้ว");
+      toast.success("สำเร็จ", "เพิ่ม WFH เรียบร้อย");
       setAddModal(false);
       setAddForm({
-        employeeId: "",
-        date: format(new Date(), "yyyy-MM-dd"),
-        isHalfDay: false,
-        reason: "",
-        status: "approved",
+        employeeId: "", date: format(new Date(), "yyyy-MM-dd"),
+        isHalfDay: false, reason: "", status: "approved",
       });
-      fetchWFHRequests();
+      fetchWFH();
     } catch (error: any) {
-      console.error("Error adding WFH:", error);
-      toast.error("เกิดข้อผิดพลาด", error?.message || "ไม่สามารถเพิ่ม WFH ได้");
+      toast.error("เกิดข้อผิดพลาด", error?.message);
     } finally {
       setProcessing(false);
     }
   };
 
+  // Export CSV
   const exportCSV = () => {
     if (!wfhRequests.length) return;
     const headers = ["ชื่อ", "วันที่", "ครึ่งวัน", "เหตุผล", "สถานะ"];
@@ -234,31 +193,14 @@ function WFHManagementContent() {
     link.click();
   };
 
-  // Filter by search
-  const filteredRequests = wfhRequests.filter((wfh) => {
-    if (!searchTerm) return true;
-    return wfh.employee?.name?.toLowerCase().includes(searchTerm.toLowerCase());
-  });
-
-  const stats = {
-    total: wfhRequests.length,
-    pending: wfhRequests.filter((r) => r.status === "pending").length,
-    approved: wfhRequests.filter((r) => r.status === "approved").length,
-    rejected: wfhRequests.filter((r) => r.status === "rejected").length,
-  };
-
+  // Status badge
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "pending":
-        return <Badge variant="warning">รออนุมัติ</Badge>;
-      case "approved":
-        return <Badge variant="success">อนุมัติแล้ว</Badge>;
-      case "rejected":
-        return <Badge variant="danger">ปฏิเสธ</Badge>;
-      case "cancelled":
-        return <Badge variant="default">ยกเลิก</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
+      case "pending": return <Badge variant="warning">รออนุมัติ</Badge>;
+      case "approved": return <Badge variant="success">อนุมัติแล้ว</Badge>;
+      case "rejected": return <Badge variant="danger">ปฏิเสธ</Badge>;
+      case "cancelled": return <Badge variant="default">ยกเลิก</Badge>;
+      default: return <Badge>{status}</Badge>;
     }
   };
 
@@ -267,46 +209,47 @@ function WFHManagementContent() {
       {/* Month Navigation */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-            className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors"
-          >
+          <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-2 hover:bg-[#f5f5f7] rounded-lg">
             <ChevronLeft className="w-5 h-5 text-[#6e6e73]" />
           </button>
-          <h2 className="text-[17px] font-semibold text-[#1d1d1f] min-w-[180px] text-center">
+          <h2 className="text-lg font-semibold text-[#1d1d1f] min-w-[160px] text-center">
             {format(currentMonth, "MMMM yyyy", { locale: th })}
           </h2>
-          <button
-            onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-            className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors"
-          >
+          <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-2 hover:bg-[#f5f5f7] rounded-lg">
             <ChevronRight className="w-5 h-5 text-[#6e6e73]" />
           </button>
         </div>
-        <Button variant="secondary" size="sm" onClick={exportCSV}>
-          <Download className="w-4 h-4" />
-          Export
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setAddModal(true)}>
+            <Plus className="w-4 h-4" />
+            เพิ่ม WFH
+          </Button>
+          <Button variant="secondary" onClick={exportCSV} disabled={!wfhRequests.length}>
+            <Download className="w-4 h-4" />
+            Export
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         {[
-          { label: "ทั้งหมด", value: stats.total, color: "text-[#1d1d1f]" },
-          { label: "รออนุมัติ", value: stats.pending, color: "text-[#ff9500]" },
-          { label: "อนุมัติ", value: stats.approved, color: "text-[#34c759]" },
-          { label: "ปฏิเสธ", value: stats.rejected, color: "text-[#ff3b30]" },
-        ].map((stat, i) => (
-          <Card key={i} elevated>
-            <div className="text-center py-2">
-              <p className={`text-[24px] font-semibold ${stat.color}`}>{stat.value}</p>
-              <p className="text-[12px] text-[#86868b]">{stat.label}</p>
+          { label: "ทั้งหมด", value: stats.all, color: "text-[#1d1d1f]", bg: "bg-[#f5f5f7]" },
+          { label: "รออนุมัติ", value: stats.pending, color: "text-[#ff9500]", bg: "bg-[#ff9500]/10" },
+          { label: "อนุมัติ", value: stats.approved, color: "text-[#34c759]", bg: "bg-[#34c759]/10" },
+          { label: "ปฏิเสธ", value: stats.rejected, color: "text-[#ff3b30]", bg: "bg-[#ff3b30]/10" },
+          { label: "รวมวัน WFH", value: stats.totalDays, color: "text-[#af52de]", bg: "bg-[#af52de]/10" },
+        ].map((s, i) => (
+          <Card key={i} elevated className="!p-3">
+            <div className="text-center">
+              <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
+              <p className="text-[11px] text-[#86868b]">{s.label}</p>
             </div>
           </Card>
         ))}
       </div>
 
-      {/* Search & Add */}
+      {/* Filters */}
       <div className="flex flex-col md:flex-row gap-3 mb-6">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#86868b]" />
@@ -315,149 +258,132 @@ function WFHManagementContent() {
             placeholder="ค้นหาชื่อพนักงาน..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-sm"
           />
         </div>
-        <Button onClick={() => setAddModal(true)}>
-          <Plus className="w-4 h-4" />
-          เพิ่ม WFH
+        <Button variant="text" onClick={fetchWFH} disabled={loading}>
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
         </Button>
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-        {[
-          { key: "all", label: "ทั้งหมด", count: stats.total },
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2 -mx-1 px-1">
+        {([
+          { key: "all", label: "ทั้งหมด", count: stats.all },
           { key: "pending", label: "รออนุมัติ", count: stats.pending },
           { key: "approved", label: "อนุมัติแล้ว", count: stats.approved },
           { key: "rejected", label: "ปฏิเสธ", count: stats.rejected },
-        ].map((tab) => (
+        ] as { key: FilterStatus; label: string; count: number }[]).map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setFilter(tab.key)}
-            className={`
-              flex items-center gap-2 px-4 py-2 rounded-full text-[14px] font-medium whitespace-nowrap
-              transition-colors
-              ${filter === tab.key
-                ? "bg-[#0071e3] text-white"
-                : "bg-[#f5f5f7] text-[#6e6e73] hover:bg-[#e8e8ed]"
-              }
-            `}
+            onClick={() => setFilterStatus(tab.key)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+              filterStatus === tab.key ? "bg-[#af52de] text-white" : "bg-white text-[#6e6e73] border border-[#e8e8ed] hover:border-[#d2d2d7]"
+            }`}
           >
             {tab.label}
-            <span className={`px-2 py-0.5 rounded-full text-[12px] ${filter === tab.key ? "bg-white/20" : "bg-[#d2d2d7]"}`}>
-              {tab.count}
-            </span>
+            {tab.count > 0 && (
+              <span className={`px-2 py-0.5 rounded-full text-xs ${filterStatus === tab.key ? "bg-white/20" : "bg-[#f5f5f7]"}`}>
+                {tab.count}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      {/* WFH Requests List */}
-      <div className="space-y-4">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : filteredRequests.length === 0 ? (
-          <Card elevated>
-            <div className="text-center py-20 text-[#86868b]">ไม่มีคำขอ WFH ในเดือนนี้</div>
-          </Card>
-        ) : (
-          filteredRequests.map((wfh) => (
-            <Card key={wfh.id} elevated>
-              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                <div className="flex items-start gap-4 flex-1">
-                  <Avatar name={wfh.employee?.name || "?"} size="lg" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-1 flex-wrap">
-                      <h3 className="text-[17px] font-semibold text-[#1d1d1f]">{wfh.employee?.name}</h3>
-                      {getStatusBadge(wfh.status)}
-                    </div>
+      {/* WFH List */}
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <div className="w-8 h-8 border-2 border-[#af52de] border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : filteredWFH.length === 0 ? (
+        <Card elevated className="text-center py-16 text-[#86868b]">ไม่มีคำขอ WFH ในเดือนนี้</Card>
+      ) : (
+        <div className="space-y-3">
+          {filteredWFH.map((wfh) => (
+            <Card key={wfh.id} elevated className="!p-0 overflow-hidden">
+              <div className="flex items-stretch">
+                {/* Color bar */}
+                <div className="w-1.5 bg-[#af52de]/30" />
 
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[13px] font-medium text-[#0071e3] bg-[#0071e3]/10">
-                        <Home className="w-3.5 h-3.5" />
-                        Work From Home
-                      </span>
-                      {wfh.is_half_day && (
-                        <span className="text-[13px] text-[#86868b]">(ครึ่งวัน)</span>
-                      )}
-                    </div>
+                {/* Content */}
+                <div className="flex-1 p-4">
+                  <div className="flex items-start gap-3">
+                    <Avatar name={wfh.employee?.name || "?"} size="md" />
+                    <div className="flex-1 min-w-0">
+                      {/* Header */}
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="text-[15px] font-semibold text-[#1d1d1f]">{wfh.employee?.name}</span>
+                        {getStatusBadge(wfh.status)}
+                      </div>
 
-                    <div className="flex items-center gap-2 text-[14px] text-[#6e6e73] mb-2">
-                      <Calendar className="w-4 h-4" />
-                      {format(new Date(wfh.date), "EEEE d MMMM yyyy", { locale: th })}
-                    </div>
+                      {/* WFH badge */}
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#af52de]/10 text-[#af52de]">
+                          <Home className="w-3 h-3" />
+                          Work From Home
+                        </span>
+                        {wfh.is_half_day && <span className="text-xs text-[#86868b]">(ครึ่งวัน)</span>}
+                      </div>
 
-                    <div className="bg-[#f5f5f7] rounded-xl p-3">
-                      <p className="text-[13px] text-[#6e6e73]">
-                        <span className="font-medium text-[#1d1d1f]">เหตุผล:</span> {wfh.reason}
+                      {/* Date */}
+                      <p className="text-sm text-[#6e6e73] mb-1">
+                        <Calendar className="w-3.5 h-3.5 inline mr-1" />
+                        {format(new Date(wfh.date), "EEEE d MMMM yyyy", { locale: th })}
                       </p>
+
+                      {/* Reason */}
+                      <p className="text-xs text-[#6e6e73] bg-[#f5f5f7] rounded-lg px-2.5 py-1.5 mt-2 line-clamp-2">
+                        {wfh.reason}
+                      </p>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex flex-col gap-1.5 ml-2">
+                      {wfh.status === "pending" && (
+                        <a href="/admin/approvals" className="p-2 text-[#ff9500] bg-[#ff9500]/10 rounded-lg hover:bg-[#ff9500]/20">
+                          <Home className="w-4 h-4" />
+                        </a>
+                      )}
+                      {(wfh.status === "approved" || wfh.status === "pending") && (
+                        <button
+                          onClick={() => setConfirmModal({ open: true, wfh })}
+                          className="p-2 text-[#ff3b30] bg-[#ff3b30]/10 rounded-lg hover:bg-[#ff3b30]/20"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
-
-                {/* Actions */}
-                <div className="flex gap-2 md:flex-col">
-                  {wfh.status === "pending" && (
-                    <a
-                      href="/admin/approvals"
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[#ff9500] bg-[#ff9500]/10 rounded-lg hover:bg-[#ff9500]/20"
-                    >
-                      <Home className="w-4 h-4" />
-                      รออนุมัติ
-                    </a>
-                  )}
-                  {(wfh.status === "approved" || wfh.status === "pending") && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setConfirmDialog({ open: true, id: wfh.id, action: "cancel", name: wfh.employee?.name || "" })}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      ยกเลิก
-                    </Button>
-                  )}
-                </div>
               </div>
             </Card>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {/* Add WFH Modal */}
-      <Modal isOpen={addModal} onClose={() => setAddModal(false)} title="เพิ่ม WFH ให้พนักงาน" size="md">
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmModal.open}
+        onClose={() => setConfirmModal({ open: false, wfh: null })}
+        onConfirm={handleCancel}
+        title="ยกเลิกคำขอ WFH"
+        message={`ยกเลิกคำขอ WFH ของ "${confirmModal.wfh?.employee?.name}" ?`}
+        type="danger"
+        confirmText="ยกเลิก"
+        loading={processing}
+      />
+
+      {/* Add Modal */}
+      <Modal isOpen={addModal} onClose={() => setAddModal(false)} title="เพิ่ม WFH" size="md">
         <div className="space-y-4">
-          <div>
-            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
-              <User className="w-4 h-4 inline mr-1" />
-              พนักงาน *
-            </label>
-            <select
-              value={addForm.employeeId}
-              onChange={(e) => setAddForm({ ...addForm, employeeId: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
-            >
-              <option value="">เลือกพนักงาน</option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.name} ({emp.email})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
-              <Calendar className="w-4 h-4 inline mr-1" />
-              วันที่ *
-            </label>
-            <DateInput
-              value={addForm.date}
-              onChange={(val) => setAddForm({ ...addForm, date: val })}
-            />
-          </div>
-
+          <Select
+            label="พนักงาน *"
+            value={addForm.employeeId}
+            onChange={(v) => setAddForm({ ...addForm, employeeId: v })}
+            options={[{ value: "", label: "เลือกพนักงาน" }, ...employees.map((e) => ({ value: e.id, label: e.name }))]}
+          />
+          <DateInput label="วันที่ *" value={addForm.date} onChange={(v) => setAddForm({ ...addForm, date: v })} />
           <label className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-xl cursor-pointer">
             <input
               type="checkbox"
@@ -465,64 +391,26 @@ function WFHManagementContent() {
               onChange={(e) => setAddForm({ ...addForm, isHalfDay: e.target.checked })}
               className="w-5 h-5 rounded"
             />
-            <span className="text-[15px] text-[#1d1d1f]">ครึ่งวัน</span>
+            <span className="text-sm text-[#1d1d1f]">ครึ่งวัน</span>
           </label>
-
-          <div>
-            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">สถานะ</label>
-            <select
-              value={addForm.status}
-              onChange={(e) => setAddForm({ ...addForm, status: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-[15px]"
-            >
-              <option value="approved">อนุมัติทันที</option>
-              <option value="pending">รออนุมัติ</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เหตุผล *</label>
-            <Input
-              value={addForm.reason}
-              onChange={(e) => setAddForm({ ...addForm, reason: e.target.value })}
-              placeholder="เช่น รอช่างมาซ่อมเครื่องใช้ไฟฟ้า"
-            />
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <Button variant="secondary" onClick={() => setAddModal(false)} className="flex-1">
-              ยกเลิก
-            </Button>
-            <Button onClick={handleAddWFH} loading={processing} className="flex-1">
-              <Plus className="w-4 h-4" />
-              เพิ่ม WFH
-            </Button>
+          <Select
+            label="สถานะ"
+            value={addForm.status}
+            onChange={(v) => setAddForm({ ...addForm, status: v })}
+            options={[{ value: "approved", label: "อนุมัติทันที" }, { value: "pending", label: "รออนุมัติ" }]}
+          />
+          <Input
+            label="เหตุผล *"
+            value={addForm.reason}
+            onChange={(e) => setAddForm({ ...addForm, reason: e.target.value })}
+            placeholder="เช่น รอช่างมาซ่อมเครื่องใช้ไฟฟ้า"
+          />
+          <div className="flex gap-3 pt-2">
+            <Button variant="secondary" onClick={() => setAddModal(false)} className="flex-1">ยกเลิก</Button>
+            <Button onClick={handleAddWFH} loading={processing} className="flex-1">เพิ่ม WFH</Button>
           </div>
         </div>
       </Modal>
-
-      {/* Confirm Dialog */}
-      <ConfirmDialog
-        isOpen={confirmDialog.open}
-        onClose={() => setConfirmDialog({ open: false, id: "", action: "approve", name: "" })}
-        onConfirm={handleConfirm}
-        title={
-          confirmDialog.action === "approve" ? "ยืนยันการอนุมัติ" :
-            confirmDialog.action === "reject" ? "ยืนยันการปฏิเสธ" :
-              "ยืนยันการยกเลิก"
-        }
-        message={`คุณต้องการ${confirmDialog.action === "approve" ? "อนุมัติ" :
-            confirmDialog.action === "reject" ? "ปฏิเสธ" :
-              "ยกเลิก"
-          }คำขอ WFH ของ "${confirmDialog.name}" ใช่หรือไม่?`}
-        type={confirmDialog.action === "approve" ? "success" : "danger"}
-        confirmText={
-          confirmDialog.action === "approve" ? "อนุมัติ" :
-            confirmDialog.action === "reject" ? "ปฏิเสธ" :
-              "ยกเลิก"
-        }
-        loading={processing}
-      />
     </AdminLayout>
   );
 }

@@ -20,10 +20,15 @@ CREATE TABLE IF NOT EXISTS employees (
   email VARCHAR(255) UNIQUE NOT NULL,
   phone VARCHAR(20) NOT NULL,
   role VARCHAR(20) DEFAULT 'staff' CHECK (role IN ('staff', 'supervisor', 'admin')),
+  base_salary DECIMAL(12, 2) DEFAULT 0,
   base_salary_rate DECIMAL(10, 2),
   ot_rate_1x DECIMAL(5, 2) DEFAULT 1.0,
   ot_rate_1_5x DECIMAL(5, 2) DEFAULT 1.5,
   ot_rate_2x DECIMAL(5, 2) DEFAULT 2.0,
+  commission DECIMAL(10, 2) DEFAULT 0,
+  account_status VARCHAR(20) DEFAULT 'pending' CHECK (account_status IN ('pending', 'approved', 'rejected')),
+  line_user_id VARCHAR(255),
+  is_system_account BOOLEAN DEFAULT FALSE,
   face_profile_image_url TEXT,
   device_id VARCHAR(255),
   branch_id UUID REFERENCES branches(id),
@@ -120,12 +125,12 @@ CREATE TABLE IF NOT EXISTS wfh_requests (
 );
 
 -- Create indexes for better performance
-CREATE INDEX idx_attendance_employee_date ON attendance_logs(employee_id, work_date);
-CREATE INDEX idx_attendance_work_date ON attendance_logs(work_date);
-CREATE INDEX idx_ot_requests_employee ON ot_requests(employee_id);
-CREATE INDEX idx_ot_requests_status ON ot_requests(status);
-CREATE INDEX idx_employees_role ON employees(role);
-CREATE INDEX idx_employees_branch ON employees(branch_id);
+CREATE INDEX IF NOT EXISTS idx_attendance_employee_date ON attendance_logs(employee_id, work_date);
+CREATE INDEX IF NOT EXISTS idx_attendance_work_date ON attendance_logs(work_date);
+CREATE INDEX IF NOT EXISTS idx_ot_requests_employee ON ot_requests(employee_id);
+CREATE INDEX IF NOT EXISTS idx_ot_requests_status ON ot_requests(status);
+CREATE INDEX IF NOT EXISTS idx_employees_role ON employees(role);
+CREATE INDEX IF NOT EXISTS idx_employees_branch ON employees(branch_id);
 
 -- Create updated_at triggers
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -136,21 +141,27 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_employees_updated_at ON employees;
 CREATE TRIGGER update_employees_updated_at BEFORE UPDATE ON employees
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_branches_updated_at ON branches;
 CREATE TRIGGER update_branches_updated_at BEFORE UPDATE ON branches
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_attendance_logs_updated_at ON attendance_logs;
 CREATE TRIGGER update_attendance_logs_updated_at BEFORE UPDATE ON attendance_logs
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_ot_requests_updated_at ON ot_requests;
 CREATE TRIGGER update_ot_requests_updated_at BEFORE UPDATE ON ot_requests
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_leave_requests_updated_at ON leave_requests;
 CREATE TRIGGER update_leave_requests_updated_at BEFORE UPDATE ON leave_requests
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_wfh_requests_updated_at ON wfh_requests;
 CREATE TRIGGER update_wfh_requests_updated_at BEFORE UPDATE ON wfh_requests
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -207,6 +218,7 @@ CREATE POLICY "Supervisors and admins can update OT requests"
 --   ('Admin User', 'admin@anajak.com', '0812345678', 'admin'),
 --   ('Supervisor User', 'supervisor@anajak.com', '0823456789', 'supervisor'),
 --   ('Staff User', 'staff@anajak.com', '0834567890', 'staff');
+
 
 
 

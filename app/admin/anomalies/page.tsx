@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { useAuth } from "@/lib/auth/auth-context";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
@@ -91,6 +92,7 @@ const statusOptions = [
 
 function AnomaliesContent() {
   const toast = useToast();
+  const { employee: currentAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [filter, setFilter] = useState("pending");
@@ -143,7 +145,7 @@ function AnomaliesContent() {
           status,
           resolution_note: resolutionNote,
           resolved_at: new Date().toISOString(),
-          // resolved_by จะต้องใส่ user id ที่ login อยู่
+          resolved_by: currentAdmin?.id || null,
         })
         .eq("id", selectedAnomaly.id);
 

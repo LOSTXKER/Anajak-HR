@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -9,238 +9,186 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { Modal, ConfirmDialog } from "@/components/ui/Modal";
-import { useToast } from "@/components/ui/Toast";
+import { Input } from "@/components/ui/Input";
 import { TimeInput } from "@/components/ui/TimeInput";
 import { DateInput } from "@/components/ui/DateInput";
-import { Select } from "@/components/ui/Select";
+import { useToast } from "@/components/ui/Toast";
 import { getOTRateForDate } from "@/lib/utils/holiday";
 import {
   Clock,
-  CheckCircle,
-  XCircle,
-  Trash2,
-  Edit2,
-  Play,
-  Calendar,
   Search,
-  RotateCcw,
-  Camera,
-  X,
   Plus,
-  User,
+  Camera,
   MapPin,
-  Info,
+  Play,
+  RefreshCw,
+  Edit2,
+  RotateCcw,
+  Trash2,
+  X,
+  CheckCircle2,
+  XCircle,
+  DollarSign,
+  Calendar,
 } from "lucide-react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 
+// Types
+interface OTRequest {
+  id: string;
+  employee_id: string;
+  ot_type: string;
+  request_date: string;
+  requested_start_time: string;
+  requested_end_time: string;
+  actual_start_time: string | null;
+  actual_end_time: string | null;
+  reason: string;
+  status: string;
+  actual_ot_hours: number | null;
+  approved_ot_hours: number | null;
+  ot_rate: number | null;
+  ot_amount: number | null;
+  before_photo_url: string | null;
+  after_photo_url: string | null;
+  start_gps_lat: number | null;
+  start_gps_lng: number | null;
+  end_gps_lat: number | null;
+  end_gps_lng: number | null;
+  created_at: string;
+  employee: { id: string; name: string; email: string } | null;
+}
+
+type FilterStatus = "all" | "pending" | "approved" | "in_progress" | "completed" | "rejected" | "cancelled";
+
 function OTManagementContent() {
-  const { employee } = useAuth();
+  const { employee: currentAdmin } = useAuth();
   const toast = useToast();
-  const [otRequests, setOtRequests] = useState<any[]>([]);
+
+  // State
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("all");
+  const [otRequests, setOtRequests] = useState<OTRequest[]>([]);
+  const [employees, setEmployees] = useState<{ id: string; name: string; email: string }[]>([]);
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState("");
-  const [processing, setProcessing] = useState(false);
-  const [viewingPhoto, setViewingPhoto] = useState<{ url: string; type: string } | null>(null);
 
-  // Confirm dialogs
-  const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean;
-    id: string;
-    action: "approve" | "reject" | "cancel" | "reset";
-    name: string;
-  }>({ open: false, id: "", action: "approve", name: "" });
-
-  // Edit modal
-  const [editModal, setEditModal] = useState<{
-    open: boolean;
-    ot: any;
-  }>({ open: false, ot: null });
-  const [editData, setEditData] = useState({
-    requestDate: "",
-    startTime: "",
-    endTime: "",
-    actualStartTime: "",
-    actualEndTime: "",
-    actualOtHours: "",
-    otAmount: "",
-    status: "",
-  });
-
-  // Add OT modal
+  // Modals
+  const [photoModal, setPhotoModal] = useState<{ url: string; type: string } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean; ot: OTRequest | null; action: string }>({ open: false, ot: null, action: "" });
+  const [editModal, setEditModal] = useState<{ open: boolean; ot: OTRequest | null }>({ open: false, ot: null });
   const [addModal, setAddModal] = useState(false);
-  const [employees, setEmployees] = useState<any[]>([]);
-  const [addForm, setAddForm] = useState({
-    employeeId: "",
-    requestDate: format(new Date(), "yyyy-MM-dd"),
-    startTime: "18:00",
-    endTime: "21:00",
-    reason: "",
-    status: "approved",
+  const [processing, setProcessing] = useState(false);
+
+  // Edit form
+  const [editForm, setEditForm] = useState({
+    requestDate: "", startTime: "", endTime: "",
+    actualStartTime: "", actualEndTime: "",
+    actualOtHours: "", otAmount: "", status: "",
   });
 
-  // Day info for selected date in add form
-  const [dayInfo, setDayInfo] = useState<{
-    rate: number;
-    type: "holiday" | "weekend" | "workday";
-    typeName: string;
-    requireCheckin: boolean;
-    holidayName?: string;
-  } | null>(null);
-  const [loadingDayInfo, setLoadingDayInfo] = useState(false);
+  // Add form
+  const [addForm, setAddForm] = useState({
+    employeeId: "", requestDate: format(new Date(), "yyyy-MM-dd"),
+    startTime: "18:00", endTime: "21:00", reason: "", status: "approved",
+  });
+  const [dayInfo, setDayInfo] = useState<any>(null);
 
-  // Fetch day info when date changes
-  const fetchDayInfo = useCallback(async (date: string) => {
-    if (!date) return;
-    setLoadingDayInfo(true);
-    try {
-      const info = await getOTRateForDate(date);
-      setDayInfo(info);
-    } catch (error) {
-      console.error("Error fetching day info:", error);
-    } finally {
-      setLoadingDayInfo(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchOT();
-    fetchEmployees();
-  }, [filter, dateFilter]);
-
-  // Fetch day info when add form date changes
-  useEffect(() => {
-    if (addModal && addForm.requestDate) {
-      fetchDayInfo(addForm.requestDate);
-    }
-  }, [addModal, addForm.requestDate, fetchDayInfo]);
-
-  const fetchEmployees = async () => {
-    try {
-      const { data } = await supabase
-        .from("employees")
-        .select("id, name, email")
-        .eq("account_status", "approved")
-        .order("name");
-      setEmployees(data || []);
-    } catch (error) {
-      console.error("Error fetching employees:", error);
-    }
-  };
-
-  const fetchOT = async () => {
+  // Fetch data
+  const fetchOT = useCallback(async () => {
     setLoading(true);
     try {
       let query = supabase
         .from("ot_requests")
-        .select(`*, employee:employees!employee_id(name, email), approver:employees!approved_by(name, email)`)
+        .select("*, employee:employees!employee_id(id, name, email)")
         .order("created_at", { ascending: false });
 
-      if (filter !== "all") query = query.eq("status", filter);
+      if (filterStatus !== "all") {
+        if (filterStatus === "in_progress") {
+          query = query.not("actual_start_time", "is", null).is("actual_end_time", null);
+        } else if (filterStatus === "completed") {
+          query = query.not("actual_end_time", "is", null);
+        } else {
+          query = query.eq("status", filterStatus);
+        }
+      }
       if (dateFilter) query = query.eq("request_date", dateFilter);
 
       const { data, error } = await query;
-
       if (error) throw error;
       setOtRequests(data || []);
     } catch (error: any) {
-      toast.error("เกิดข้อผิดพลาด", error?.message || "ไม่สามารถโหลดข้อมูลได้");
+      toast.error("เกิดข้อผิดพลาด", error?.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterStatus, dateFilter, toast]);
 
-  const handleConfirm = async () => {
+  const fetchEmployees = useCallback(async () => {
+    const { data } = await supabase.from("employees").select("id, name, email").eq("account_status", "approved").order("name");
+    setEmployees(data || []);
+  }, []);
+
+  useEffect(() => { fetchOT(); fetchEmployees(); }, [fetchOT, fetchEmployees]);
+
+  // Fetch day info for add form
+  useEffect(() => {
+    if (addModal && addForm.requestDate) {
+      getOTRateForDate(addForm.requestDate).then(setDayInfo).catch(console.error);
+    }
+  }, [addModal, addForm.requestDate]);
+
+  // Stats
+  const stats = useMemo(() => {
+    const all = otRequests.length;
+    const pending = otRequests.filter((o) => o.status === "pending").length;
+    const approved = otRequests.filter((o) => o.status === "approved" && !o.actual_start_time).length;
+    const inProgress = otRequests.filter((o) => o.actual_start_time && !o.actual_end_time).length;
+    const completed = otRequests.filter((o) => o.actual_end_time).length;
+    const totalHours = otRequests.reduce((sum, o) => sum + (o.actual_ot_hours || 0), 0);
+    const totalAmount = otRequests.reduce((sum, o) => sum + (o.ot_amount || 0), 0);
+    return { all, pending, approved, inProgress, completed, totalHours, totalAmount };
+  }, [otRequests]);
+
+  // Filtered
+  const filteredOT = useMemo(() => {
+    return otRequests.filter((ot) => {
+      if (!searchTerm) return true;
+      return ot.employee?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             ot.reason?.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+  }, [otRequests, searchTerm]);
+
+  // Actions
+  const handleConfirmAction = async () => {
+    if (!confirmModal.ot || !currentAdmin) return;
     setProcessing(true);
     try {
-      const ot = otRequests.find((o) => o.id === confirmDialog.id);
       let updateData: any = {};
-
-      switch (confirmDialog.action) {
-        case "approve":
-          updateData = {
-            status: "approved",
-            approved_by: employee?.id,
-            approved_start_time: ot?.requested_start_time,
-            approved_end_time: ot?.requested_end_time,
-          };
-          break;
-        case "reject":
-          updateData = {
-            status: "rejected",
-            approved_by: employee?.id,
-          };
-          break;
-        case "cancel":
-          updateData = {
-            status: "cancelled",
-          };
-          break;
-        case "reset":
-          updateData = {
-            status: "approved",
-            actual_start_time: null,
-            actual_end_time: null,
-            actual_ot_hours: null,
-            ot_amount: null,
-            before_photo_url: null,
-            after_photo_url: null,
-          };
-          break;
+      if (confirmModal.action === "cancel") {
+        updateData = { status: "cancelled" };
+      } else if (confirmModal.action === "reset") {
+        updateData = { status: "approved", actual_start_time: null, actual_end_time: null, actual_ot_hours: null, ot_amount: null, before_photo_url: null, after_photo_url: null };
       }
 
-      const { error } = await supabase
-        .from("ot_requests")
-        .update(updateData)
-        .eq("id", confirmDialog.id);
-
+      const { error } = await supabase.from("ot_requests").update(updateData).eq("id", confirmModal.ot.id);
       if (error) throw error;
 
-      // Send LINE notification for approve/reject
-      if (confirmDialog.action === "approve" || confirmDialog.action === "reject") {
-        try {
-          await fetch("/api/notifications", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: "ot_approval",
-              data: {
-                employeeName: ot?.employee?.name || confirmDialog.name,
-                date: ot?.request_date,
-                startTime: ot?.requested_start_time,
-                endTime: ot?.requested_end_time,
-                approved: confirmDialog.action === "approve",
-              },
-            }),
-          });
-        } catch (notifyError) {
-          console.error("Notification error:", notifyError);
-        }
-      }
-
-      const messages: Record<string, string> = {
-        approve: "อนุมัติ OT เรียบร้อยแล้ว",
-        reject: "ปฏิเสธ OT เรียบร้อยแล้ว",
-        cancel: "ยกเลิก OT เรียบร้อยแล้ว",
-        reset: "รีเซ็ต OT เรียบร้อยแล้ว",
-      };
-
-      toast.success("สำเร็จ", messages[confirmDialog.action]);
-      setConfirmDialog({ open: false, id: "", action: "approve", name: "" });
+      toast.success("สำเร็จ", confirmModal.action === "cancel" ? "ยกเลิก OT แล้ว" : "รีเซ็ต OT แล้ว");
+      setConfirmModal({ open: false, ot: null, action: "" });
       fetchOT();
-    } catch (error) {
-      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถดำเนินการได้");
+    } catch (error: any) {
+      toast.error("เกิดข้อผิดพลาด", error?.message);
     } finally {
       setProcessing(false);
     }
   };
 
-  const openEditModal = (ot: any) => {
-    setEditData({
+  const openEditModal = (ot: OTRequest) => {
+    setEditForm({
       requestDate: ot.request_date,
       startTime: format(new Date(ot.requested_start_time), "HH:mm"),
       endTime: format(new Date(ot.requested_end_time), "HH:mm"),
@@ -256,155 +204,104 @@ function OTManagementContent() {
   const handleSaveEdit = async () => {
     if (!editModal.ot) return;
     setProcessing(true);
-
     try {
       const updateData: any = {
-        request_date: editData.requestDate,
-        requested_start_time: `${editData.requestDate}T${editData.startTime}:00+07:00`,
-        requested_end_time: `${editData.requestDate}T${editData.endTime}:00+07:00`,
-        status: editData.status,
+        request_date: editForm.requestDate,
+        requested_start_time: `${editForm.requestDate}T${editForm.startTime}:00+07:00`,
+        requested_end_time: `${editForm.requestDate}T${editForm.endTime}:00+07:00`,
+        status: editForm.status,
       };
+      if (editForm.actualStartTime) updateData.actual_start_time = `${editForm.requestDate}T${editForm.actualStartTime}:00+07:00`;
+      if (editForm.actualEndTime) updateData.actual_end_time = `${editForm.requestDate}T${editForm.actualEndTime}:00+07:00`;
+      if (editForm.actualOtHours) updateData.actual_ot_hours = parseFloat(editForm.actualOtHours);
+      if (editForm.otAmount) updateData.ot_amount = parseFloat(editForm.otAmount);
 
-      if (editData.actualStartTime) {
-        updateData.actual_start_time = `${editData.requestDate}T${editData.actualStartTime}:00+07:00`;
-      }
-      if (editData.actualEndTime) {
-        updateData.actual_end_time = `${editData.requestDate}T${editData.actualEndTime}:00+07:00`;
-      }
-      if (editData.actualOtHours) {
-        updateData.actual_ot_hours = parseFloat(editData.actualOtHours);
-      }
-      if (editData.otAmount) {
-        updateData.ot_amount = parseFloat(editData.otAmount);
-      }
-
-      const { error } = await supabase
-        .from("ot_requests")
-        .update(updateData)
-        .eq("id", editModal.ot.id);
-
+      const { error } = await supabase.from("ot_requests").update(updateData).eq("id", editModal.ot.id);
       if (error) throw error;
 
-      toast.success("บันทึกสำเร็จ", "แก้ไขข้อมูล OT เรียบร้อยแล้ว");
+      toast.success("บันทึกสำเร็จ", "แก้ไขข้อมูล OT เรียบร้อย");
       setEditModal({ open: false, ot: null });
       fetchOT();
-    } catch (error) {
-      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถบันทึกได้");
+    } catch (error: any) {
+      toast.error("เกิดข้อผิดพลาด", error?.message);
     } finally {
       setProcessing(false);
     }
   };
 
   const handleAddOT = async () => {
-    if (!addForm.employeeId || !addForm.requestDate || !addForm.reason) {
-      toast.error("กรุณากรอกข้อมูล", "เลือกพนักงาน วันที่ และเหตุผล");
+    if (!addForm.employeeId || !addForm.reason) {
+      toast.error("กรุณากรอกข้อมูล", "เลือกพนักงานและเหตุผล");
       return;
     }
-
-    if (!dayInfo) {
-      toast.error("กรุณารอ", "กำลังโหลดข้อมูลประเภทวัน");
-      return;
-    }
-
     setProcessing(true);
     try {
-      const { error } = await supabase
-        .from("ot_requests")
-        .insert({
-          employee_id: addForm.employeeId,
-          request_date: addForm.requestDate,
-          requested_start_time: `${addForm.requestDate}T${addForm.startTime}:00+07:00`,
-          requested_end_time: `${addForm.requestDate}T${addForm.endTime}:00+07:00`,
-          approved_start_time: addForm.status === "approved" ? `${addForm.requestDate}T${addForm.startTime}:00+07:00` : null,
-          approved_end_time: addForm.status === "approved" ? `${addForm.requestDate}T${addForm.endTime}:00+07:00` : null,
-          reason: addForm.reason,
-          status: addForm.status,
-          ot_type: dayInfo.type,
-          ot_rate: dayInfo.rate,
-          approved_by: addForm.status === "approved" ? employee?.id : null,
-        });
-
+      const { error } = await supabase.from("ot_requests").insert({
+        employee_id: addForm.employeeId,
+        request_date: addForm.requestDate,
+        requested_start_time: `${addForm.requestDate}T${addForm.startTime}:00+07:00`,
+        requested_end_time: `${addForm.requestDate}T${addForm.endTime}:00+07:00`,
+        approved_start_time: addForm.status === "approved" ? `${addForm.requestDate}T${addForm.startTime}:00+07:00` : null,
+        approved_end_time: addForm.status === "approved" ? `${addForm.requestDate}T${addForm.endTime}:00+07:00` : null,
+        reason: addForm.reason,
+        status: addForm.status,
+        ot_type: dayInfo?.type || "workday",
+        ot_rate: dayInfo?.rate || 1.5,
+        approved_by: addForm.status === "approved" ? currentAdmin?.id : null,
+      });
       if (error) throw error;
 
-      toast.success("สำเร็จ", "เพิ่ม OT เรียบร้อยแล้ว");
+      toast.success("สำเร็จ", "เพิ่ม OT เรียบร้อย");
       setAddModal(false);
-      setAddForm({
-        employeeId: "",
-        requestDate: format(new Date(), "yyyy-MM-dd"),
-        startTime: "18:00",
-        endTime: "21:00",
-        reason: "",
-        status: "approved",
-      });
+      setAddForm({ employeeId: "", requestDate: format(new Date(), "yyyy-MM-dd"), startTime: "18:00", endTime: "21:00", reason: "", status: "approved" });
       fetchOT();
     } catch (error: any) {
-      console.error("Error adding OT:", error);
-      toast.error("เกิดข้อผิดพลาด", error?.message || "ไม่สามารถเพิ่ม OT ได้");
+      toast.error("เกิดข้อผิดพลาด", error?.message);
     } finally {
       setProcessing(false);
     }
   };
 
-  // Filter by search term
-  const filteredRequests = otRequests.filter((ot) => {
-    if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      ot.employee?.name?.toLowerCase().includes(searchLower) ||
-      ot.reason?.toLowerCase().includes(searchLower)
-    );
-  });
-
-  const stats = {
-    total: otRequests.length,
-    pending: otRequests.filter((o) => o.status === "pending").length,
-    approved: otRequests.filter((o) => o.status === "approved").length,
-    completed: otRequests.filter((o) => o.status === "completed" || o.actual_end_time).length,
-    rejected: otRequests.filter((o) => o.status === "rejected").length,
-    cancelled: otRequests.filter((o) => o.status === "cancelled").length,
+  // Status badge
+  const getStatusBadge = (ot: OTRequest) => {
+    if (ot.actual_start_time && !ot.actual_end_time) return <Badge variant="warning">🔥 กำลังทำ</Badge>;
+    if (ot.actual_end_time) return <Badge variant="info">✅ เสร็จสิ้น</Badge>;
+    switch (ot.status) {
+      case "pending": return <Badge variant="warning">รออนุมัติ</Badge>;
+      case "approved": return <Badge variant="success">อนุมัติแล้ว</Badge>;
+      case "rejected": return <Badge variant="danger">ปฏิเสธ</Badge>;
+      case "cancelled": return <Badge variant="default">ยกเลิก</Badge>;
+      default: return <Badge>{ot.status}</Badge>;
+    }
   };
 
-  const getStatusBadge = (status: string, ot: any) => {
-    // Check if OT is in progress
-    if (ot.actual_start_time && !ot.actual_end_time) {
-      return <Badge variant="warning">🔥 กำลังทำ</Badge>;
-    }
-    if (ot.actual_end_time) {
-      return <Badge variant="info">✅ เสร็จสิ้น</Badge>;
-    }
-
-    switch (status) {
-      case "pending":
-        return <Badge variant="warning">รออนุมัติ</Badge>;
-      case "approved":
-        return <Badge variant="success">อนุมัติแล้ว</Badge>;
-      case "rejected":
-        return <Badge variant="danger">ปฏิเสธ</Badge>;
-      case "cancelled":
-        return <Badge variant="default">ยกเลิก</Badge>;
-      case "completed":
-        return <Badge variant="info">เสร็จสิ้น</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
-    }
+  const getOTTypeBadge = (ot: OTRequest) => {
+    if (ot.ot_type === "holiday") return <Badge variant="danger">วันหยุด {ot.ot_rate}x</Badge>;
+    if (ot.ot_type === "weekend") return <Badge variant="warning">สุดสัปดาห์ {ot.ot_rate}x</Badge>;
+    if (ot.ot_rate && ot.ot_rate > 1) return <Badge variant="info">{ot.ot_rate}x</Badge>;
+    return null;
   };
 
   return (
     <AdminLayout title="จัดการ OT">
       {/* Stats */}
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
         {[
-          { label: "ทั้งหมด", value: stats.total, color: "text-[#1d1d1f]" },
-          { label: "รออนุมัติ", value: stats.pending, color: "text-[#ff9500]" },
-          { label: "อนุมัติ", value: stats.approved, color: "text-[#34c759]" },
-          { label: "กำลังทำ/เสร็จ", value: stats.completed, color: "text-[#0071e3]" },
-          { label: "ปฏิเสธ", value: stats.rejected, color: "text-[#ff3b30]" },
-          { label: "ยกเลิก", value: stats.cancelled, color: "text-[#86868b]" },
-        ].map((stat, i) => (
-          <Card key={i} elevated>
-            <div className="text-center py-2">
-              <p className={`text-[24px] font-semibold ${stat.color}`}>{stat.value}</p>
-              <p className="text-[11px] text-[#86868b]">{stat.label}</p>
+          { label: "ทั้งหมด", value: stats.all, color: "text-[#1d1d1f]", bg: "bg-[#f5f5f7]" },
+          { label: "รออนุมัติ", value: stats.pending, color: "text-[#ff9500]", bg: "bg-[#ff9500]/10" },
+          { label: "อนุมัติแล้ว", value: stats.approved, color: "text-[#34c759]", bg: "bg-[#34c759]/10" },
+          { label: "กำลังทำ", value: stats.inProgress, color: "text-[#0071e3]", bg: "bg-[#0071e3]/10" },
+          { label: "เสร็จสิ้น", value: stats.completed, color: "text-[#af52de]", bg: "bg-[#af52de]/10" },
+          { label: "รวม ชม.", value: stats.totalHours.toFixed(1), color: "text-[#ff9500]", bg: "bg-[#ff9500]/10", icon: Clock },
+          { label: "รวม ฿", value: stats.totalAmount.toLocaleString(), color: "text-[#34c759]", bg: "bg-[#34c759]/10", icon: DollarSign },
+        ].map((s, i) => (
+          <Card key={i} elevated className="!p-3">
+            <div className="flex items-center gap-2">
+              {s.icon && <s.icon className={`w-4 h-4 ${s.color}`} />}
+              <div>
+                <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+                <p className="text-[10px] text-[#86868b]">{s.label}</p>
+              </div>
             </div>
           </Card>
         ))}
@@ -416,503 +313,249 @@ function OTManagementContent() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#86868b]" />
           <input
             type="text"
-            placeholder="ค้นหาชื่อพนักงาน..."
+            placeholder="ค้นหาชื่อ หรือเหตุผล..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none text-[15px]"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#d2d2d7] focus:border-[#0071e3] outline-none text-sm"
           />
         </div>
-        <div className="flex gap-2">
-          <DateInput
-            value={dateFilter}
-            onChange={setDateFilter}
-            placeholder="วว/ดด/ปปปป"
-          />
-          {dateFilter && (
-            <Button variant="secondary" size="sm" onClick={() => setDateFilter("")}>
-              <X className="w-4 h-4" />
-            </Button>
-          )}
-          <Button onClick={() => setAddModal(true)}>
-            <Plus className="w-4 h-4" />
-            เพิ่ม OT
+        <DateInput value={dateFilter} onChange={setDateFilter} placeholder="วันที่" />
+        {dateFilter && (
+          <Button variant="text" size="sm" onClick={() => setDateFilter("")}>
+            <X className="w-4 h-4" />
           </Button>
-        </div>
+        )}
+        <Button onClick={() => setAddModal(true)}>
+          <Plus className="w-4 h-4" />
+          เพิ่ม OT
+        </Button>
+        <Button variant="text" onClick={fetchOT} disabled={loading}>
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+        </Button>
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-        {[
-          { key: "all", label: "ทั้งหมด", count: stats.total },
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2 -mx-1 px-1">
+        {([
+          { key: "all", label: "ทั้งหมด", count: stats.all },
           { key: "pending", label: "รออนุมัติ", count: stats.pending },
           { key: "approved", label: "อนุมัติแล้ว", count: stats.approved },
+          { key: "in_progress", label: "กำลังทำ", count: stats.inProgress },
           { key: "completed", label: "เสร็จสิ้น", count: stats.completed },
-          { key: "rejected", label: "ปฏิเสธ", count: stats.rejected },
-          { key: "cancelled", label: "ยกเลิก", count: stats.cancelled },
-        ].map((tab) => (
+        ] as { key: FilterStatus; label: string; count: number }[]).map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setFilter(tab.key)}
-            className={`
-              flex items-center gap-2 px-4 py-2 rounded-full text-[14px] font-medium whitespace-nowrap
-              transition-colors
-              ${filter === tab.key
-                ? "bg-[#0071e3] text-white"
-                : "bg-[#f5f5f7] text-[#6e6e73] hover:bg-[#e8e8ed]"
-              }
-            `}
+            onClick={() => setFilterStatus(tab.key)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+              filterStatus === tab.key ? "bg-[#1d1d1f] text-white" : "bg-white text-[#6e6e73] border border-[#e8e8ed] hover:border-[#d2d2d7]"
+            }`}
           >
             {tab.label}
-            <span
-              className={`
-                px-2 py-0.5 rounded-full text-[12px]
-                ${filter === tab.key ? "bg-white/20" : "bg-[#d2d2d7]"}
-              `}
-            >
-              {tab.count}
-            </span>
+            {tab.count > 0 && (
+              <span className={`px-2 py-0.5 rounded-full text-xs ${filterStatus === tab.key ? "bg-white/20" : "bg-[#f5f5f7]"}`}>
+                {tab.count}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
       {/* OT List */}
-      <div className="space-y-4">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : filteredRequests.length === 0 ? (
-          <Card elevated>
-            <div className="text-center py-20 text-[#86868b]">ไม่มีคำขอ OT</div>
-          </Card>
-        ) : (
-          filteredRequests.map((ot) => (
-            <Card key={ot.id} elevated>
-              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                <div className="flex items-start gap-4">
-                  <Avatar name={ot.employee?.name || "?"} size="lg" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-1 flex-wrap">
-                      <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
-                        {ot.employee?.name}
-                      </h3>
-                      {getStatusBadge(ot.status, ot)}
-                      {ot.ot_type === "holiday" && (
-                        <Badge variant="danger">วันหยุด ({ot.ot_rate || 2}x)</Badge>
-                      )}
-                      {ot.ot_type === "weekend" && (
-                        <Badge variant="warning">สุดสัปดาห์ ({ot.ot_rate || 1.5}x)</Badge>
-                      )}
-                      {ot.ot_type === "workday" && ot.ot_rate && (
-                        <Badge variant="info">วันทำงาน ({ot.ot_rate}x)</Badge>
-                      )}
-                    </div>
-                    <p className="text-[14px] text-[#86868b] mb-2">
-                      {format(new Date(ot.request_date), "EEEE d MMMM yyyy", { locale: th })}
-                    </p>
-                    <div className="flex items-center gap-2 text-[14px] text-[#6e6e73] mb-2">
-                      <Clock className="w-4 h-4" />
-                      ขอ: {format(new Date(ot.requested_start_time), "HH:mm")} -{" "}
-                      {format(new Date(ot.requested_end_time), "HH:mm")} น.
-                    </div>
-                    {ot.actual_start_time && (
-                      <div className="flex items-center gap-2 text-[14px] text-[#0071e3] mb-2">
-                        <Play className="w-4 h-4" />
-                        จริง: {format(new Date(ot.actual_start_time), "HH:mm")}
-                        {ot.actual_end_time ? ` - ${format(new Date(ot.actual_end_time), "HH:mm")} น.` : " - กำลังทำ..."}
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : filteredOT.length === 0 ? (
+        <Card elevated className="text-center py-16 text-[#86868b]">ไม่มีคำขอ OT</Card>
+      ) : (
+        <div className="space-y-3">
+          {filteredOT.map((ot) => (
+            <Card key={ot.id} elevated className="!p-0 overflow-hidden">
+              <div className="flex items-stretch">
+                {/* Color bar */}
+                <div className={`w-1.5 ${
+                  ot.actual_end_time ? "bg-[#af52de]" :
+                  ot.actual_start_time ? "bg-[#0071e3]" :
+                  ot.status === "approved" ? "bg-[#34c759]" :
+                  ot.status === "pending" ? "bg-[#ff9500]" :
+                  "bg-[#86868b]"
+                }`} />
+
+                {/* Content */}
+                <div className="flex-1 p-4">
+                  <div className="flex items-start gap-3">
+                    <Avatar name={ot.employee?.name || "?"} size="md" />
+                    <div className="flex-1 min-w-0">
+                      {/* Header */}
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="text-[15px] font-semibold text-[#1d1d1f]">{ot.employee?.name}</span>
+                        {getStatusBadge(ot)}
+                        {getOTTypeBadge(ot)}
                       </div>
-                    )}
-                    {ot.actual_ot_hours && (
-                      <div className="flex items-center gap-2 text-[14px] font-medium text-[#34c759] mb-2">
-                        รวม: {ot.actual_ot_hours} ชม.
-                        {ot.ot_amount && <span className="text-[#ff9500]">(฿{ot.ot_amount.toFixed(0)})</span>}
-                      </div>
-                    )}
-                    <div className="bg-[#f5f5f7] rounded-xl p-3 mb-2">
-                      <p className="text-[13px] text-[#6e6e73]">
-                        <span className="font-medium text-[#1d1d1f]">เหตุผล:</span> {ot.reason}
+
+                      {/* Date & Time */}
+                      <p className="text-sm text-[#86868b] mb-1">
+                        <Calendar className="w-3.5 h-3.5 inline mr-1" />
+                        {format(new Date(ot.request_date), "EEEE d MMM yyyy", { locale: th })}
                       </p>
+                      <p className="text-sm text-[#6e6e73] mb-1">
+                        <Clock className="w-3.5 h-3.5 inline mr-1" />
+                        ขอ: {format(new Date(ot.requested_start_time), "HH:mm")} - {format(new Date(ot.requested_end_time), "HH:mm")}
+                      </p>
+
+                      {/* Actual times */}
+                      {ot.actual_start_time && (
+                        <p className="text-sm text-[#0071e3] mb-1">
+                          <Play className="w-3.5 h-3.5 inline mr-1" />
+                          จริง: {format(new Date(ot.actual_start_time), "HH:mm")}
+                          {ot.actual_end_time ? ` - ${format(new Date(ot.actual_end_time), "HH:mm")}` : " - กำลังทำ..."}
+                        </p>
+                      )}
+
+                      {/* Hours & Amount */}
+                      {ot.actual_ot_hours && (
+                        <p className="text-sm font-medium mb-1">
+                          <span className="text-[#34c759]">{ot.actual_ot_hours} ชม.</span>
+                          {ot.ot_amount && <span className="text-[#ff9500] ml-2">฿{ot.ot_amount.toLocaleString()}</span>}
+                        </p>
+                      )}
+
+                      {/* Reason */}
+                      <p className="text-xs text-[#6e6e73] bg-[#f5f5f7] rounded-lg px-2.5 py-1.5 mt-2 line-clamp-2">
+                        {ot.reason}
+                      </p>
+
+                      {/* Photos & GPS */}
+                      {(ot.before_photo_url || ot.after_photo_url || ot.start_gps_lat || ot.end_gps_lat) && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {ot.before_photo_url && (
+                            <button onClick={() => setPhotoModal({ url: ot.before_photo_url!, type: "ก่อน" })}
+                              className="flex items-center gap-1 px-2 py-1 text-xs text-[#ff9500] bg-[#ff9500]/10 rounded-lg hover:bg-[#ff9500]/20">
+                              <Camera className="w-3 h-3" />ก่อน
+                            </button>
+                          )}
+                          {ot.after_photo_url && (
+                            <button onClick={() => setPhotoModal({ url: ot.after_photo_url!, type: "หลัง" })}
+                              className="flex items-center gap-1 px-2 py-1 text-xs text-[#34c759] bg-[#34c759]/10 rounded-lg hover:bg-[#34c759]/20">
+                              <Camera className="w-3 h-3" />หลัง
+                            </button>
+                          )}
+                          {ot.start_gps_lat && (
+                            <a href={`https://www.google.com/maps?q=${ot.start_gps_lat},${ot.start_gps_lng}`} target="_blank"
+                              className="flex items-center gap-1 px-2 py-1 text-xs text-[#ff9500] bg-[#ff9500]/10 rounded-lg hover:bg-[#ff9500]/20">
+                              <MapPin className="w-3 h-3" />เริ่ม
+                            </a>
+                          )}
+                          {ot.end_gps_lat && (
+                            <a href={`https://www.google.com/maps?q=${ot.end_gps_lat},${ot.end_gps_lng}`} target="_blank"
+                              className="flex items-center gap-1 px-2 py-1 text-xs text-[#34c759] bg-[#34c759]/10 rounded-lg hover:bg-[#34c759]/20">
+                              <MapPin className="w-3 h-3" />จบ
+                            </a>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    {/* Photos */}
-                    {(ot.before_photo_url || ot.after_photo_url) && (
-                      <div className="flex gap-2 mb-2">
-                        {ot.before_photo_url && (
-                          <button
-                            onClick={() => setViewingPhoto({ url: ot.before_photo_url, type: "ก่อน OT" })}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[#ff9500] bg-[#ff9500]/10 rounded-lg hover:bg-[#ff9500]/20"
-                          >
-                            <Camera className="w-3 h-3" />
-                            ก่อน
-                          </button>
-                        )}
-                        {ot.after_photo_url && (
-                          <button
-                            onClick={() => setViewingPhoto({ url: ot.after_photo_url, type: "หลัง OT" })}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[#34c759] bg-[#34c759]/10 rounded-lg hover:bg-[#34c759]/20"
-                          >
-                            <Camera className="w-3 h-3" />
-                            หลัง
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    {/* GPS Location */}
-                    {(ot.start_gps_lat || ot.end_gps_lat) && (
-                      <div className="flex flex-wrap gap-2">
-                        {ot.start_gps_lat && ot.start_gps_lng && (
-                          <a
-                            href={`https://www.google.com/maps?q=${ot.start_gps_lat},${ot.start_gps_lng}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[#ff9500] bg-[#ff9500]/10 rounded-lg hover:bg-[#ff9500]/20"
-                          >
-                            <MapPin className="w-3 h-3" />
-                            GPS เริ่ม
-                          </a>
-                        )}
-                        {ot.end_gps_lat && ot.end_gps_lng && (
-                          <a
-                            href={`https://www.google.com/maps?q=${ot.end_gps_lat},${ot.end_gps_lng}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[#34c759] bg-[#34c759]/10 rounded-lg hover:bg-[#34c759]/20"
-                          >
-                            <MapPin className="w-3 h-3" />
-                            GPS จบ
-                          </a>
-                        )}
-                      </div>
-                    )}
+
+                    {/* Actions */}
+                    <div className="flex flex-col gap-1.5 ml-2">
+                      <button onClick={() => openEditModal(ot)} className="p-2 text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/20">
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      {ot.status === "approved" && !ot.actual_start_time && (
+                        <button onClick={() => setConfirmModal({ open: true, ot, action: "cancel" })}
+                          className="p-2 text-[#ff3b30] bg-[#ff3b30]/10 rounded-lg hover:bg-[#ff3b30]/20">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {(ot.actual_start_time || ot.status === "completed") && (
+                        <button onClick={() => setConfirmModal({ open: true, ot, action: "reset" })}
+                          className="p-2 text-[#86868b] bg-[#f5f5f7] rounded-lg hover:bg-[#e8e8ed]">
+                          <RotateCcw className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2 flex-wrap md:flex-col">
-                  {/* Edit button - always shown */}
-                  <Button size="sm" variant="secondary" onClick={() => openEditModal(ot)}>
-                    <Edit2 className="w-4 h-4" />
-                    แก้ไข
-                  </Button>
-
-                  {/* Pending: Show link to approvals page */}
-                  {ot.status === "pending" && (
-                    <a
-                      href="/admin/approvals"
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[#ff9500] bg-[#ff9500]/10 rounded-lg hover:bg-[#ff9500]/20"
-                    >
-                      <Clock className="w-4 h-4" />
-                      รออนุมัติ
-                    </a>
-                  )}
-
-                  {/* Approved but not started: Cancel */}
-                  {ot.status === "approved" && !ot.actual_start_time && (
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() =>
-                        setConfirmDialog({ open: true, id: ot.id, action: "cancel", name: ot.employee?.name })
-                      }
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      ยกเลิก
-                    </Button>
-                  )}
-
-                  {/* In progress or completed: Reset */}
-                  {(ot.actual_start_time || ot.status === "completed") && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() =>
-                        setConfirmDialog({ open: true, id: ot.id, action: "reset", name: ot.employee?.name })
-                      }
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                      รีเซ็ต
-                    </Button>
-                  )}
                 </div>
               </div>
             </Card>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Confirm Dialog */}
       <ConfirmDialog
-        isOpen={confirmDialog.open}
-        onClose={() => setConfirmDialog({ open: false, id: "", action: "approve", name: "" })}
-        onConfirm={handleConfirm}
-        title={
-          confirmDialog.action === "approve" ? "ยืนยันการอนุมัติ" :
-            confirmDialog.action === "reject" ? "ยืนยันการปฏิเสธ" :
-              confirmDialog.action === "cancel" ? "ยืนยันการยกเลิก" :
-                "ยืนยันการรีเซ็ต"
-        }
-        message={
-          confirmDialog.action === "approve"
-            ? `คุณต้องการอนุมัติ OT ของ "${confirmDialog.name}" ใช่หรือไม่?`
-            : confirmDialog.action === "reject"
-              ? `คุณต้องการปฏิเสธ OT ของ "${confirmDialog.name}" ใช่หรือไม่?`
-              : confirmDialog.action === "cancel"
-                ? `คุณต้องการยกเลิก OT ของ "${confirmDialog.name}" ใช่หรือไม่? (พนักงานจะไม่สามารถเริ่ม OT นี้ได้)`
-                : `คุณต้องการรีเซ็ต OT ของ "${confirmDialog.name}" ใช่หรือไม่? (จะลบเวลาจริง, รูปภาพ, และชั่วโมง OT ทั้งหมด)`
-        }
-        type={confirmDialog.action === "approve" ? "info" : "danger"}
-        confirmText={
-          confirmDialog.action === "approve" ? "อนุมัติ" :
-            confirmDialog.action === "reject" ? "ปฏิเสธ" :
-              confirmDialog.action === "cancel" ? "ยกเลิก" :
-                "รีเซ็ต"
-        }
+        isOpen={confirmModal.open}
+        onClose={() => setConfirmModal({ open: false, ot: null, action: "" })}
+        onConfirm={handleConfirmAction}
+        title={confirmModal.action === "cancel" ? "ยกเลิก OT" : "รีเซ็ต OT"}
+        message={confirmModal.action === "cancel"
+          ? `ยกเลิก OT ของ "${confirmModal.ot?.employee?.name}" ?`
+          : `รีเซ็ต OT ของ "${confirmModal.ot?.employee?.name}" ? (ลบเวลาจริง, รูป, ชั่วโมง)`}
+        type="danger"
+        confirmText={confirmModal.action === "cancel" ? "ยกเลิก" : "รีเซ็ต"}
         loading={processing}
       />
 
       {/* Edit Modal */}
-      <Modal
-        isOpen={editModal.open}
-        onClose={() => setEditModal({ open: false, ot: null })}
-        title="แก้ไขข้อมูล OT"
-        size="lg"
-      >
+      <Modal isOpen={editModal.open} onClose={() => setEditModal({ open: false, ot: null })} title="แก้ไข OT" size="md">
         <div className="space-y-4">
-          <DateInput
-            label="วันที่"
-            value={editData.requestDate}
-            onChange={(val) => setEditData({ ...editData, requestDate: val })}
-          />
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-1">เวลาเริ่ม (ขอ)</label>
-              <TimeInput
-                value={editData.startTime}
-                onChange={(val) => setEditData({ ...editData, startTime: val })}
-              />
-            </div>
-            <div>
-              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-1">เวลาจบ (ขอ)</label>
-              <TimeInput
-                value={editData.endTime}
-                onChange={(val) => setEditData({ ...editData, endTime: val })}
-              />
-            </div>
+          <DateInput label="วันที่" value={editForm.requestDate} onChange={(v) => setEditForm({ ...editForm, requestDate: v })} />
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="block text-sm font-medium mb-1">เวลาเริ่ม (ขอ)</label><TimeInput value={editForm.startTime} onChange={(v) => setEditForm({ ...editForm, startTime: v })} /></div>
+            <div><label className="block text-sm font-medium mb-1">เวลาจบ (ขอ)</label><TimeInput value={editForm.endTime} onChange={(v) => setEditForm({ ...editForm, endTime: v })} /></div>
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-1">เวลาเริ่มจริง</label>
-              <TimeInput
-                value={editData.actualStartTime}
-                onChange={(val) => setEditData({ ...editData, actualStartTime: val })}
-              />
-            </div>
-            <div>
-              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-1">เวลาจบจริง</label>
-              <TimeInput
-                value={editData.actualEndTime}
-                onChange={(val) => setEditData({ ...editData, actualEndTime: val })}
-              />
-            </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="block text-sm font-medium mb-1">เวลาเริ่มจริง</label><TimeInput value={editForm.actualStartTime} onChange={(v) => setEditForm({ ...editForm, actualStartTime: v })} /></div>
+            <div><label className="block text-sm font-medium mb-1">เวลาจบจริง</label><TimeInput value={editForm.actualEndTime} onChange={(v) => setEditForm({ ...editForm, actualEndTime: v })} /></div>
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-1">ชั่วโมง OT จริง</label>
-              <Input
-                type="number"
-                step="0.5"
-                value={editData.actualOtHours}
-                onChange={(e) => setEditData({ ...editData, actualOtHours: e.target.value })}
-                placeholder="0"
-              />
-            </div>
-            <div>
-              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-1">เงิน OT (บาท)</label>
-              <Input
-                type="number"
-                value={editData.otAmount}
-                onChange={(e) => setEditData({ ...editData, otAmount: e.target.value })}
-                placeholder="0"
-              />
-            </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="ชั่วโมง OT จริง" type="number" step="0.5" value={editForm.actualOtHours} onChange={(e) => setEditForm({ ...editForm, actualOtHours: e.target.value })} />
+            <Input label="เงิน OT (฿)" type="number" value={editForm.otAmount} onChange={(e) => setEditForm({ ...editForm, otAmount: e.target.value })} />
           </div>
-
-          <Select
-            label="สถานะ"
-            value={editData.status}
-            onChange={(val) => setEditData({ ...editData, status: val })}
-            options={[
-              { value: "pending", label: "รออนุมัติ" },
-              { value: "approved", label: "อนุมัติแล้ว" },
-              { value: "rejected", label: "ปฏิเสธ" },
-              { value: "completed", label: "เสร็จสิ้น" },
-              { value: "cancelled", label: "ยกเลิก" },
-            ]}
-          />
-
-          <div className="flex gap-3 pt-4">
-            <Button
-              variant="secondary"
-              onClick={() => setEditModal({ open: false, ot: null })}
-              className="flex-1"
-            >
-              ยกเลิก
-            </Button>
-            <Button onClick={handleSaveEdit} loading={processing} className="flex-1">
-              บันทึก
-            </Button>
+          <Select label="สถานะ" value={editForm.status} onChange={(v) => setEditForm({ ...editForm, status: v })} options={[
+            { value: "pending", label: "รออนุมัติ" }, { value: "approved", label: "อนุมัติแล้ว" },
+            { value: "rejected", label: "ปฏิเสธ" }, { value: "completed", label: "เสร็จสิ้น" }, { value: "cancelled", label: "ยกเลิก" },
+          ]} />
+          <div className="flex gap-3 pt-2">
+            <Button variant="secondary" onClick={() => setEditModal({ open: false, ot: null })} className="flex-1">ยกเลิก</Button>
+            <Button onClick={handleSaveEdit} loading={processing} className="flex-1">บันทึก</Button>
           </div>
         </div>
       </Modal>
 
-      {/* Add OT Modal */}
-      <Modal
-        isOpen={addModal}
-        onClose={() => setAddModal(false)}
-        title="เพิ่ม OT ให้พนักงาน"
-        size="md"
-      >
+      {/* Add Modal */}
+      <Modal isOpen={addModal} onClose={() => setAddModal(false)} title="เพิ่ม OT" size="md">
         <div className="space-y-4">
-          <div>
-            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
-              <User className="w-4 h-4 inline mr-1" />
-              พนักงาน *
-            </label>
-            <Select
-              value={addForm.employeeId}
-              onChange={(val) => setAddForm({ ...addForm, employeeId: val })}
-              options={[
-                { value: "", label: "เลือกพนักงาน" },
-                ...employees.map((emp) => ({
-                  value: emp.id,
-                  label: `${emp.name} (${emp.email})`,
-                })),
-              ]}
-            />
+          <Select label="พนักงาน *" value={addForm.employeeId} onChange={(v) => setAddForm({ ...addForm, employeeId: v })}
+            options={[{ value: "", label: "เลือกพนักงาน" }, ...employees.map((e) => ({ value: e.id, label: e.name }))]} />
+          <DateInput label="วันที่ *" value={addForm.requestDate} onChange={(v) => setAddForm({ ...addForm, requestDate: v })} />
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="block text-sm font-medium mb-1">เวลาเริ่ม</label><TimeInput value={addForm.startTime} onChange={(v) => setAddForm({ ...addForm, startTime: v })} /></div>
+            <div><label className="block text-sm font-medium mb-1">เวลาจบ</label><TimeInput value={addForm.endTime} onChange={(v) => setAddForm({ ...addForm, endTime: v })} /></div>
           </div>
-
-          <div>
-            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
-              <Calendar className="w-4 h-4 inline mr-1" />
-              วันที่ *
-            </label>
-            <DateInput
-              value={addForm.requestDate}
-              onChange={(val) => setAddForm({ ...addForm, requestDate: val })}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เวลาเริ่ม</label>
-              <TimeInput
-                value={addForm.startTime}
-                onChange={(val) => setAddForm({ ...addForm, startTime: val })}
-              />
+          {dayInfo && (
+            <div className={`p-3 rounded-xl border-2 ${dayInfo.type === "holiday" ? "bg-[#ff3b30]/10 border-[#ff3b30]/30" : dayInfo.type === "weekend" ? "bg-[#ff9500]/10 border-[#ff9500]/30" : "bg-[#34c759]/10 border-[#34c759]/30"}`}>
+              <Badge variant={dayInfo.type === "holiday" ? "danger" : dayInfo.type === "weekend" ? "warning" : "success"}>{dayInfo.typeName}</Badge>
+              <span className="ml-2 font-semibold">อัตรา {dayInfo.rate}x</span>
             </div>
-            <div>
-              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เวลาจบ</label>
-              <TimeInput
-                value={addForm.endTime}
-                onChange={(val) => setAddForm({ ...addForm, endTime: val })}
-              />
-            </div>
-          </div>
-
-          {/* Day Type Preview */}
-          <div className={`p-4 rounded-xl border-2 ${loadingDayInfo ? "bg-[#f5f5f7] border-[#d2d2d7]" :
-              dayInfo?.type === "holiday" ? "bg-[#ff3b30]/10 border-[#ff3b30]/30" :
-                dayInfo?.type === "weekend" ? "bg-[#ff9500]/10 border-[#ff9500]/30" :
-                  "bg-[#34c759]/10 border-[#34c759]/30"
-            }`}>
-            <div className="flex items-center gap-2 mb-2">
-              <Info className="w-4 h-4" />
-              <span className="text-[14px] font-medium">ประเภท OT (คำนวณจากวันที่)</span>
-            </div>
-            {loadingDayInfo ? (
-              <div className="flex items-center gap-2 text-[#86868b]">
-                <div className="w-4 h-4 border-2 border-[#86868b] border-t-transparent rounded-full animate-spin" />
-                กำลังตรวจสอบ...
-              </div>
-            ) : dayInfo ? (
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Badge variant={
-                    dayInfo.type === "holiday" ? "danger" :
-                      dayInfo.type === "weekend" ? "warning" :
-                        "success"
-                  }>
-                    {dayInfo.typeName}
-                  </Badge>
-                  <span className="text-[16px] font-semibold">
-                    อัตรา {dayInfo.rate}x
-                  </span>
-                </div>
-                <p className="text-[13px] text-[#6e6e73]">
-                  {dayInfo.requireCheckin ? "⚠️ ต้องเช็คอินก่อนเริ่ม OT" : "✅ ไม่ต้องเช็คอิน"}
-                </p>
-              </div>
-            ) : (
-              <p className="text-[#86868b]">เลือกวันที่เพื่อดูประเภท OT</p>
-            )}
-          </div>
-
-          <Select
-            label="สถานะ"
-            value={addForm.status}
-            onChange={(val) => setAddForm({ ...addForm, status: val })}
-            options={[
-              { value: "approved", label: "อนุมัติทันที" },
-              { value: "pending", label: "รออนุมัติ" },
-            ]}
-          />
-
-          <div>
-            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เหตุผล *</label>
-            <Input
-              value={addForm.reason}
-              onChange={(e) => setAddForm({ ...addForm, reason: e.target.value })}
-              placeholder="เช่น งานด่วน, ปิดงบ, ประชุมลูกค้า"
-            />
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <Button variant="secondary" onClick={() => setAddModal(false)} className="flex-1">
-              ยกเลิก
-            </Button>
-            <Button onClick={handleAddOT} loading={processing} className="flex-1">
-              <Plus className="w-4 h-4" />
-              เพิ่ม OT
-            </Button>
+          )}
+          <Select label="สถานะ" value={addForm.status} onChange={(v) => setAddForm({ ...addForm, status: v })}
+            options={[{ value: "approved", label: "อนุมัติทันที" }, { value: "pending", label: "รออนุมัติ" }]} />
+          <Input label="เหตุผล *" value={addForm.reason} onChange={(e) => setAddForm({ ...addForm, reason: e.target.value })} placeholder="เช่น งานด่วน" />
+          <div className="flex gap-3 pt-2">
+            <Button variant="secondary" onClick={() => setAddModal(false)} className="flex-1">ยกเลิก</Button>
+            <Button onClick={handleAddOT} loading={processing} className="flex-1">เพิ่ม OT</Button>
           </div>
         </div>
       </Modal>
 
       {/* Photo Modal */}
-      {viewingPhoto && (
-        <div
-          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
-          onClick={() => setViewingPhoto(null)}
-        >
-          <div className="relative max-w-full max-h-[90vh]">
-            <button
-              className="absolute -top-12 right-0 p-2 bg-white rounded-full shadow-lg"
-              onClick={() => setViewingPhoto(null)}
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <div className="bg-white rounded-2xl overflow-hidden">
-              <div className="px-4 py-2 bg-[#f5f5f7] border-b border-[#e8e8ed]">
-                <p className="text-[14px] font-medium text-[#1d1d1f]">รูปภาพ{viewingPhoto.type}</p>
-              </div>
-              <img
-                src={viewingPhoto.url}
-                alt={viewingPhoto.type}
-                className="max-w-[90vw] max-h-[70vh] object-contain"
-              />
-            </div>
+      {photoModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setPhotoModal(null)}>
+          <button className="absolute top-4 right-4 p-2 bg-white rounded-full" onClick={() => setPhotoModal(null)}><X className="w-5 h-5" /></button>
+          <div className="bg-white rounded-2xl overflow-hidden max-w-[90vw]">
+            <div className="px-4 py-2 bg-[#f5f5f7] border-b text-sm font-medium">รูปภาพ{photoModal.type}</div>
+            <img src={photoModal.url} alt="" className="max-h-[70vh] object-contain" />
           </div>
         </div>
       )}

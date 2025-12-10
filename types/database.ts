@@ -16,6 +16,7 @@ export interface Database {
           email: string
           phone: string
           role: 'staff' | 'supervisor' | 'admin'
+          base_salary: number | null
           base_salary_rate: number | null
           ot_rate_1x: number | null
           ot_rate_1_5x: number | null
@@ -23,6 +24,10 @@ export interface Database {
           face_profile_image_url: string | null
           device_id: string | null
           branch_id: string | null
+          account_status: string | null
+          line_user_id: string | null
+          commission: number | null
+          is_system_account: boolean | null
           created_at: string
           updated_at: string
         }
@@ -32,6 +37,7 @@ export interface Database {
           email: string
           phone: string
           role?: 'staff' | 'supervisor' | 'admin'
+          base_salary?: number | null
           base_salary_rate?: number | null
           ot_rate_1x?: number | null
           ot_rate_1_5x?: number | null
@@ -39,6 +45,10 @@ export interface Database {
           face_profile_image_url?: string | null
           device_id?: string | null
           branch_id?: string | null
+          account_status?: string | null
+          line_user_id?: string | null
+          commission?: number | null
+          is_system_account?: boolean | null
           created_at?: string
           updated_at?: string
         }
@@ -48,6 +58,7 @@ export interface Database {
           email?: string
           phone?: string
           role?: 'staff' | 'supervisor' | 'admin'
+          base_salary?: number | null
           base_salary_rate?: number | null
           ot_rate_1x?: number | null
           ot_rate_1_5x?: number | null
@@ -55,6 +66,10 @@ export interface Database {
           face_profile_image_url?: string | null
           device_id?: string | null
           branch_id?: string | null
+          account_status?: string | null
+          line_user_id?: string | null
+          commission?: number | null
+          is_system_account?: boolean | null
           created_at?: string
           updated_at?: string
         }
@@ -265,6 +280,7 @@ export interface Database {
     }
   }
 }
+
 
 
 

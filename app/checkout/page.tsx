@@ -217,12 +217,12 @@ function CheckoutContent() {
       if (isEarlyCheckout) {
         // บันทึก anomaly
         await supabase.from("attendance_anomalies").insert({
-          attendance_log_id: todayLog.id,
+          attendance_id: todayLog.id,
+          employee_id: todayLog.employee_id,
+          date: format(new Date(), "yyyy-MM-dd"),
           anomaly_type: "early_checkout",
           description: `พนักงานเช็คเอาท์ก่อนเวลา (${now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false })}) เวลาปกติ ${allowedTime.checkoutStart} น.`,
-          detected_at: now.toISOString(),
-          original_value: allowedTime.checkoutStart,
-          resolved: false,
+          status: "pending",
         });
 
         // แจ้งเตือนแอดมินผ่าน LINE

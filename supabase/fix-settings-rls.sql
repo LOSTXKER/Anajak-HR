@@ -27,14 +27,13 @@ CREATE POLICY "Service role can read settings"
   ON system_settings FOR SELECT
   USING (auth.jwt()->>'role' = 'service_role');
 
--- Also allow authenticated users to read specific notification-related settings
+-- Also allow authenticated users to read common work-related settings
 DROP POLICY IF EXISTS "Authenticated can read notification settings" ON system_settings;
-CREATE POLICY "Authenticated can read notification settings"
+DROP POLICY IF EXISTS "Authenticated can read work settings" ON system_settings;
+
+CREATE POLICY "Authenticated can read work settings"
   ON system_settings FOR SELECT
-  USING (
-    auth.role() = 'authenticated' AND 
-    setting_key IN ('enable_notifications', 'line_channel_access_token', 'line_recipient_id', 'line_recipient_type')
-  );
+  USING (auth.role() = 'authenticated');
 
 SELECT 'RLS Policies for system_settings updated!' as message;
 

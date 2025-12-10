@@ -71,10 +71,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq("id", userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching employee - Code:", error.code, "Message:", error.message, "Details:", error.details);
+        // If row not found, user may not exist in employees table yet
+        if (error.code === 'PGRST116') {
+          console.warn("Employee record not found for user:", userId);
+        }
+        return;
+      }
       setEmployee(data);
-    } catch (error) {
-      console.error("Error fetching employee:", error);
+    } catch (error: any) {
+      console.error("Error fetching employee:", error?.message || error);
     } finally {
       setLoading(false);
     }

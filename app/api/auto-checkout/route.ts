@@ -52,8 +52,7 @@ export async function POST(request: NextRequest) {
         *,
         employee:employees!employee_id(id, name, email, role, line_user_id)
       `)
-      .gte("clock_in_time", `${today}T00:00:00+07:00`)
-      .lt("clock_in_time", `${today}T23:59:59+07:00`)
+      .eq("work_date", today)
       .is("clock_out_time", null);
 
     // ตรวจสอบ error ก่อน
