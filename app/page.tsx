@@ -627,7 +627,7 @@ export default function HomePage() {
         <div className="grid grid-cols-2 gap-3 mb-6">
           {/* OT Summary Card */}
           <Link href="/my-profile?tab=ot">
-            <div className="bg-gradient-to-br from-[#ff9500] to-[#ff6f00] rounded-2xl p-4 text-white shadow-sm hover:shadow-md transition-all">
+            <div className="bg-gradient-to-br from-[#c77700] to-[#a65f00] rounded-2xl p-4 text-white shadow-sm hover:shadow-md transition-all">
               <div className="flex items-center gap-2 mb-2">
                 <Timer className="w-5 h-5" />
                 <span className="text-[13px] font-medium opacity-90">OT เดือนนี้</span>
@@ -639,7 +639,7 @@ export default function HomePage() {
 
           {/* Leave Quota Card */}
           <Link href="/my-profile?tab=leave">
-            <div className="bg-gradient-to-br from-[#34c759] to-[#28a745] rounded-2xl p-4 text-white shadow-sm hover:shadow-md transition-all">
+            <div className="bg-gradient-to-br from-[#2d8a4e] to-[#1f6b3a] rounded-2xl p-4 text-white shadow-sm hover:shadow-md transition-all">
               <div className="flex items-center gap-2 mb-2">
                 <Calendar className="w-5 h-5" />
                 <span className="text-[13px] font-medium opacity-90">วันลาคงเหลือ</span>
@@ -651,8 +651,15 @@ export default function HomePage() {
                     ป่วย {leaveBalance.sick_remaining} • กิจ {leaveBalance.personal_remaining}
                   </p>
                 </>
+              ) : employee ? (
+                <>
+                  <p className="text-2xl font-bold">{employee.annual_leave_quota || 10} <span className="text-sm font-normal opacity-80">พักร้อน</span></p>
+                  <p className="text-[13px] opacity-80 mt-1">
+                    ป่วย {employee.sick_leave_quota || 30} • กิจ {employee.personal_leave_quota || 3}
+                  </p>
+                </>
               ) : (
-                <p className="text-lg font-medium opacity-80">ไม่มีข้อมูล</p>
+                <p className="text-lg font-medium opacity-80">-</p>
               )}
             </div>
           </Link>
@@ -699,23 +706,6 @@ export default function HomePage() {
           </div>
         </Link>
 
-        {/* History Link */}
-        <Link href="/history">
-          <div className="bg-gradient-to-r from-[#5856d6] to-[#7c7aff] rounded-2xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                  <ChartBar className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-[17px] font-semibold text-white">ดูประวัติการทำงาน</h3>
-                  <p className="text-[13px] text-white/70">เช็คสถิติและรายละเอียด</p>
-                </div>
-              </div>
-              <ArrowRight className="w-5 h-5 text-white/70" />
-            </div>
-          </div>
-        </Link>
       </main>
     </div>
   );
