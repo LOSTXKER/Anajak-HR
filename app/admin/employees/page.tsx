@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -592,8 +592,16 @@ function EmployeesContent() {
 
 export default function EmployeesPage() {
   return (
-    <ProtectedRoute allowedRoles={["admin", "supervisor"]}>
-      <EmployeesContent />
+    <ProtectedRoute allowedRoles={["admin"]}>
+      <Suspense fallback={
+        <AdminLayout title="จัดการพนักงาน">
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
+          </div>
+        </AdminLayout>
+      }>
+        <EmployeesContent />
+      </Suspense>
     </ProtectedRoute>
   );
 }
