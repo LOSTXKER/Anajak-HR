@@ -114,14 +114,15 @@ function ApprovalsContent() {
 
       const allRequests: PendingRequest[] = [];
 
-      // Process OT
+      // Process OT (skip if employee not found - admin or deleted)
       (otRes.data || []).forEach((r: any) => {
+        if (!r.employee?.id) return;
         allRequests.push({
           id: r.id,
           type: "ot",
-          employeeId: r.employee?.id,
-          employeeName: r.employee?.name || "Unknown",
-          employeeEmail: r.employee?.email || "",
+          employeeId: r.employee.id,
+          employeeName: r.employee.name,
+          employeeEmail: r.employee.email || "",
           date: r.request_date,
           title: `OT ${format(new Date(r.requested_start_time), "HH:mm")} - ${format(new Date(r.requested_end_time), "HH:mm")}`,
           subtitle: format(new Date(r.request_date), "d MMM yyyy", { locale: th }),
@@ -131,8 +132,9 @@ function ApprovalsContent() {
         });
       });
 
-      // Process Leave
+      // Process Leave (skip if employee not found - admin or deleted)
       (leaveRes.data || []).forEach((r: any) => {
+        if (!r.employee?.id) return;
         const leaveTypeLabels: Record<string, string> = {
           sick: "ลาป่วย", personal: "ลากิจ", annual: "ลาพักร้อน",
           maternity: "ลาคลอด", military: "ลากรณีทหาร", other: "อื่นๆ"
@@ -140,9 +142,9 @@ function ApprovalsContent() {
         allRequests.push({
           id: r.id,
           type: "leave",
-          employeeId: r.employee?.id,
-          employeeName: r.employee?.name || "Unknown",
-          employeeEmail: r.employee?.email || "",
+          employeeId: r.employee.id,
+          employeeName: r.employee.name,
+          employeeEmail: r.employee.email || "",
           date: r.start_date,
           title: leaveTypeLabels[r.leave_type] || r.leave_type,
           subtitle: r.is_half_day 
@@ -154,14 +156,15 @@ function ApprovalsContent() {
         });
       });
 
-      // Process WFH
+      // Process WFH (skip if employee not found - admin or deleted)
       (wfhRes.data || []).forEach((r: any) => {
+        if (!r.employee?.id) return;
         allRequests.push({
           id: r.id,
           type: "wfh",
-          employeeId: r.employee?.id,
-          employeeName: r.employee?.name || "Unknown",
-          employeeEmail: r.employee?.email || "",
+          employeeId: r.employee.id,
+          employeeName: r.employee.name,
+          employeeEmail: r.employee.email || "",
           date: r.date,
           title: r.is_half_day ? "WFH ครึ่งวัน" : "WFH เต็มวัน",
           subtitle: format(new Date(r.date), "EEEE d MMM yyyy", { locale: th }),
@@ -171,14 +174,15 @@ function ApprovalsContent() {
         });
       });
 
-      // Process Late
+      // Process Late (skip if employee not found - admin or deleted)
       (lateRes.data || []).forEach((r: any) => {
+        if (!r.employee?.id) return;
         allRequests.push({
           id: r.id,
           type: "late",
-          employeeId: r.employee?.id,
-          employeeName: r.employee?.name || "Unknown",
-          employeeEmail: r.employee?.email || "",
+          employeeId: r.employee.id,
+          employeeName: r.employee.name,
+          employeeEmail: r.employee.email || "",
           date: r.request_date,
           title: r.actual_late_minutes ? `สาย ${r.actual_late_minutes} นาที` : "ขออนุมัติมาสาย",
           subtitle: format(new Date(r.request_date), "d MMM yyyy", { locale: th }),

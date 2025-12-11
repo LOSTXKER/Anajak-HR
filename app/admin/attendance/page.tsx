@@ -264,6 +264,9 @@ function AttendanceContent() {
           const key = `${att.employee_id}-${dateStr}`;
           processedKeys.add(key);
 
+          // Skip if employee not found (admin or deleted employee)
+          if (!emp) return;
+
           const empOt = otData.filter((o: any) => o.employee_id === att.employee_id && o.request_date === dateStr);
           const empLeave = leaveData.find(
             (l: any) => l.employee_id === att.employee_id && l.start_date <= dateStr && l.end_date >= dateStr
@@ -275,7 +278,7 @@ function AttendanceContent() {
 
           rows.push({
             id: att.id,
-            employee: emp || { id: att.employee_id, name: "Unknown", email: "", branch_id: null, role: "staff" },
+            employee: emp,
             workDate: dateStr,
             clockIn: att.clock_in_time,
             clockOut: att.clock_out_time,
@@ -301,12 +304,16 @@ function AttendanceContent() {
           if (!processedKeys.has(key)) {
             processedKeys.add(key);
             const emp = employees.find((e) => e.id === ot.employee_id);
+            
+            // Skip if employee not found (admin or deleted employee)
+            if (!emp) return;
+            
             const dateStr = ot.request_date;
             const empOt = otData.filter((o: any) => o.employee_id === ot.employee_id && o.request_date === dateStr);
 
             rows.push({
               id: `ot-${ot.id}`,
-              employee: emp || { id: ot.employee_id, name: "Unknown", email: "", branch_id: null, role: "staff" },
+              employee: emp,
               workDate: dateStr,
               clockIn: null,
               clockOut: null,
