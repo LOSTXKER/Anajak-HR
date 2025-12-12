@@ -208,6 +208,50 @@ function ApprovalsContent() {
     fetchPending();
   }, [fetchPending]);
 
+  // Helper: สร้าง/อัปเดต attendance_logs สำหรับวันที่กำหนด
+  const upsertAttendanceLog = async (
+    employeeId: string,
+    date: string,
+    status: "leave" | "wfh"
+  ) => {
+    // ตรวจสอบว่ามี record อยู่แล้วหรือไม่
+    const { data: existing } = await supabase
+      .from("attendance_logs")
+      .select("id")
+      .eq("employee_id", employeeId)
+      .eq("work_date", date)
+      .maybeSingle();
+
+    if (existing) {
+      // อัปเดต status
+      await supabase
+        .from("attendance_logs")
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq("id", existing.id);
+    } else {
+      // สร้างใหม่
+      await supabase.from("attendance_logs").insert({
+        employee_id: employeeId,
+        work_date: date,
+        status,
+      });
+    }
+  };
+
+  // Helper: สร้าง dates array จาก start_date ถึง end_date
+  const getDateRange = (startDate: string, endDate: string): string[] => {
+    const dates: string[] = [];
+    const current = new Date(startDate);
+    const end = new Date(endDate);
+    
+    while (current <= end) {
+      dates.push(current.toISOString().split("T")[0]);
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return dates;
+  };
+
   // Handle approve/reject
   const handleAction = async (request: PendingRequest, approved: boolean) => {
     if (!currentAdmin) return;
@@ -241,6 +285,22 @@ function ApprovalsContent() {
         .eq("id", request.id);
 
       if (error) throw error;
+
+      // ✅ เมื่ออนุมัติ Leave → สร้าง/อัปเดต attendance_logs.status = 'leave'
+      if (request.type === "leave" && approved && request.employeeId) {
+        const rawData = request.rawData;
+        const dates = getDateRange(rawData.start_date, rawData.end_date);
+        
+        for (const date of dates) {
+          await upsertAttendanceLog(request.employeeId, date, "leave");
+        }
+      }
+
+      // ✅ เมื่ออนุมัติ WFH → สร้าง/อัปเดต attendance_logs.status = 'wfh'
+      if (request.type === "wfh" && approved && request.employeeId) {
+        const rawData = request.rawData;
+        await upsertAttendanceLog(request.employeeId, rawData.date, "wfh");
+      }
 
       // Send notification
       try {
