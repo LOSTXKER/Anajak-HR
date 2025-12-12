@@ -98,6 +98,7 @@ export function Sidebar() {
       items: [
         { title: "Dashboard", href: "/admin", icon: LayoutGrid },
         { title: "อนุมัติ", href: "/admin/approvals", icon: FileText, badge: pendingCounts.ot + pendingCounts.leave + pendingCounts.wfh + pendingCounts.late },
+        { title: "เพิ่มคำขอ", href: "/admin/requests/create", icon: Users },
         { title: "การเข้างาน", href: "/admin/attendance", icon: Clock },
         { title: "พนักงาน", href: "/admin/employees", icon: Users, badge: pendingCounts.employees },
       ],
