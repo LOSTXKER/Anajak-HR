@@ -23,12 +23,16 @@ BEGIN
     INSERT INTO employees (
       email,
       name,
+      phone,
       role,
+      account_status,
       is_system_account
     ) VALUES (
       'system@anajak.com',
       'ระบบอัตโนมัติ',
+      '0000000000',
       'admin',
+      'approved',
       true
     );
   END IF;
