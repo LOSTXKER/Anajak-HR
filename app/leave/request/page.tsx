@@ -28,6 +28,7 @@ function LeaveRequestContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [isAutoApproved, setIsAutoApproved] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   // Admin is system account - redirect to admin panel
@@ -198,8 +199,16 @@ function LeaveRequestContent() {
         setUploading(false);
       }
 
-      // Insert leave request
-      const { error: insertError } = await supabase.from("leave_requests").insert({
+      // Check auto approve setting
+      const { data: autoApproveSetting } = await supabase
+        .from("system_settings")
+        .select("setting_value")
+        .eq("setting_key", "auto_approve_leave")
+        .single();
+
+      const isAutoApprove = autoApproveSetting?.setting_value === "true";
+
+      const insertData: any = {
         employee_id: employee.id,
         leave_type: formData.leaveType,
         start_date: formData.startDate,
@@ -207,11 +216,31 @@ function LeaveRequestContent() {
         is_half_day: formData.isHalfDay,
         reason: formData.reason,
         attachment_url: attachmentUrl,
-        status: "pending",
-      });
+        status: isAutoApprove ? "approved" : "pending",
+      };
+
+      // If auto approve, set approved info
+      if (isAutoApprove) {
+        insertData.approved_at = new Date().toISOString();
+        
+        // Get system user ID
+        const { data: systemUser } = await supabase
+          .from("employees")
+          .select("id")
+          .eq("email", "system@anajak.com")
+          .single();
+        
+        if (systemUser) {
+          insertData.approved_by = systemUser.id;
+        }
+      }
+
+      // Insert leave request
+      const { error: insertError } = await supabase.from("leave_requests").insert(insertData);
 
       if (insertError) throw insertError;
 
+      setIsAutoApproved(isAutoApprove);
       setSuccess(true);
       setTimeout(() => router.push("/"), 2000);
     } catch (err: any) {
@@ -230,10 +259,12 @@ function LeaveRequestContent() {
             <CheckCircle className="w-10 h-10 text-white" strokeWidth={2.5} />
           </div>
           <h2 className="text-[28px] font-semibold text-[#1d1d1f] mb-2">
-            ส่งคำขอสำเร็จ
+            {isAutoApproved ? "อนุมัติอัตโนมัติ" : "ส่งคำขอสำเร็จ"}
           </h2>
           <p className="text-[17px] text-[#86868b]">
-            รอการอนุมัติจากหัวหน้างาน
+            {isAutoApproved 
+              ? "คำขอของคุณได้รับการอนุมัติทันที ✅" 
+              : "รอการอนุมัติจากหัวหน้างาน"}
           </p>
         </div>
       </div>

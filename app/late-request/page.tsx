@@ -123,14 +123,36 @@ function LateRequestContent() {
       // ดึงข้อมูล late_minutes จาก attendance
       const attendance = lateAttendances.find((a: any) => a.work_date === selectedDate);
       
+      // Check auto approve setting
+      const { data: autoApproveSetting } = await supabase
+        .from("system_settings")
+        .select("setting_value")
+        .eq("setting_key", "auto_approve_late")
+        .single();
+
+      const isAutoApprove = autoApproveSetting?.setting_value === "true";
+
+      const insertData: any = {
+        employee_id: employee!.id,
+        request_date: selectedDate,
+        reason: reason.trim(),
+        actual_late_minutes: attendance?.late_minutes || null,
+        status: isAutoApprove ? "approved" : "pending",
+      };
+
+      if (isAutoApprove) {
+        insertData.approved_at = new Date().toISOString();
+        const { data: systemUser } = await supabase
+          .from("employees")
+          .select("id")
+          .eq("email", "system@anajak.com")
+          .single();
+        if (systemUser) insertData.approved_by = systemUser.id;
+      }
+
       const { error: insertError } = await supabase
         .from("late_requests")
-        .insert({
-          employee_id: employee!.id,
-          request_date: selectedDate,
-          reason: reason.trim(),
-          actual_late_minutes: attendance?.late_minutes || null,
-        });
+        .insert(insertData);
 
       if (insertError) throw insertError;
 

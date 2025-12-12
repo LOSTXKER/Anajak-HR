@@ -76,14 +76,35 @@ function FieldWorkRequestContent() {
         return;
       }
 
-      const { error: insertError } = await supabase.from("field_work_requests").insert({
+      // Check auto approve setting
+      const { data: autoApproveSetting } = await supabase
+        .from("system_settings")
+        .select("setting_value")
+        .eq("setting_key", "auto_approve_field_work")
+        .single();
+
+      const isAutoApprove = autoApproveSetting?.setting_value === "true";
+
+      const insertData: any = {
         employee_id: employee.id,
         date: formData.date,
         is_half_day: formData.isHalfDay,
         location: formData.location.trim(),
         reason: formData.reason.trim(),
-        status: "pending",
-      });
+        status: isAutoApprove ? "approved" : "pending",
+      };
+
+      if (isAutoApprove) {
+        insertData.approved_at = new Date().toISOString();
+        const { data: systemUser } = await supabase
+          .from("employees")
+          .select("id")
+          .eq("email", "system@anajak.com")
+          .single();
+        if (systemUser) insertData.approved_by = systemUser.id;
+      }
+
+      const { error: insertError } = await supabase.from("field_work_requests").insert(insertData);
 
       if (insertError) throw insertError;
 

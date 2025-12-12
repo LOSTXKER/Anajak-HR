@@ -19,6 +19,7 @@ import {
   Settings2,
   UserCheck,
   Shield,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { TimeInput } from "@/components/ui/TimeInput";
@@ -398,6 +399,23 @@ function SettingsContent() {
 
         {/* Right Column - Setting Links */}
         <div className="space-y-6">
+          {/* Auto Approve */}
+          <Card elevated>
+            <div className="flex items-center gap-3 mb-4">
+              <Zap className="w-5 h-5 text-[#ff9500]" />
+              <h3 className="text-[15px] font-semibold text-[#1d1d1f]">อนุมัติอัตโนมัติ</h3>
+            </div>
+            <div className="space-y-3">
+              <SettingLink
+                href="/admin/settings/auto-approve"
+                icon={Zap}
+                color="text-[#ff9500]"
+                title="ตั้งค่าอนุมัติอัตโนมัติ"
+                description="เปิด/ปิดอนุมัติอัตโนมัติสำหรับ OT, ลา, WFH, มาสาย, งานนอกสถานที่"
+              />
+            </div>
+          </Card>
+
           {/* OT & Payroll */}
           <Card elevated>
             <div className="flex items-center gap-3 mb-4">
