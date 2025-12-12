@@ -145,6 +145,13 @@ function EmployeeProfileContent() {
   const [leaveData, setLeaveData] = useState<LeaveRecord[]>([]);
   const [wfhData, setWfhData] = useState<WFHRecord[]>([]);
   const [lateData, setLateData] = useState<LateRequestRecord[]>([]);
+  
+  // Leave balance (yearly)
+  const [leaveBalance, setLeaveBalance] = useState<{
+    sick_used: number;
+    personal_used: number;
+    annual_used: number;
+  }>({ sick_used: 0, personal_used: 0, annual_used: 0 });
 
   // Edit mode
   const [editMode, setEditMode] = useState(false);
@@ -208,6 +215,7 @@ function EmployeeProfileContent() {
           .order("request_date", { ascending: false });
         setOtData(data || []);
       } else if (activeTab === "leave") {
+        // Fetch leave data for current month
         const { data } = await supabase
           .from("leave_requests")
           .select("*")
@@ -215,6 +223,32 @@ function EmployeeProfileContent() {
           .or(`start_date.lte.${endDate},end_date.gte.${startDate}`)
           .order("start_date", { ascending: false });
         setLeaveData(data || []);
+        
+        // Fetch yearly leave usage (approved only)
+        const currentYear = new Date().getFullYear();
+        const yearStart = `${currentYear}-01-01`;
+        const yearEnd = `${currentYear}-12-31`;
+        
+        const { data: yearlyLeave } = await supabase
+          .from("leave_requests")
+          .select("leave_type, start_date, end_date, is_half_day")
+          .eq("employee_id", employeeId)
+          .eq("status", "approved")
+          .gte("start_date", yearStart)
+          .lte("start_date", yearEnd);
+        
+        // Calculate used days per type
+        const usedDays = { sick_used: 0, personal_used: 0, annual_used: 0 };
+        (yearlyLeave || []).forEach((leave: any) => {
+          const start = new Date(leave.start_date);
+          const end = new Date(leave.end_date);
+          const days = leave.is_half_day ? 0.5 : Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          
+          if (leave.leave_type === "sick") usedDays.sick_used += days;
+          else if (leave.leave_type === "personal") usedDays.personal_used += days;
+          else if (leave.leave_type === "annual") usedDays.annual_used += days;
+        });
+        setLeaveBalance(usedDays);
       } else if (activeTab === "wfh") {
         const { data } = await supabase
           .from("wfh_requests")
@@ -805,16 +839,39 @@ function EmployeeProfileContent() {
           {/* Leave Quota Cards */}
           <div className="grid grid-cols-3 gap-3 mb-4">
             {[
-              { type: "ลาป่วย", quota: employee.sick_leave_quota || 0, color: "text-[#ff3b30]", bg: "bg-[#ff3b30]/10" },
-              { type: "ลากิจ", quota: employee.personal_leave_quota || 0, color: "text-[#ff9500]", bg: "bg-[#ff9500]/10" },
-              { type: "ลาพักร้อน", quota: employee.annual_leave_quota || 0, color: "text-[#0071e3]", bg: "bg-[#0071e3]/10" },
-            ].map((q, i) => (
-              <Card key={i} elevated className="!p-4">
-                <div className={`text-xs font-medium ${q.color} mb-1`}>{q.type}</div>
-                <div className="text-2xl font-bold text-[#1d1d1f]">{q.quota}</div>
-                <div className="text-xs text-[#86868b]">วัน (โควต้า)</div>
-              </Card>
-            ))}
+              { 
+                type: "ลาป่วย", 
+                quota: employee.sick_leave_quota || 0, 
+                used: leaveBalance.sick_used,
+                color: "text-[#ff3b30]", 
+                bg: "bg-[#ff3b30]/10" 
+              },
+              { 
+                type: "ลากิจ", 
+                quota: employee.personal_leave_quota || 0, 
+                used: leaveBalance.personal_used,
+                color: "text-[#ff9500]", 
+                bg: "bg-[#ff9500]/10" 
+              },
+              { 
+                type: "ลาพักร้อน", 
+                quota: employee.annual_leave_quota || 0, 
+                used: leaveBalance.annual_used,
+                color: "text-[#0071e3]", 
+                bg: "bg-[#0071e3]/10" 
+              },
+            ].map((q, i) => {
+              const remaining = q.quota - q.used;
+              return (
+                <Card key={i} elevated className="!p-4">
+                  <div className={`text-xs font-medium ${q.color} mb-1`}>{q.type}</div>
+                  <div className="text-2xl font-bold text-[#1d1d1f]">{remaining}</div>
+                  <div className="text-xs text-[#86868b]">
+                    คงเหลือ <span className="text-[#1d1d1f]">({q.used}/{q.quota} วัน)</span>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
 
           <Card elevated padding="none">
