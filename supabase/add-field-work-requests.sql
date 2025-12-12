@@ -23,6 +23,12 @@ CREATE INDEX IF NOT EXISTS idx_field_work_status ON field_work_requests(status);
 -- Enable RLS
 ALTER TABLE field_work_requests ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies (if any)
+DROP POLICY IF EXISTS "Employees can view their own field work requests" ON field_work_requests;
+DROP POLICY IF EXISTS "Employees can create their own field work requests" ON field_work_requests;
+DROP POLICY IF EXISTS "Supervisors and admins can update field work requests" ON field_work_requests;
+DROP POLICY IF EXISTS "Employees can cancel their own pending field work requests" ON field_work_requests;
+
 -- RLS Policies
 -- พนักงานดูคำขอของตัวเอง / Admin-Supervisor ดูทั้งหมด
 CREATE POLICY "Employees can view their own field work requests"
