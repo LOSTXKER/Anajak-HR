@@ -28,7 +28,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { th } from "date-fns/locale";
 
 // Types
-type RequestType = "ot" | "leave" | "wfh" | "late";
+type RequestType = "ot" | "leave" | "wfh" | "late" | "field_work";
 
 interface PendingRequest {
   id: string;
@@ -50,6 +50,7 @@ const typeConfig: Record<RequestType, { label: string; icon: any; color: string;
   leave: { label: "ลา", icon: Calendar, color: "text-[#0071e3]", bgColor: "bg-[#0071e3]/10" },
   wfh: { label: "WFH", icon: Home, color: "text-[#af52de]", bgColor: "bg-[#af52de]/10" },
   late: { label: "มาสาย", icon: AlertTriangle, color: "text-[#ff3b30]", bgColor: "bg-[#ff3b30]/10" },
+  field_work: { label: "งานนอกสถานที่", icon: Home, color: "text-[#34c759]", bgColor: "bg-[#34c759]/10" },
 };
 
 function ApprovalsContent() {
@@ -73,7 +74,7 @@ function ApprovalsContent() {
 
   // Stats
   const stats = useMemo(() => {
-    const counts = { ot: 0, leave: 0, wfh: 0, late: 0 };
+    const counts = { ot: 0, leave: 0, wfh: 0, late: 0, field_work: 0 };
     requests.forEach(r => counts[r.type]++);
     return { ...counts, total: requests.length };
   }, [requests]);
@@ -82,7 +83,7 @@ function ApprovalsContent() {
   const fetchPending = useCallback(async () => {
     setLoading(true);
     try {
-      const [otRes, leaveRes, wfhRes, lateRes] = await Promise.all([
+      const [otRes, leaveRes, wfhRes, lateRes, fieldWorkRes] = await Promise.all([
         // OT requests
         supabase
           .from("ot_requests")
@@ -107,6 +108,13 @@ function ApprovalsContent() {
         // Late requests
         supabase
           .from("late_requests")
+          .select("*, employee:employees!employee_id(id, name, email)")
+          .eq("status", "pending")
+          .order("created_at", { ascending: false }),
+        
+        // Field Work requests
+        supabase
+          .from("field_work_requests")
           .select("*, employee:employees!employee_id(id, name, email)")
           .eq("status", "pending")
           .order("created_at", { ascending: false }),
@@ -192,6 +200,24 @@ function ApprovalsContent() {
         });
       });
 
+      // Process Field Work (skip if employee not found - admin or deleted)
+      (fieldWorkRes.data || []).forEach((r: any) => {
+        if (!r.employee?.id) return;
+        allRequests.push({
+          id: r.id,
+          type: "field_work",
+          employeeId: r.employee.id,
+          employeeName: r.employee.name,
+          employeeEmail: r.employee.email || "",
+          date: r.date,
+          title: r.is_half_day ? "งานนอกสถานที่ ครึ่งวัน" : "งานนอกสถานที่ เต็มวัน",
+          subtitle: `${format(new Date(r.date), "EEEE d MMM yyyy", { locale: th })} • ${r.location}`,
+          reason: r.reason,
+          createdAt: r.created_at,
+          rawData: r,
+        });
+      });
+
       // Sort by createdAt
       allRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       
@@ -221,6 +247,7 @@ function ApprovalsContent() {
         leave: "leave_requests",
         wfh: "wfh_requests",
         late: "late_requests",
+        field_work: "field_work_requests",
       };
 
       const updateData: any = {

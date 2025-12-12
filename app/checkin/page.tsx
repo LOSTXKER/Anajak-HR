@@ -198,8 +198,20 @@ function CheckinContent() {
       return;
     }
 
-    // บังคับตรวจสอบรัศมี
-    if (radiusCheck && !radiusCheck.inRadius) {
+    // ตรวจสอบว่ามี approved field work request หรือไม่
+    const today = format(new Date(), "yyyy-MM-dd");
+    const { data: fieldWorkData } = await supabase
+      .from("field_work_requests")
+      .select("id")
+      .eq("employee_id", employee.id)
+      .eq("date", today)
+      .eq("status", "approved")
+      .maybeSingle();
+
+    const hasFieldWork = !!fieldWorkData;
+
+    // บังคับตรวจสอบรัศมี (ข้ามถ้ามี approved field work)
+    if (!hasFieldWork && radiusCheck && !radiusCheck.inRadius) {
       setError(`คุณอยู่นอกรัศมีที่อนุญาต (ห่าง ${formatDistance(radiusCheck.distance)} จากสาขา ${branch.name})`);
       return;
     }
@@ -208,8 +220,6 @@ function CheckinContent() {
     setError("");
 
     try {
-      const today = format(new Date(), "yyyy-MM-dd");
-
       // Check if already checked in
       const { data: existing } = await supabase
         .from("attendance_logs")

@@ -674,6 +674,7 @@ export default function HomePage() {
               { href: "/ot", icon: Timer, title: "OT", color: "#ff9500" },
               { href: "/leave/request", icon: Calendar, title: "ลางาน", color: "#af52de" },
               { href: "/wfh/request", icon: Home, title: "WFH", color: "#007aff" },
+              { href: "/field-work/request", icon: MapPin, title: "งานนอกที่", color: "#34c759" },
               { href: "/late-request", icon: AlertCircle, title: "ขอสาย", color: "#ff3b30" },
             ].map((action, i) => (
               <Link key={i} href={action.href}>

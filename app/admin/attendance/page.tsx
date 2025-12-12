@@ -72,6 +72,8 @@ interface AttendanceRow {
   otAmount: number;
   leaveType: string | null;
   isWFH: boolean;
+  isFieldWork: boolean;
+  fieldWorkLocation: string | null;
   lateRequestStatus: string | null;
 }
 
@@ -137,7 +139,7 @@ function AttendanceContent() {
       const toDate = dateMode === "single" ? format(selectedDate, "yyyy-MM-dd") : endDate;
 
       // Fetch all related data
-      const [attRes, otRes, leaveRes, wfhRes, lateReqRes, holidayRes] = await Promise.all([
+      const [attRes, otRes, leaveRes, wfhRes, fieldWorkRes, lateReqRes, holidayRes] = await Promise.all([
         supabase
           .from("attendance_logs")
           .select("*, employee:employees!employee_id(id, name, email, branch_id, role)")
@@ -163,6 +165,12 @@ function AttendanceContent() {
           .gte("date", fromDate)
           .lte("date", toDate),
         supabase
+          .from("field_work_requests")
+          .select("*")
+          .eq("status", "approved")
+          .gte("date", fromDate)
+          .lte("date", toDate),
+        supabase
           .from("late_requests")
           .select("*")
           .gte("request_date", fromDate)
@@ -180,6 +188,7 @@ function AttendanceContent() {
       const otData = otRes.data || [];
       const leaveData = leaveRes.data || [];
       const wfhData = wfhRes.data || [];
+      const fieldWorkData = fieldWorkRes.data || [];
       const lateReqData = lateReqRes.data || [];
 
       // Check if we're before work start time (default 09:00)
@@ -207,6 +216,7 @@ function AttendanceContent() {
             (l: any) => l.employee_id === emp.id && l.start_date <= dateStr && l.end_date >= dateStr
           );
           const empWfh = wfhData.find((w: any) => w.employee_id === emp.id && w.date === dateStr);
+          const empFieldWork = fieldWorkData.find((fw: any) => fw.employee_id === emp.id && fw.date === dateStr);
           const empLateReq = lateReqData.find((lr: any) => lr.employee_id === emp.id);
 
           // If it's a non-working day and employee has no attendance/OT, skip
@@ -222,6 +232,8 @@ function AttendanceContent() {
             status = "leave";
           } else if (empWfh) {
             status = "wfh";
+          } else if (empFieldWork) {
+            status = "present"; // Field work is considered present
           } else if (isNonWorkingDay && empOt.length > 0) {
             status = "holiday_ot";
           } else if (isToday && isBeforeWorkStart) {
@@ -247,6 +259,8 @@ function AttendanceContent() {
             otAmount: empOt.reduce((sum: number, o: any) => sum + (o.ot_amount || 0), 0),
             leaveType: empLeave?.leave_type || null,
             isWFH: !!empWfh,
+            isFieldWork: !!empFieldWork,
+            fieldWorkLocation: empFieldWork?.location || null,
             lateRequestStatus: empLateReq?.status || null,
           });
         });
@@ -272,6 +286,7 @@ function AttendanceContent() {
             (l: any) => l.employee_id === att.employee_id && l.start_date <= dateStr && l.end_date >= dateStr
           );
           const empWfh = wfhData.find((w: any) => w.employee_id === att.employee_id && w.date === dateStr);
+          const empFieldWork = fieldWorkData.find((fw: any) => fw.employee_id === att.employee_id && fw.date === dateStr);
           const empLateReq = lateReqData.find(
             (lr: any) => lr.employee_id === att.employee_id && lr.request_date === dateStr
           );
@@ -294,6 +309,8 @@ function AttendanceContent() {
             otAmount: empOt.reduce((sum: number, o: any) => sum + (o.ot_amount || 0), 0),
             leaveType: empLeave?.leave_type || null,
             isWFH: !!empWfh,
+            isFieldWork: !!empFieldWork,
+            fieldWorkLocation: empFieldWork?.location || null,
             lateRequestStatus: empLateReq?.status || null,
           });
         });
@@ -329,6 +346,8 @@ function AttendanceContent() {
               otAmount: empOt.reduce((sum: number, o: any) => sum + (o.ot_amount || 0), 0),
               leaveType: null,
               isWFH: false,
+              isFieldWork: false,
+              fieldWorkLocation: null,
               lateRequestStatus: null,
             });
           }
