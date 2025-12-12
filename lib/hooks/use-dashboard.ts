@@ -104,13 +104,17 @@ export function useDashboard() {
                 const currentYear = new Date().getFullYear();
                 const { data } = await supabase
                     .from("leave_balances")
-                    .select("annual_remaining, sick_remaining, personal_remaining")
+                    .select("annual_leave_remaining, sick_leave_remaining, personal_leave_remaining")
                     .eq("employee_id", employee.id)
                     .eq("year", currentYear)
                     .single();
 
                 if (data) {
-                    setLeaveBalance(data);
+                    setLeaveBalance({
+                        annual_remaining: data.annual_leave_remaining || 0,
+                        sick_remaining: data.sick_leave_remaining || 0,
+                        personal_remaining: data.personal_leave_remaining || 0,
+                    });
                 }
             } catch (error) {
                 console.error("Error fetching leave balance:", error);
