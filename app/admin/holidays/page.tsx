@@ -47,6 +47,7 @@ function HolidaysContent() {
   const [deleting, setDeleting] = useState(false);
   const [formData, setFormData] = useState({
     date: "",
+    endDate: "", // เพิ่มวันสิ้นสุดสำหรับวันหยุดยาว
     name: "",
     type: "public",
     branch_id: "",
@@ -88,22 +89,47 @@ function HolidaysContent() {
     setSaving(true);
 
     try {
-      const data = {
-        date: formData.date,
-        name: formData.name,
-        type: formData.type,
-        branch_id: formData.type === "branch" && formData.branch_id ? formData.branch_id : null,
-        is_active: formData.is_active,
-      };
-
       if (editingId) {
+        // แก้ไข - ใช้วันเดียว
+        const data = {
+          date: formData.date,
+          name: formData.name,
+          type: formData.type,
+          branch_id: formData.type === "branch" && formData.branch_id ? formData.branch_id : null,
+          is_active: formData.is_active,
+        };
         const { error } = await supabase.from("holidays").update(data).eq("id", editingId);
         if (error) throw error;
         toast.success("อัพเดตสำเร็จ", "แก้ไขวันหยุดเรียบร้อยแล้ว");
       } else {
-        const { error } = await supabase.from("holidays").insert(data);
+        // เพิ่มใหม่ - รองรับวันหยุดยาว
+        const startDate = new Date(formData.date);
+        const endDate = formData.endDate ? new Date(formData.endDate) : startDate;
+        
+        // สร้างอาร์เรย์ของวันหยุดที่จะเพิ่ม
+        const holidaysToInsert = [];
+        const currentDate = new Date(startDate);
+        
+        while (currentDate <= endDate) {
+          holidaysToInsert.push({
+            date: format(currentDate, "yyyy-MM-dd"),
+            name: formData.name,
+            type: formData.type,
+            branch_id: formData.type === "branch" && formData.branch_id ? formData.branch_id : null,
+            is_active: formData.is_active,
+          });
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+        
+        const { error } = await supabase.from("holidays").insert(holidaysToInsert);
         if (error) throw error;
-        toast.success("เพิ่มสำเร็จ", "เพิ่มวันหยุดใหม่เรียบร้อยแล้ว");
+        
+        toast.success(
+          "เพิ่มสำเร็จ", 
+          holidaysToInsert.length > 1 
+            ? `เพิ่มวันหยุด ${holidaysToInsert.length} วันเรียบร้อยแล้ว`
+            : "เพิ่มวันหยุดใหม่เรียบร้อยแล้ว"
+        );
       }
 
       setShowForm(false);
@@ -120,6 +146,7 @@ function HolidaysContent() {
   const handleEdit = (holiday: Holiday) => {
     setFormData({
       date: holiday.date,
+      endDate: "", // แก้ไข = ไม่ใช้วันหยุดยาว
       name: holiday.name,
       type: holiday.type,
       branch_id: holiday.branch_id || "",
@@ -150,6 +177,7 @@ function HolidaysContent() {
     setEditingId(null);
     setFormData({
       date: "",
+      endDate: "",
       name: "",
       type: "public",
       branch_id: "",
@@ -206,15 +234,61 @@ function HolidaysContent() {
             required
           />
 
-          <div>
-            <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
-              วันที่
-            </label>
-            <DateInput
-              value={formData.date}
-              onChange={(val) => setFormData({ ...formData, date: val })}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
+                วันที่เริ่มต้น *
+              </label>
+              <DateInput
+                value={formData.date}
+                onChange={(val) => setFormData({ ...formData, date: val })}
+              />
+            </div>
+            {!editingId && (
+              <div>
+                <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
+                  ถึงวันที่ (ถ้าเป็นวันหยุดยาว)
+                </label>
+                <DateInput
+                  value={formData.endDate}
+                  onChange={(val) => setFormData({ ...formData, endDate: val })}
+                  placeholder="ไม่ระบุ = 1 วัน"
+                />
+              </div>
+            )}
           </div>
+
+          {/* แสดงจำนวนวันที่จะสร้าง */}
+          {!editingId && formData.date && formData.endDate && (
+            (() => {
+              const start = new Date(formData.date);
+              const end = new Date(formData.endDate);
+              const diffTime = end.getTime() - start.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+              
+              if (diffDays > 0) {
+                return (
+                  <div className="p-4 bg-[#0071e3]/10 border-2 border-[#0071e3]/30 rounded-xl">
+                    <div className="flex items-center gap-2 text-[#0071e3]">
+                      <Calendar className="w-5 h-5" />
+                      <span className="text-[15px] font-medium">
+                        จะเพิ่มวันหยุด {diffDays} วัน ({format(start, "d MMM", { locale: th })} - {format(end, "d MMM yyyy", { locale: th })})
+                      </span>
+                    </div>
+                  </div>
+                );
+              } else if (diffDays < 0) {
+                return (
+                  <div className="p-4 bg-[#ff3b30]/10 border-2 border-[#ff3b30]/30 rounded-xl">
+                    <span className="text-[#ff3b30] text-[14px]">
+                      ⚠️ วันที่สิ้นสุดต้องมากกว่าหรือเท่ากับวันที่เริ่มต้น
+                    </span>
+                  </div>
+                );
+              }
+              return null;
+            })()
+          )}
 
           <div>
             <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
