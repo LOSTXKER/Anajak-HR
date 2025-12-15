@@ -115,21 +115,22 @@ function EditAttendanceContent() {
     setSaving(true);
     try {
       const clockInDate = new Date(attendance.clock_in_time);
-      const clockOutDate = attendance.clock_out_time ? new Date(attendance.clock_out_time) : new Date();
 
       // สร้างวันที่ใหม่จากเวลาที่แก้ไข
       const [inHours, inMinutes] = clockIn.split(":").map(Number);
-      const [outHours, outMinutes] = clockOut.split(":").map(Number);
 
       const newClockIn = new Date(clockInDate);
       newClockIn.setHours(inHours, inMinutes, 0, 0);
 
-      const newClockOut = new Date(clockInDate); // ใช้วันเดียวกับ clock_in_time
-      newClockOut.setHours(outHours, outMinutes, 0, 0);
-
-      // คำนวณ total_hours
+      // คำนวณ total_hours และ newClockOut
       let totalHours = null;
-      if (clockOut) {
+      let newClockOut = null;
+      
+      if (clockOut && clockOut.trim()) {
+        const [outHours, outMinutes] = clockOut.split(":").map(Number);
+        newClockOut = new Date(clockInDate); // ใช้วันเดียวกับ clock_in_time
+        newClockOut.setHours(outHours, outMinutes, 0, 0);
+        
         const diffMs = newClockOut.getTime() - newClockIn.getTime();
         totalHours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100; // ปัดเศษ 2 ตำแหน่ง
       }
@@ -146,7 +147,7 @@ function EditAttendanceContent() {
         .from("attendance_logs")
         .update({
           clock_in_time: newClockIn.toISOString(),
-          clock_out_time: clockOut ? newClockOut.toISOString() : null,
+          clock_out_time: newClockOut ? newClockOut.toISOString() : null,
           total_hours: totalHours,
           is_late: isLate,
           late_minutes: lateMinutes,
