@@ -22,6 +22,8 @@ import {
   CheckCircle,
   History,
   Trash2,
+  Calendar,
+  FileText,
 } from "lucide-react";
 
 interface AttendanceLog {

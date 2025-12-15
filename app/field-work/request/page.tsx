@@ -9,7 +9,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { DateInput } from "@/components/ui/DateInput";
-import { ArrowLeft, Calendar, FileText, CheckCircle, AlertCircle, MapPin } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, CheckCircle, AlertCircle, MapPin, Info } from "lucide-react";
 import { format } from "date-fns";
 
 function FieldWorkRequestContent() {
