@@ -42,7 +42,7 @@ interface OTRateInfo {
 
 // Types
 type RequestType = "ot" | "leave" | "wfh" | "late" | "field_work";
-type RequestStatus = "pending" | "approved" | "rejected" | "cancelled" | "all";
+type RequestStatus = "pending" | "approved" | "completed" | "rejected" | "cancelled" | "all";
 
 interface RequestItem {
   id: string;
@@ -77,6 +77,7 @@ const typeConfig: Record<RequestType, { label: string; icon: any; color: string;
 const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
   pending: { label: "รออนุมัติ", color: "text-[#ff9500]", bgColor: "bg-[#ff9500]/10" },
   approved: { label: "อนุมัติแล้ว", color: "text-[#34c759]", bgColor: "bg-[#34c759]/10" },
+  completed: { label: "เสร็จสิ้น", color: "text-[#0071e3]", bgColor: "bg-[#0071e3]/10" },
   rejected: { label: "ปฏิเสธ", color: "text-[#ff3b30]", bgColor: "bg-[#ff3b30]/10" },
   cancelled: { label: "ยกเลิก", color: "text-[#86868b]", bgColor: "bg-[#86868b]/10" },
 };
@@ -438,7 +439,7 @@ function RequestsManagementContent() {
 
   // Stats
   const stats = useMemo(() => {
-    const counts = { ot: 0, leave: 0, wfh: 0, late: 0, field_work: 0, pending: 0, approved: 0, rejected: 0, cancelled: 0 };
+    const counts = { ot: 0, leave: 0, wfh: 0, late: 0, field_work: 0, pending: 0, approved: 0, completed: 0, rejected: 0, cancelled: 0 };
     requests.forEach((r) => {
       counts[r.type]++;
       if (r.status in counts) (counts as any)[r.status]++;
@@ -893,6 +894,7 @@ function RequestsManagementContent() {
             <option value="all">ทุกสถานะ</option>
             <option value="pending">รออนุมัติ ({stats.pending})</option>
             <option value="approved">อนุมัติแล้ว ({stats.approved})</option>
+            <option value="completed">เสร็จสิ้น ({stats.completed})</option>
             <option value="rejected">ปฏิเสธ ({stats.rejected})</option>
             <option value="cancelled">ยกเลิก ({stats.cancelled})</option>
           </select>
@@ -1016,8 +1018,8 @@ function RequestsManagementContent() {
                             </>
                           )}
 
-                          {/* Cancel for approved */}
-                          {request.status === "approved" && (
+                          {/* Cancel for approved or completed */}
+                          {(request.status === "approved" || request.status === "completed") && (
                             <button
                               onClick={() => setCancelModal(request)}
                               className="p-1.5 text-[#86868b] hover:bg-[#86868b]/10 rounded-lg transition-colors"
@@ -1103,7 +1105,7 @@ function RequestsManagementContent() {
                   </Button>
                 </>
               )}
-              {detailModal.status === "approved" && (
+              {(detailModal.status === "approved" || detailModal.status === "completed") && (
                 <Button onClick={() => { setDetailModal(null); setCancelModal(detailModal); }} fullWidth className="!bg-[#ff3b30] hover:!bg-[#e0352b]">
                   ยกเลิก
                 </Button>
