@@ -37,7 +37,25 @@ USING (
   )
 );
 
--- Fix RLS สำหรับ attendance_anomalies ด้วย
+-- สร้างตาราง attendance_anomalies ถ้ายังไม่มี
+CREATE TABLE IF NOT EXISTS attendance_anomalies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  attendance_id UUID REFERENCES attendance_logs(id) ON DELETE CASCADE,
+  employee_id UUID REFERENCES employees(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  anomaly_type TEXT NOT NULL,
+  description TEXT,
+  status TEXT DEFAULT 'pending',
+  resolution_note TEXT,
+  resolved_by UUID REFERENCES employees(id),
+  resolved_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE attendance_anomalies ENABLE ROW LEVEL SECURITY;
+
+-- Fix RLS สำหรับ attendance_anomalies
 DROP POLICY IF EXISTS "Admin can insert anomalies" ON attendance_anomalies;
 DROP POLICY IF EXISTS "Admin can select anomalies" ON attendance_anomalies;
 
