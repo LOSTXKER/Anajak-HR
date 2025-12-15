@@ -269,6 +269,24 @@ function RequestsManagementContent() {
       // Process Late
       (lateRes.data || []).forEach((r: any) => {
         if (!r.employee?.id) return;
+        // แสดงชื่อตามสถานะ
+        let title = "ขออนุมัติมาสาย";
+        if (r.status === "approved") {
+          title = r.actual_late_minutes 
+            ? `มาสาย ${r.actual_late_minutes} นาที (อนุมัติ - ไม่หักเงิน)` 
+            : "มาสาย (อนุมัติ - ไม่หักเงิน)";
+        } else if (r.status === "pending") {
+          title = r.actual_late_minutes 
+            ? `ขออนุมัติมาสาย ${r.actual_late_minutes} นาที` 
+            : "ขออนุมัติมาสาย";
+        } else if (r.status === "rejected") {
+          title = r.actual_late_minutes 
+            ? `มาสาย ${r.actual_late_minutes} นาที (ไม่อนุมัติ - หักเงิน)` 
+            : "มาสาย (ไม่อนุมัติ - หักเงิน)";
+        } else if (r.status === "cancelled") {
+          title = "มาสาย (ยกเลิก)";
+        }
+        
         allRequests.push({
           id: r.id,
           type: "late",
@@ -276,9 +294,9 @@ function RequestsManagementContent() {
           employeeName: r.employee.name,
           employeeEmail: r.employee.email || "",
           date: r.request_date,
-          title: r.actual_late_minutes ? `สาย ${r.actual_late_minutes} นาที` : "ขออนุมัติมาสาย",
+          title: title,
           subtitle: format(parseISO(r.request_date), "EEEE d MMM yyyy", { locale: th }),
-          details: `วันที่: ${format(parseISO(r.request_date), "d MMM yyyy", { locale: th })}${r.actual_late_minutes ? `\nสาย: ${r.actual_late_minutes} นาที` : ""}`,
+          details: `วันที่: ${format(parseISO(r.request_date), "d MMM yyyy", { locale: th })}${r.actual_late_minutes ? `\nสาย: ${r.actual_late_minutes} นาที` : ""}\n\n${r.status === "approved" ? "✅ อนุมัติแล้ว - ไม่นับเป็นสาย ไม่หักเงิน" : r.status === "rejected" ? "❌ ไม่อนุมัติ - นับเป็นสาย หักเงิน" : ""}`,
           reason: r.reason,
           status: r.status,
           createdAt: r.created_at,
