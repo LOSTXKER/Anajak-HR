@@ -56,6 +56,9 @@ function CreateRequestContent() {
     otDate: format(new Date(), "yyyy-MM-dd"),
     otStartTime: "18:00",
     otEndTime: "21:00",
+    otIsCompleted: true, // สร้างแบบทำเสร็จแล้ว (default true สำหรับการสร้างย้อนหลัง)
+    otType: "workday" as "workday" | "weekend" | "holiday",
+    otRate: 1.5,
     // Leave
     leaveType: "sick",
     leaveStartDate: format(new Date(), "yyyy-MM-dd"),
@@ -104,17 +107,52 @@ function CreateRequestContent() {
           const startDateTime = new Date(`${formData.otDate}T${formData.otStartTime}:00`);
           const endDateTime = new Date(`${formData.otDate}T${formData.otEndTime}:00`);
           
-          const { error } = await supabase.from("ot_requests").insert({
+          // คำนวณชั่วโมง OT
+          const otHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
+          
+          // ดึง base_salary ของพนักงาน
+          const { data: empData } = await supabase
+            .from("employees")
+            .select("base_salary")
+            .eq("id", formData.employeeId)
+            .single();
+          
+          // คำนวณเงิน OT
+          let otAmount = null;
+          const baseSalary = empData?.base_salary || 0;
+          if (baseSalary > 0) {
+            const hourlyRate = baseSalary / 30 / 8; // 30 วัน, 8 ชั่วโมง/วัน
+            otAmount = Math.round(otHours * hourlyRate * formData.otRate * 100) / 100;
+          }
+          
+          // ถ้าเป็น OT ที่ทำเสร็จแล้ว ให้บันทึก actual เลย
+          const insertData: any = {
             employee_id: formData.employeeId,
             request_date: formData.otDate,
             requested_start_time: startDateTime.toISOString(),
             requested_end_time: endDateTime.toISOString(),
             approved_start_time: startDateTime.toISOString(),
             approved_end_time: endDateTime.toISOString(),
+            approved_ot_hours: Math.round(otHours * 100) / 100,
+            ot_type: formData.otType,
+            ot_rate: formData.otRate,
             reason: formData.reason,
-            status: "approved",
             ...approvalData,
-          });
+          };
+          
+          if (formData.otIsCompleted) {
+            // สร้างแบบทำเสร็จแล้ว (completed)
+            insertData.status = "completed";
+            insertData.actual_start_time = startDateTime.toISOString();
+            insertData.actual_end_time = endDateTime.toISOString();
+            insertData.actual_ot_hours = Math.round(otHours * 100) / 100;
+            insertData.ot_amount = otAmount;
+          } else {
+            // สร้างแบบรออนุมัติ (approved) - พนักงานต้องกดเริ่ม-จบเอง
+            insertData.status = "approved";
+          }
+          
+          const { error } = await supabase.from("ot_requests").insert(insertData);
           if (error) throw error;
           break;
         }
@@ -180,7 +218,10 @@ function CreateRequestContent() {
         }
       }
 
-      toast.success("สร้างคำขอสำเร็จ", "คำขอได้รับการอนุมัติแล้ว");
+      const successMsg = formData.requestType === "ot" && formData.otIsCompleted
+        ? "OT ถูกบันทึกและคำนวณยอดเงินแล้ว"
+        : "คำขอได้รับการอนุมัติแล้ว";
+      toast.success("สร้างคำขอสำเร็จ", successMsg);
       router.push("/admin/approvals");
     } catch (error: any) {
       toast.error("เกิดข้อผิดพลาด", error?.message || "ไม่สามารถสร้างคำขอได้");
@@ -263,6 +304,29 @@ function CreateRequestContent() {
                   <h3 className="text-[17px] font-semibold text-[#1d1d1f]">รายละเอียด OT</h3>
                 </div>
                 <div className="space-y-4">
+                  {/* OT Mode Selection */}
+                  <div className="p-4 bg-[#f5f5f7] rounded-xl">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.otIsCompleted}
+                        onChange={(e) => setFormData({ ...formData, otIsCompleted: e.target.checked })}
+                        className="w-5 h-5 rounded"
+                      />
+                      <div>
+                        <span className="text-[15px] font-medium text-[#1d1d1f]">
+                          ✅ OT ทำเสร็จแล้ว (สร้างย้อนหลัง)
+                        </span>
+                        <p className="text-[13px] text-[#86868b]">
+                          {formData.otIsCompleted 
+                            ? "บันทึกยอดเงิน OT ทันที พนักงานไม่ต้องกดเริ่ม-จบ"
+                            : "พนักงานต้องกดเริ่มและจบ OT เอง"
+                          }
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+
                   <div>
                     <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">วันที่</label>
                     <DateInput
@@ -290,6 +354,70 @@ function CreateRequestContent() {
                       />
                     </div>
                   </div>
+
+                  {/* OT Rate Selection */}
+                  <div>
+                    <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">
+                      ประเภท OT & อัตราคูณ
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, otType: "workday", otRate: 1.5 })}
+                        className={`p-3 rounded-xl text-center transition-all ${
+                          formData.otType === "workday"
+                            ? "bg-[#0071e3] text-white"
+                            : "bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e8e8ed]"
+                        }`}
+                      >
+                        <span className="block text-[20px] font-bold">1.5x</span>
+                        <span className="block text-[11px] mt-0.5">วันธรรมดา</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, otType: "weekend", otRate: 2 })}
+                        className={`p-3 rounded-xl text-center transition-all ${
+                          formData.otType === "weekend"
+                            ? "bg-[#0071e3] text-white"
+                            : "bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e8e8ed]"
+                        }`}
+                      >
+                        <span className="block text-[20px] font-bold">2x</span>
+                        <span className="block text-[11px] mt-0.5">วันหยุด</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, otType: "holiday", otRate: 3 })}
+                        className={`p-3 rounded-xl text-center transition-all ${
+                          formData.otType === "holiday"
+                            ? "bg-[#0071e3] text-white"
+                            : "bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e8e8ed]"
+                        }`}
+                      >
+                        <span className="block text-[20px] font-bold">3x</span>
+                        <span className="block text-[11px] mt-0.5">วันหยุดนักขัตฤกษ์</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* OT Preview */}
+                  {formData.otIsCompleted && formData.otStartTime && formData.otEndTime && (
+                    <div className="p-4 bg-[#34c759]/10 rounded-xl">
+                      <p className="text-[13px] text-[#34c759] font-medium mb-1">💰 ประมาณการ OT</p>
+                      <p className="text-[15px] text-[#1d1d1f]">
+                        {(() => {
+                          const start = new Date(`2000-01-01T${formData.otStartTime}:00`);
+                          const end = new Date(`2000-01-01T${formData.otEndTime}:00`);
+                          const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+                          return `${hours.toFixed(2)} ชั่วโมง × ${formData.otRate}x = ${(hours * formData.otRate).toFixed(2)} ชั่วโมง (เทียบเท่า)`;
+                        })()}
+                      </p>
+                      <p className="text-[12px] text-[#86868b] mt-1">
+                        * ยอดเงินจริงจะคำนวณจาก base salary ของพนักงาน
+                      </p>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เหตุผล</label>
                     <textarea
