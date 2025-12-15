@@ -34,6 +34,7 @@ import {
   Search,
   Filter,
   RefreshCw,
+  Edit,
 } from "lucide-react";
 import Link from "next/link";
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, addDays, subDays, isToday, isSameDay } from "date-fns";
@@ -676,12 +677,13 @@ function AttendanceContent() {
                 <th className="px-4 py-3 text-center text-xs font-semibold text-[#86868b]">สถานะ</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-[#86868b]">OT</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-[#86868b]">รูป</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-[#86868b]">จัดการ</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={dateMode === "range" ? 8 : 7} className="px-4 py-12 text-center">
+                  <td colSpan={dateMode === "range" ? 9 : 8} className="px-4 py-12 text-center">
                     <div className="flex items-center justify-center gap-2 text-[#86868b]">
                       <RefreshCw className="w-5 h-5 animate-spin" />
                       กำลังโหลด...
@@ -690,7 +692,7 @@ function AttendanceContent() {
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={dateMode === "range" ? 8 : 7} className="px-4 py-12 text-center text-[#86868b]">
+                  <td colSpan={dateMode === "range" ? 9 : 8} className="px-4 py-12 text-center text-[#86868b]">
                     ไม่พบข้อมูล
                   </td>
                 </tr>
@@ -766,6 +768,20 @@ function AttendanceContent() {
                           <span className="text-[#86868b]">-</span>
                         )}
                       </div>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {row.clockIn ? (
+                        <Link href={`/admin/attendance/edit/${row.id}`}>
+                          <button
+                            className="p-1.5 text-[#0071e3] hover:bg-[#0071e3]/10 rounded-lg transition-colors"
+                            title="แก้ไขเวลา"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                        </Link>
+                      ) : (
+                        <span className="text-[#86868b]">-</span>
+                      )}
                     </td>
                   </tr>
                 ))
