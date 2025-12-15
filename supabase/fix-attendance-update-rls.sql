@@ -6,7 +6,10 @@ ALTER TABLE attendance_logs
 ADD COLUMN IF NOT EXISTS edit_reason TEXT,
 ADD COLUMN IF NOT EXISTS edited_by UUID REFERENCES employees(id),
 ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ,
-ADD COLUMN IF NOT EXISTS original_clock_out TIMESTAMPTZ;
+ADD COLUMN IF NOT EXISTS original_clock_out TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS auto_checkout BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS auto_checkout_reason TEXT,
+ADD COLUMN IF NOT EXISTS reminder_count INTEGER DEFAULT 0;
 
 -- ลบ policy เดิมถ้ามี
 DROP POLICY IF EXISTS "Admin can update attendance" ON attendance_logs;
