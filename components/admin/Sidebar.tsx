@@ -31,7 +31,6 @@ interface MenuItem {
   href: string;
   icon: any;
   badge?: number;
-  isNew?: boolean;
 }
 
 export function Sidebar() {
@@ -90,7 +89,7 @@ export function Sidebar() {
       title: "หลัก",
       items: [
         { title: "Dashboard", href: "/admin", icon: LayoutGrid },
-        { title: "Admin Tools", href: "/admin/tools", icon: Wrench, isNew: true },
+        { title: "Admin Tools", href: "/admin/tools", icon: Wrench },
         { title: "อนุมัติ", href: "/admin/approvals", icon: FileText, badge: pendingCounts.approvals },
       ],
     },
@@ -169,11 +168,6 @@ export function Sidebar() {
                   >
                     <item.icon className="w-[18px] h-[18px]" />
                     <span className="flex-1">{item.title}</span>
-                    {item.isNew && !isActive && (
-                      <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-[#34c759] text-white">
-                        NEW
-                      </span>
-                    )}
                     {item.badge !== undefined && item.badge > 0 && (
                       <span
                         className={`

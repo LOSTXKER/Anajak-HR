@@ -171,7 +171,7 @@ function AdminToolsContent() {
       description="ศูนย์รวมเครื่องมือสำหรับจัดการระบบ"
     >
       {/* Hero Section */}
-      <div className="mb-8 p-6 bg-gradient-to-br from-[#0071e3]/10 via-[#af52de]/5 to-[#ff9500]/10 rounded-2xl border border-[#0071e3]/20">
+      <div className="mb-8 p-6 bg-gradient-to-br from-[#0071e3]/10 via-[#af52de]/5 to-[#ff9500]/10 rounded-2xl">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-12 h-12 bg-[#0071e3] rounded-xl flex items-center justify-center shadow-lg">
             <Wrench className="w-6 h-6 text-white" />
@@ -184,13 +184,13 @@ function AdminToolsContent() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2 mt-4">
-          <span className="px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-lg text-[13px] text-[#1d1d1f] font-medium border border-[#e8e8ed]">
+          <span className="px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-lg text-[13px] text-[#1d1d1f] font-medium">
             ✨ สร้างคำขอแทนพนักงาน
           </span>
-          <span className="px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-lg text-[13px] text-[#1d1d1f] font-medium border border-[#e8e8ed]">
+          <span className="px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-lg text-[13px] text-[#1d1d1f] font-medium">
             🔧 แก้ไขข้อมูลย้อนหลัง
           </span>
-          <span className="px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-lg text-[13px] text-[#1d1d1f] font-medium border border-[#e8e8ed]">
+          <span className="px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-lg text-[13px] text-[#1d1d1f] font-medium">
             ⚡ Quick Fix ด้วยคลิกเดียว
           </span>
         </div>
@@ -206,7 +206,7 @@ function AdminToolsContent() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {quickActions.filter(a => a.count > 0).map((action, idx) => (
               <Link key={idx} href={action.href}>
-                <Card className="hover:shadow-lg transition-all cursor-pointer border-2 hover:border-[#0071e3] group">
+                <Card className="hover:shadow-lg transition-all cursor-pointer group">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${action.color.replace('text-', 'bg-')}/10`}>
@@ -236,7 +236,7 @@ function AdminToolsContent() {
       {/* No Pending - Show success state */}
       {totalPending === 0 && quickStats.noCheckout === 0 && (
         <div className="mb-8">
-          <Card className="!bg-[#34c759]/5 border-[#34c759]/20">
+          <Card className="!bg-[#34c759]/5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-[#34c759]/10 rounded-lg flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-[#34c759]" />
@@ -259,7 +259,7 @@ function AdminToolsContent() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {tools.map((tool, idx) => (
             <Link key={idx} href={tool.href}>
-              <Card className="hover:shadow-lg transition-all cursor-pointer group border-2 hover:border-[#0071e3] h-full">
+              <Card className="hover:shadow-lg transition-all cursor-pointer group h-full">
                 <div className="flex items-start gap-4">
                   <div className={`w-12 h-12 ${tool.bgColor} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0`}>
                     <tool.icon className={`w-6 h-6 ${tool.color}`} />
