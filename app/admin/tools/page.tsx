@@ -23,6 +23,7 @@ import {
   Building2,
   CalendarDays,
   CheckCircle,
+  Lightbulb,
 } from "lucide-react";
 
 interface ToolCard {
@@ -192,14 +193,17 @@ function AdminToolsContent() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2 mt-4">
-          <span className="px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-lg text-[13px] text-[#1d1d1f] font-medium">
-            ✨ สร้างคำขอแทนพนักงาน
+          <span className="px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-lg text-[13px] text-[#1d1d1f] font-medium flex items-center gap-1.5">
+            <Plus className="w-3.5 h-3.5" />
+            สร้างคำขอแทนพนักงาน
           </span>
-          <span className="px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-lg text-[13px] text-[#1d1d1f] font-medium">
-            🔧 แก้ไขข้อมูลย้อนหลัง
+          <span className="px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-lg text-[13px] text-[#1d1d1f] font-medium flex items-center gap-1.5">
+            <Edit3 className="w-3.5 h-3.5" />
+            แก้ไขข้อมูลย้อนหลัง
           </span>
-          <span className="px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-lg text-[13px] text-[#1d1d1f] font-medium">
-            ⚡ Quick Fix ด้วยคลิกเดียว
+          <span className="px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-lg text-[13px] text-[#1d1d1f] font-medium flex items-center gap-1.5">
+            <Zap className="w-3.5 h-3.5" />
+            Quick Fix ด้วยคลิกเดียว
           </span>
         </div>
       </div>
@@ -251,7 +255,7 @@ function AdminToolsContent() {
               </div>
               <div>
                 <p className="text-[15px] font-medium text-[#1d1d1f]">ไม่มีงานค้าง</p>
-                <p className="text-[13px] text-[#86868b]">ทุกอย่างเรียบร้อยดี ✨</p>
+                <p className="text-[13px] text-[#86868b]">ทุกอย่างเรียบร้อยดี</p>
               </div>
             </div>
           </Card>
@@ -332,9 +336,10 @@ function AdminToolsContent() {
             <AlertCircle className="w-5 h-5 text-[#0071e3]" />
           </div>
           <div>
-            <h4 className="text-[15px] font-semibold text-[#1d1d1f] mb-2">
-              💡 เคล็ดลับการใช้งาน
-            </h4>
+            <div className="flex items-center gap-2 mb-2">
+              <Lightbulb className="w-4 h-4 text-[#0071e3]" />
+              <h4 className="text-[15px] font-semibold text-[#1d1d1f]">เคล็ดลับการใช้งาน</h4>
+            </div>
             <ul className="space-y-1.5 text-[14px] text-[#86868b]">
               <li>• <strong>เพิ่มคำขอใหม่</strong> - สร้างคำขอแทนพนักงาน (OT, ลา, WFH, มาสาย, งานนอกสถานที่) พร้อมอนุมัติทันที</li>
               <li>• <strong>Quick Fix</strong> - แก้ไขปัญหาด่วน เช่น พนักงานลืมเช็คเอาท์</li>

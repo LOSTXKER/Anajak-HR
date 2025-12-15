@@ -27,6 +27,8 @@ import {
   X,
   ChevronDown,
   Plus,
+  CheckCircle,
+  DollarSign,
 } from "lucide-react";
 import { format, parseISO, getDay } from "date-fns";
 import { th } from "date-fns/locale";
@@ -296,7 +298,7 @@ function RequestsManagementContent() {
           date: r.request_date,
           title: title,
           subtitle: format(parseISO(r.request_date), "EEEE d MMM yyyy", { locale: th }),
-          details: `วันที่: ${format(parseISO(r.request_date), "d MMM yyyy", { locale: th })}${r.actual_late_minutes ? `\nสาย: ${r.actual_late_minutes} นาที` : ""}\n\n${r.status === "approved" ? "✅ อนุมัติแล้ว - ไม่นับเป็นสาย ไม่หักเงิน" : r.status === "rejected" ? "❌ ไม่อนุมัติ - นับเป็นสาย หักเงิน" : ""}`,
+          details: `วันที่: ${format(parseISO(r.request_date), "d MMM yyyy", { locale: th })}${r.actual_late_minutes ? `\nสาย: ${r.actual_late_minutes} นาที` : ""}\n\n${r.status === "approved" ? "อนุมัติแล้ว - ไม่นับเป็นสาย ไม่หักเงิน" : r.status === "rejected" ? "ไม่อนุมัติ - นับเป็นสาย หักเงิน" : ""}`,
           reason: r.reason,
           status: r.status,
           createdAt: r.created_at,
@@ -1207,8 +1209,9 @@ function RequestsManagementContent() {
                       className="w-5 h-5 rounded"
                     />
                     <div>
-                      <span className="text-[15px] font-medium text-[#1d1d1f]">
-                        ✅ OT ทำเสร็จแล้ว (สร้างย้อนหลัง)
+                      <span className="text-[15px] font-medium text-[#1d1d1f] flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4" />
+                        OT ทำเสร็จแล้ว (สร้างย้อนหลัง)
                       </span>
                       <p className="text-[13px] text-[#86868b]">
                         {createFormData.otIsCompleted 
@@ -1311,7 +1314,10 @@ function RequestsManagementContent() {
                 {/* OT Preview */}
                 {createFormData.otIsCompleted && createFormData.otStartTime && createFormData.otEndTime && (
                   <div className="p-4 bg-[#34c759]/10 rounded-xl">
-                    <p className="text-[13px] text-[#34c759] font-medium mb-1">💰 ประมาณการ OT</p>
+                    <p className="text-[13px] text-[#34c759] font-medium mb-1 flex items-center gap-1.5">
+                      <DollarSign className="w-4 h-4" />
+                      ประมาณการ OT
+                    </p>
                     <p className="text-[15px] text-[#1d1d1f]">
                       {(() => {
                         const start = new Date(`2000-01-01T${createFormData.otStartTime}:00`);
