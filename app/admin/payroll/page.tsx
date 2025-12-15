@@ -266,10 +266,10 @@ function PayrollContent() {
 
         const otTotalAmount = ot1xAmount + ot15xAmount + ot2xAmount;
 
-        // คำนวณเงินเดือน - ใช้ base_salary ที่ถูกต้อง
+        // คำนวณเงินเดือน - จ่ายเต็มจำนวนไม่ว่าจะมาทำงานกี่วัน
         const baseSalary = emp.base_salary || 0;
         const dailyRate = baseSalary / settings.days_per_month;
-        const basePay = workDays * dailyRate;
+        const basePay = baseSalary; // จ่ายเต็มเงินเดือน ไม่ว่าจะลาหรือขาดงาน
 
         // ค่าคอมมิชชั่น
         const commission = emp.commission || 0;
