@@ -104,6 +104,36 @@ function RequestsManagementContent() {
   const [createType, setCreateType] = useState<RequestType | null>(null);
   const [editModal, setEditModal] = useState<RequestItem | null>(null);
   const [editData, setEditData] = useState<any>({});
+  
+  // Create Form State
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [createFormData, setCreateFormData] = useState<any>({
+    employeeId: "",
+    // OT
+    otDate: format(new Date(), "yyyy-MM-dd"),
+    otStartTime: "18:00",
+    otEndTime: "21:00",
+    otIsCompleted: true,
+    otType: "workday",
+    otRate: 1.5,
+    // Leave
+    leaveType: "sick",
+    leaveStartDate: format(new Date(), "yyyy-MM-dd"),
+    leaveEndDate: format(new Date(), "yyyy-MM-dd"),
+    leaveIsHalfDay: false,
+    // WFH
+    wfhDate: format(new Date(), "yyyy-MM-dd"),
+    wfhIsHalfDay: false,
+    // Late
+    lateDate: format(new Date(), "yyyy-MM-dd"),
+    lateMinutes: 0,
+    // Field Work
+    fieldWorkDate: format(new Date(), "yyyy-MM-dd"),
+    fieldWorkIsHalfDay: false,
+    fieldWorkLocation: "",
+    // Common
+    reason: "",
+  });
 
   // Fetch all requests
   const fetchRequests = useCallback(async () => {
@@ -286,7 +316,17 @@ function RequestsManagementContent() {
 
   useEffect(() => {
     fetchRequests();
+    fetchEmployees();
   }, [fetchRequests]);
+
+  const fetchEmployees = async () => {
+    const { data } = await supabase
+      .from("employees")
+      .select("id, name, email, base_salary")
+      .neq("role", "admin")
+      .order("name");
+    setEmployees(data || []);
+  };
 
   // Filtered requests
   const filteredRequests = useMemo(() => {
@@ -404,6 +444,158 @@ function RequestsManagementContent() {
       fetchRequests();
     } catch (error: any) {
       toast.error("เกิดข้อผิดพลาด", error?.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Handle create request
+  const handleCreateRequest = async () => {
+    if (!createType || !createFormData.employeeId || !currentAdmin) return;
+    setProcessing(true);
+    try {
+      const approvalData = {
+        approved_by: currentAdmin.id,
+        approved_at: new Date().toISOString(),
+      };
+
+      switch (createType) {
+        case "ot": {
+          const startDateTime = new Date(`${createFormData.otDate}T${createFormData.otStartTime}:00`);
+          const endDateTime = new Date(`${createFormData.otDate}T${createFormData.otEndTime}:00`);
+          const otHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
+
+          // Get employee salary
+          const emp = employees.find(e => e.id === createFormData.employeeId);
+          const baseSalary = emp?.base_salary || 0;
+          let otAmount = null;
+          if (baseSalary > 0) {
+            const hourlyRate = baseSalary / 30 / 8;
+            otAmount = Math.round(otHours * hourlyRate * createFormData.otRate * 100) / 100;
+          }
+
+          const insertData: any = {
+            employee_id: createFormData.employeeId,
+            request_date: createFormData.otDate,
+            requested_start_time: startDateTime.toISOString(),
+            requested_end_time: endDateTime.toISOString(),
+            approved_start_time: startDateTime.toISOString(),
+            approved_end_time: endDateTime.toISOString(),
+            approved_ot_hours: Math.round(otHours * 100) / 100,
+            ot_type: createFormData.otType,
+            ot_rate: createFormData.otRate,
+            reason: createFormData.reason,
+            ...approvalData,
+          };
+
+          if (createFormData.otIsCompleted) {
+            insertData.status = "completed";
+            insertData.actual_start_time = startDateTime.toISOString();
+            insertData.actual_end_time = endDateTime.toISOString();
+            insertData.actual_ot_hours = Math.round(otHours * 100) / 100;
+            insertData.ot_amount = otAmount;
+          } else {
+            insertData.status = "approved";
+          }
+
+          const { error } = await supabase.from("ot_requests").insert(insertData);
+          if (error) throw error;
+          break;
+        }
+
+        case "leave": {
+          const { error } = await supabase.from("leave_requests").insert({
+            employee_id: createFormData.employeeId,
+            leave_type: createFormData.leaveType,
+            start_date: createFormData.leaveStartDate,
+            end_date: createFormData.leaveEndDate,
+            is_half_day: createFormData.leaveIsHalfDay,
+            reason: createFormData.reason,
+            status: "approved",
+            ...approvalData,
+          });
+          if (error) throw error;
+          break;
+        }
+
+        case "wfh": {
+          const { error } = await supabase.from("wfh_requests").insert({
+            employee_id: createFormData.employeeId,
+            date: createFormData.wfhDate,
+            is_half_day: createFormData.wfhIsHalfDay,
+            reason: createFormData.reason,
+            status: "approved",
+            ...approvalData,
+          });
+          if (error) throw error;
+          break;
+        }
+
+        case "late": {
+          const { error } = await supabase.from("late_requests").insert({
+            employee_id: createFormData.employeeId,
+            request_date: createFormData.lateDate,
+            actual_late_minutes: createFormData.lateMinutes,
+            reason: createFormData.reason,
+            status: "approved",
+            ...approvalData,
+          });
+          if (error) throw error;
+          break;
+        }
+
+        case "field_work": {
+          if (!createFormData.fieldWorkLocation.trim()) {
+            toast.error("กรุณาระบุสถานที่", "สถานที่จำเป็นสำหรับงานนอกสถานที่");
+            setProcessing(false);
+            return;
+          }
+          const { error } = await supabase.from("field_work_requests").insert({
+            employee_id: createFormData.employeeId,
+            date: createFormData.fieldWorkDate,
+            is_half_day: createFormData.fieldWorkIsHalfDay,
+            location: createFormData.fieldWorkLocation.trim(),
+            reason: createFormData.reason,
+            status: "approved",
+            ...approvalData,
+          });
+          if (error) throw error;
+          break;
+        }
+      }
+
+      const successMsg = createType === "ot" && createFormData.otIsCompleted
+        ? "OT ถูกบันทึกและคำนวณยอดเงินแล้ว"
+        : "คำขอได้รับการอนุมัติแล้ว";
+      toast.success("สร้างคำขอสำเร็จ", successMsg);
+      
+      // Reset and close
+      setCreateType(null);
+      setCreateModal(false);
+      setCreateFormData({
+        employeeId: "",
+        otDate: format(new Date(), "yyyy-MM-dd"),
+        otStartTime: "18:00",
+        otEndTime: "21:00",
+        otIsCompleted: true,
+        otType: "workday",
+        otRate: 1.5,
+        leaveType: "sick",
+        leaveStartDate: format(new Date(), "yyyy-MM-dd"),
+        leaveEndDate: format(new Date(), "yyyy-MM-dd"),
+        leaveIsHalfDay: false,
+        wfhDate: format(new Date(), "yyyy-MM-dd"),
+        wfhIsHalfDay: false,
+        lateDate: format(new Date(), "yyyy-MM-dd"),
+        lateMinutes: 0,
+        fieldWorkDate: format(new Date(), "yyyy-MM-dd"),
+        fieldWorkIsHalfDay: false,
+        fieldWorkLocation: "",
+        reason: "",
+      });
+      fetchRequests();
+    } catch (error: any) {
+      toast.error("เกิดข้อผิดพลาด", error?.message || "ไม่สามารถสร้างคำขอได้");
     } finally {
       setProcessing(false);
     }
@@ -865,36 +1057,335 @@ function RequestsManagementContent() {
         }}
         title={`สร้าง${typeConfig[createType || "ot"].label}ใหม่`}
       >
-        <div className="text-center py-8">
-          <div className={`w-16 h-16 mx-auto ${typeConfig[createType || "ot"].bgColor} rounded-full flex items-center justify-center mb-4`}>
-            {React.createElement(typeConfig[createType || "ot"].icon, {
-              className: `w-8 h-8 ${typeConfig[createType || "ot"].color}`,
-            })}
-          </div>
-          <p className="text-[15px] text-[#86868b] mb-4">
-            ฟีเจอร์นี้จะเปิดให้ใช้งานเร็วๆ นี้
-          </p>
-          <p className="text-[13px] text-[#86868b] mb-6">
-            ขณะนี้กรุณาใช้หน้า <strong>สร้างคำขอ</strong> แทน
-          </p>
-          <div className="flex gap-3">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setCreateType(null);
-                setCreateModal(false);
-              }}
-              fullWidth
-            >
-              ปิด
-            </Button>
-            <Link href="/admin/requests/create" className="flex-1">
-              <Button fullWidth>
-                ไปหน้าสร้างคำขอ
+        {createType && (
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+            {/* Employee Selection */}
+            <div>
+              <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เลือกพนักงาน</label>
+              <select
+                value={createFormData.employeeId}
+                onChange={(e) => setCreateFormData({ ...createFormData, employeeId: e.target.value })}
+                className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                required
+              >
+                <option value="">-- เลือกพนักงาน --</option>
+                {employees.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.name} ({emp.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* OT Form */}
+            {createType === "ot" && (
+              <>
+                <div className="p-3 bg-[#f5f5f7] rounded-xl">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={createFormData.otIsCompleted}
+                      onChange={(e) => setCreateFormData({ ...createFormData, otIsCompleted: e.target.checked })}
+                      className="w-4 h-4"
+                    />
+                    <div>
+                      <span className="text-[14px] font-medium text-[#1d1d1f]">OT ทำเสร็จแล้ว</span>
+                      <p className="text-[12px] text-[#86868b]">
+                        {createFormData.otIsCompleted ? "บันทึกยอดเงิน OT ทันที" : "พนักงานต้องกดเริ่ม-จบเอง"}
+                      </p>
+                    </div>
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">วันที่</label>
+                  <input
+                    type="date"
+                    value={createFormData.otDate}
+                    onChange={(e) => setCreateFormData({ ...createFormData, otDate: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เวลาเริ่ม</label>
+                    <input
+                      type="time"
+                      value={createFormData.otStartTime}
+                      onChange={(e) => setCreateFormData({ ...createFormData, otStartTime: e.target.value })}
+                      className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เวลาสิ้นสุด</label>
+                    <input
+                      type="time"
+                      value={createFormData.otEndTime}
+                      onChange={(e) => setCreateFormData({ ...createFormData, otEndTime: e.target.value })}
+                      className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">อัตราคูณ OT</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCreateFormData({ ...createFormData, otType: "workday", otRate: 1.5 })}
+                      className={`p-2 rounded-lg text-center ${createFormData.otType === "workday" ? "bg-[#0071e3] text-white" : "bg-[#f5f5f7] text-[#1d1d1f]"}`}
+                    >
+                      <span className="block text-[16px] font-bold">1.5x</span>
+                      <span className="block text-[10px]">ธรรมดา</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCreateFormData({ ...createFormData, otType: "weekend", otRate: 2 })}
+                      className={`p-2 rounded-lg text-center ${createFormData.otType === "weekend" ? "bg-[#0071e3] text-white" : "bg-[#f5f5f7] text-[#1d1d1f]"}`}
+                    >
+                      <span className="block text-[16px] font-bold">2x</span>
+                      <span className="block text-[10px]">หยุด</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCreateFormData({ ...createFormData, otType: "holiday", otRate: 3 })}
+                      className={`p-2 rounded-lg text-center ${createFormData.otType === "holiday" ? "bg-[#0071e3] text-white" : "bg-[#f5f5f7] text-[#1d1d1f]"}`}
+                    >
+                      <span className="block text-[16px] font-bold">3x</span>
+                      <span className="block text-[10px]">นักขัตฤกษ์</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เหตุผล</label>
+                  <Textarea
+                    value={createFormData.reason}
+                    onChange={(e) => setCreateFormData({ ...createFormData, reason: e.target.value })}
+                    rows={2}
+                    placeholder="ระบุเหตุผล..."
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Leave Form */}
+            {createType === "leave" && (
+              <>
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">ประเภทการลา</label>
+                  <select
+                    value={createFormData.leaveType}
+                    onChange={(e) => setCreateFormData({ ...createFormData, leaveType: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                  >
+                    <option value="sick">ลาป่วย</option>
+                    <option value="personal">ลากิจ</option>
+                    <option value="annual">ลาพักร้อน</option>
+                    <option value="maternity">ลาคลอด</option>
+                    <option value="military">ลากรณีทหาร</option>
+                    <option value="other">อื่นๆ</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-lg">
+                  <input
+                    type="checkbox"
+                    checked={createFormData.leaveIsHalfDay}
+                    onChange={(e) => setCreateFormData({ ...createFormData, leaveIsHalfDay: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <label className="text-[14px] text-[#1d1d1f]">ลาครึ่งวัน</label>
+                </div>
+
+                {!createFormData.leaveIsHalfDay && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">วันที่เริ่ม</label>
+                      <input
+                        type="date"
+                        value={createFormData.leaveStartDate}
+                        onChange={(e) => setCreateFormData({ ...createFormData, leaveStartDate: e.target.value })}
+                        className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">วันที่สิ้นสุด</label>
+                      <input
+                        type="date"
+                        value={createFormData.leaveEndDate}
+                        onChange={(e) => setCreateFormData({ ...createFormData, leaveEndDate: e.target.value })}
+                        className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {createFormData.leaveIsHalfDay && (
+                  <div>
+                    <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">วันที่</label>
+                    <input
+                      type="date"
+                      value={createFormData.leaveStartDate}
+                      onChange={(e) => setCreateFormData({ ...createFormData, leaveStartDate: e.target.value, leaveEndDate: e.target.value })}
+                      className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เหตุผล</label>
+                  <Textarea
+                    value={createFormData.reason}
+                    onChange={(e) => setCreateFormData({ ...createFormData, reason: e.target.value })}
+                    rows={2}
+                    placeholder="ระบุเหตุผล (ถ้ามี)..."
+                  />
+                </div>
+              </>
+            )}
+
+            {/* WFH Form */}
+            {createType === "wfh" && (
+              <>
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">วันที่</label>
+                  <input
+                    type="date"
+                    value={createFormData.wfhDate}
+                    onChange={(e) => setCreateFormData({ ...createFormData, wfhDate: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                  />
+                </div>
+
+                <div className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-lg">
+                  <input
+                    type="checkbox"
+                    checked={createFormData.wfhIsHalfDay}
+                    onChange={(e) => setCreateFormData({ ...createFormData, wfhIsHalfDay: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <label className="text-[14px] text-[#1d1d1f]">WFH ครึ่งวัน</label>
+                </div>
+
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เหตุผล</label>
+                  <Textarea
+                    value={createFormData.reason}
+                    onChange={(e) => setCreateFormData({ ...createFormData, reason: e.target.value })}
+                    rows={2}
+                    placeholder="ระบุเหตุผล..."
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Late Form */}
+            {createType === "late" && (
+              <>
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">วันที่</label>
+                  <input
+                    type="date"
+                    value={createFormData.lateDate}
+                    onChange={(e) => setCreateFormData({ ...createFormData, lateDate: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">จำนวนนาทีที่สาย</label>
+                  <input
+                    type="number"
+                    value={createFormData.lateMinutes}
+                    onChange={(e) => setCreateFormData({ ...createFormData, lateMinutes: parseInt(e.target.value) || 0 })}
+                    className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                    min="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เหตุผล</label>
+                  <Textarea
+                    value={createFormData.reason}
+                    onChange={(e) => setCreateFormData({ ...createFormData, reason: e.target.value })}
+                    rows={2}
+                    placeholder="ระบุเหตุผล..."
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Field Work Form */}
+            {createType === "field_work" && (
+              <>
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">วันที่</label>
+                  <input
+                    type="date"
+                    value={createFormData.fieldWorkDate}
+                    onChange={(e) => setCreateFormData({ ...createFormData, fieldWorkDate: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">สถานที่</label>
+                  <input
+                    type="text"
+                    value={createFormData.fieldWorkLocation}
+                    onChange={(e) => setCreateFormData({ ...createFormData, fieldWorkLocation: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                    placeholder="ระบุสถานที่..."
+                  />
+                </div>
+
+                <div className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-lg">
+                  <input
+                    type="checkbox"
+                    checked={createFormData.fieldWorkIsHalfDay}
+                    onChange={(e) => setCreateFormData({ ...createFormData, fieldWorkIsHalfDay: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <label className="text-[14px] text-[#1d1d1f]">ครึ่งวัน</label>
+                </div>
+
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เหตุผล</label>
+                  <Textarea
+                    value={createFormData.reason}
+                    onChange={(e) => setCreateFormData({ ...createFormData, reason: e.target.value })}
+                    rows={2}
+                    placeholder="ระบุเหตุผล..."
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setCreateType(null);
+                  setCreateModal(false);
+                }}
+                fullWidth
+              >
+                ยกเลิก
               </Button>
-            </Link>
+              <Button
+                onClick={handleCreateRequest}
+                loading={processing}
+                disabled={!createFormData.employeeId}
+                fullWidth
+              >
+                สร้างคำขอ (อนุมัติทันที)
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </Modal>
 
       {/* Edit Modal */}
