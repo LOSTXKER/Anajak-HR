@@ -9,7 +9,6 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { DateInput } from "@/components/ui/DateInput";
 import { TimeInput } from "@/components/ui/TimeInput";
@@ -169,10 +168,11 @@ function OTManageContent() {
               <label className="block text-[15px] font-medium text-[#1d1d1f] mb-2">
                 พนักงาน <span className="text-[#ff3b30]">*</span>
               </label>
-              <Select
+              <select
                 value={selectedEmployeeId}
                 onChange={(e) => setSelectedEmployeeId(e.target.value)}
                 required
+                className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] text-[#1d1d1f] focus:outline-none focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
               >
                 <option value="">เลือกพนักงาน...</option>
                 {employees.map((emp) => (
@@ -180,7 +180,7 @@ function OTManageContent() {
                     {emp.name} ({emp.email})
                   </option>
                 ))}
-              </Select>
+              </select>
             </div>
 
             {/* Date */}
@@ -232,14 +232,15 @@ function OTManageContent() {
               <label className="block text-[15px] font-medium text-[#1d1d1f] mb-2">
                 ประเภท OT
               </label>
-              <Select
+              <select
                 value={otType}
                 onChange={(e) => setOtType(e.target.value as any)}
+                className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] text-[#1d1d1f] focus:outline-none focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
               >
                 <option value="workday">วันทำงานปกติ (1x)</option>
                 <option value="weekend">วันหยุดสุดสัปดาห์ (1.5x)</option>
                 <option value="holiday">วันหยุดนักขัตฤกษ์ (2x)</option>
-              </Select>
+              </select>
             </div>
 
             {/* Status */}
@@ -247,13 +248,14 @@ function OTManageContent() {
               <label className="block text-[15px] font-medium text-[#1d1d1f] mb-2">
                 สถานะ
               </label>
-              <Select
+              <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as any)}
+                className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] text-[#1d1d1f] focus:outline-none focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
               >
                 <option value="approved">อนุมัติเลย (แนะนำ)</option>
                 <option value="pending">รอพนักงานอนุมัติ</option>
-              </Select>
+              </select>
               <p className="text-[13px] text-[#86868b] mt-1">
                 {status === "approved" 
                   ? "จะสร้างและอนุมัติทันที (เหมาะกับ OT ย้อนหลัง)"
