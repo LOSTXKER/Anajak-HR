@@ -56,7 +56,7 @@ export function CancelModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} maxWidth="md">
+    <Modal isOpen={isOpen} onClose={handleClose}>
       <div className="p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
