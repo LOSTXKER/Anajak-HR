@@ -91,6 +91,7 @@ export function Sidebar() {
         { title: "Dashboard", href: "/admin", icon: LayoutGrid },
         { title: "Admin Tools", href: "/admin/tools", icon: Wrench },
         { title: "อนุมัติ", href: "/admin/approvals", icon: FileText, badge: pendingCounts.approvals },
+        { title: "จัดการคำขอ", href: "/admin/requests", icon: Clock },
       ],
     },
     {

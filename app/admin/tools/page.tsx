@@ -81,11 +81,19 @@ function AdminToolsContent() {
   // Main tools
   const tools: ToolCard[] = [
     {
+      title: "จัดการคำขอทั้งหมด",
+      description: "ดู แก้ไข อนุมัติ ยกเลิก ทุกประเภทคำขอ",
+      icon: FileEdit,
+      color: "text-[#0071e3]",
+      bgColor: "bg-[#0071e3]/10",
+      href: "/admin/requests",
+    },
+    {
       title: "เพิ่มคำขอใหม่",
       description: "สร้าง OT, ลา, WFH, มาสาย, งานนอกสถานที่",
       icon: Plus,
-      color: "text-[#0071e3]",
-      bgColor: "bg-[#0071e3]/10",
+      color: "text-[#34c759]",
+      bgColor: "bg-[#34c759]/10",
       href: "/admin/requests/create",
     },
     {
