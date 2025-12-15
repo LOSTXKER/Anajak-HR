@@ -1,6 +1,13 @@
 -- Fix RLS policy for attendance_logs update by admin
 -- ให้ admin สามารถแก้ไขข้อมูล attendance ได้
 
+-- เพิ่ม columns สำหรับการแก้ไขข้อมูล attendance (ถ้ายังไม่มี)
+ALTER TABLE attendance_logs 
+ADD COLUMN IF NOT EXISTS edit_reason TEXT,
+ADD COLUMN IF NOT EXISTS edited_by UUID REFERENCES employees(id),
+ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS original_clock_out TIMESTAMPTZ;
+
 -- ลบ policy เดิมถ้ามี
 DROP POLICY IF EXISTS "Admin can update attendance" ON attendance_logs;
 DROP POLICY IF EXISTS "admin_update_attendance" ON attendance_logs;
