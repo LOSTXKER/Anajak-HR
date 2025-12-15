@@ -143,7 +143,7 @@ function EditAttendanceContent() {
       const isLate = clockInTotalMinutes > workStartTotalMinutes;
       const lateMinutes = isLate ? clockInTotalMinutes - workStartTotalMinutes : 0;
 
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from("attendance_logs")
         .update({
           clock_in_time: newClockIn.toISOString(),
@@ -158,26 +158,34 @@ function EditAttendanceContent() {
         })
         .eq("id", attendance.id);
 
-      if (error) throw error;
+      if (updateError) {
+        console.error("Update error:", updateError);
+        throw new Error(`อัปเดตไม่สำเร็จ: ${updateError.message}`);
+      }
 
-      // บันทึก anomaly สำหรับการแก้ไขย้อนหลัง
-      await supabase.from("attendance_anomalies").insert({
-        attendance_id: attendance.id,
-        employee_id: attendance.employee_id,
-        date: format(clockInDate, "yyyy-MM-dd"),
-        anomaly_type: "manual_edit",
-        description: `แก้ไขเวลาโดย ${currentAdmin?.name || "Admin"}: เช็คอิน ${clockIn} น., เช็คเอาท์ ${clockOut || "-"} น.`,
-        status: "resolved",
-        resolution_note: editReason,
-        resolved_by: currentAdmin?.id || null,
-        resolved_at: new Date().toISOString(),
-      });
+      // บันทึก anomaly สำหรับการแก้ไขย้อนหลัง (ไม่ block ถ้าล้มเหลว)
+      try {
+        await supabase.from("attendance_anomalies").insert({
+          attendance_id: attendance.id,
+          employee_id: attendance.employee_id,
+          date: format(clockInDate, "yyyy-MM-dd"),
+          anomaly_type: "manual_edit",
+          description: `แก้ไขเวลาโดย ${currentAdmin?.name || "Admin"}: เช็คอิน ${clockIn} น., เช็คเอาท์ ${clockOut || "-"} น.`,
+          status: "resolved",
+          resolution_note: editReason,
+          resolved_by: currentAdmin?.id || null,
+          resolved_at: new Date().toISOString(),
+        });
+      } catch (anomalyError) {
+        console.warn("Could not create anomaly record:", anomalyError);
+      }
 
       toast.success("บันทึกสำเร็จ", "แก้ไขข้อมูลการเข้างานเรียบร้อยแล้ว");
       router.push("/admin/attendance");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error saving attendance:", error);
-      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถบันทึกได้");
+      const errorMessage = error instanceof Error ? error.message : "ไม่สามารถบันทึกได้";
+      toast.error("เกิดข้อผิดพลาด", errorMessage);
     } finally {
       setSaving(false);
     }
