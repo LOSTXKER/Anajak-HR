@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   Building2,
   CalendarDays,
+  Wrench,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { useState, useEffect } from "react";
@@ -97,6 +98,7 @@ export function Sidebar() {
       title: "หลัก",
       items: [
         { title: "Dashboard", href: "/admin", icon: LayoutGrid },
+        { title: "Admin Tools", href: "/admin/tools", icon: Wrench },
         { title: "อนุมัติ", href: "/admin/approvals", icon: FileText, badge: pendingCounts.ot + pendingCounts.leave + pendingCounts.wfh + pendingCounts.late },
         { title: "เพิ่มคำขอ", href: "/admin/requests/create", icon: Users },
         { title: "การเข้างาน", href: "/admin/attendance", icon: Clock },
