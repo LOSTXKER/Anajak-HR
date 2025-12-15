@@ -1080,18 +1080,23 @@ function RequestsManagementContent() {
             {/* OT Form */}
             {createType === "ot" && (
               <>
-                <div className="p-3 bg-[#f5f5f7] rounded-xl">
-                  <label className="flex items-center gap-2 cursor-pointer">
+                <div className="p-4 bg-[#f5f5f7] rounded-xl">
+                  <label className="flex items-center gap-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={createFormData.otIsCompleted}
                       onChange={(e) => setCreateFormData({ ...createFormData, otIsCompleted: e.target.checked })}
-                      className="w-4 h-4"
+                      className="w-5 h-5 rounded"
                     />
                     <div>
-                      <span className="text-[14px] font-medium text-[#1d1d1f]">OT ทำเสร็จแล้ว</span>
-                      <p className="text-[12px] text-[#86868b]">
-                        {createFormData.otIsCompleted ? "บันทึกยอดเงิน OT ทันที" : "พนักงานต้องกดเริ่ม-จบเอง"}
+                      <span className="text-[15px] font-medium text-[#1d1d1f]">
+                        ✅ OT ทำเสร็จแล้ว (สร้างย้อนหลัง)
+                      </span>
+                      <p className="text-[13px] text-[#86868b]">
+                        {createFormData.otIsCompleted 
+                          ? "บันทึกยอดเงิน OT ทันที พนักงานไม่ต้องกดเริ่ม-จบ"
+                          : "พนักงานต้องกดเริ่มและจบ OT เอง"
+                        }
                       </p>
                     </div>
                   </label>
@@ -1103,7 +1108,7 @@ function RequestsManagementContent() {
                     type="date"
                     value={createFormData.otDate}
                     onChange={(e) => setCreateFormData({ ...createFormData, otDate: e.target.value })}
-                    className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                    className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
                   />
                 </div>
 
@@ -1114,7 +1119,7 @@ function RequestsManagementContent() {
                       type="time"
                       value={createFormData.otStartTime}
                       onChange={(e) => setCreateFormData({ ...createFormData, otStartTime: e.target.value })}
-                      className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                      className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
                     />
                   </div>
                   <div>
@@ -1123,40 +1128,65 @@ function RequestsManagementContent() {
                       type="time"
                       value={createFormData.otEndTime}
                       onChange={(e) => setCreateFormData({ ...createFormData, otEndTime: e.target.value })}
-                      className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                      className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">อัตราคูณ OT</label>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">ประเภท OT & อัตราคูณ</label>
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
                       onClick={() => setCreateFormData({ ...createFormData, otType: "workday", otRate: 1.5 })}
-                      className={`p-2 rounded-lg text-center ${createFormData.otType === "workday" ? "bg-[#0071e3] text-white" : "bg-[#f5f5f7] text-[#1d1d1f]"}`}
+                      className={`p-3 rounded-xl text-center transition-all ${createFormData.otType === "workday" ? "bg-[#0071e3] text-white" : "bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e8e8ed]"}`}
                     >
-                      <span className="block text-[16px] font-bold">1.5x</span>
-                      <span className="block text-[10px]">ธรรมดา</span>
+                      <span className="block text-[20px] font-bold">1.5x</span>
+                      <span className="block text-[11px] mt-0.5">วันธรรมดา</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setCreateFormData({ ...createFormData, otType: "weekend", otRate: 2 })}
-                      className={`p-2 rounded-lg text-center ${createFormData.otType === "weekend" ? "bg-[#0071e3] text-white" : "bg-[#f5f5f7] text-[#1d1d1f]"}`}
+                      className={`p-3 rounded-xl text-center transition-all ${createFormData.otType === "weekend" ? "bg-[#0071e3] text-white" : "bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e8e8ed]"}`}
                     >
-                      <span className="block text-[16px] font-bold">2x</span>
-                      <span className="block text-[10px]">หยุด</span>
+                      <span className="block text-[20px] font-bold">2x</span>
+                      <span className="block text-[11px] mt-0.5">วันหยุด</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setCreateFormData({ ...createFormData, otType: "holiday", otRate: 3 })}
-                      className={`p-2 rounded-lg text-center ${createFormData.otType === "holiday" ? "bg-[#0071e3] text-white" : "bg-[#f5f5f7] text-[#1d1d1f]"}`}
+                      className={`p-3 rounded-xl text-center transition-all ${createFormData.otType === "holiday" ? "bg-[#0071e3] text-white" : "bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e8e8ed]"}`}
                     >
-                      <span className="block text-[16px] font-bold">3x</span>
-                      <span className="block text-[10px]">นักขัตฤกษ์</span>
+                      <span className="block text-[20px] font-bold">3x</span>
+                      <span className="block text-[11px] mt-0.5">นักขัตฤกษ์</span>
                     </button>
                   </div>
                 </div>
+
+                {/* OT Preview */}
+                {createFormData.otIsCompleted && createFormData.otStartTime && createFormData.otEndTime && (
+                  <div className="p-4 bg-[#34c759]/10 rounded-xl">
+                    <p className="text-[13px] text-[#34c759] font-medium mb-1">💰 ประมาณการ OT</p>
+                    <p className="text-[15px] text-[#1d1d1f]">
+                      {(() => {
+                        const start = new Date(`2000-01-01T${createFormData.otStartTime}:00`);
+                        const end = new Date(`2000-01-01T${createFormData.otEndTime}:00`);
+                        const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+                        const emp = employees.find(e => e.id === createFormData.employeeId);
+                        const baseSalary = emp?.base_salary || 0;
+                        if (baseSalary > 0) {
+                          const hourlyRate = baseSalary / 30 / 8;
+                          const amount = hours * hourlyRate * createFormData.otRate;
+                          return `${hours.toFixed(2)} ชม. × ${createFormData.otRate}x ≈ ฿${amount.toLocaleString("th-TH", { maximumFractionDigits: 0 })}`;
+                        }
+                        return `${hours.toFixed(2)} ชั่วโมง × ${createFormData.otRate}x = ${(hours * createFormData.otRate).toFixed(2)} ชม. (เทียบเท่า)`;
+                      })()}
+                    </p>
+                    <p className="text-[12px] text-[#86868b] mt-1">
+                      * ยอดเงินคำนวณจาก base salary ของพนักงาน
+                    </p>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เหตุผล</label>
