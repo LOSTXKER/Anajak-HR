@@ -69,6 +69,7 @@ const typeConfig: Record<RequestType, { label: string; icon: any; color: string;
 const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
   pending: { label: "รออนุมัติ", color: "text-[#ff9500]", bgColor: "bg-[#ff9500]/10" },
   approved: { label: "อนุมัติแล้ว", color: "text-[#34c759]", bgColor: "bg-[#34c759]/10" },
+  completed: { label: "เสร็จสิ้น", color: "text-[#0071e3]", bgColor: "bg-[#0071e3]/10" },
   rejected: { label: "ปฏิเสธ", color: "text-[#ff3b30]", bgColor: "bg-[#ff3b30]/10" },
   cancelled: { label: "ยกเลิก", color: "text-[#86868b]", bgColor: "bg-[#86868b]/10" },
 };
