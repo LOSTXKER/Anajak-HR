@@ -21,6 +21,7 @@ import {
   Timer,
   AlertCircle,
   Play,
+  AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { supabase } from "@/lib/supabase/client";
@@ -372,8 +373,13 @@ export default function HomePage() {
                       <UserCheck className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <p className="text-[15px] font-medium text-white/80">
-                        {todayAttendance.clock_out_time ? "เสร็จสิ้น" : isOvertime ? "⚠️ ทำงานเกินเวลา" : "กำลังทำงาน"}
+                      <p className="text-[15px] font-medium text-white/80 flex items-center gap-1.5">
+                        {todayAttendance.clock_out_time ? "เสร็จสิ้น" : isOvertime ? (
+                          <>
+                            <AlertTriangle className="w-4 h-4" />
+                            ทำงานเกินเวลา
+                          </>
+                        ) : "กำลังทำงาน"}
                       </p>
                       <p className="text-[13px] text-white/60">
                         เข้า {todayAttendance.clock_in_time ? format(new Date(todayAttendance.clock_in_time), "HH:mm") : "-"} น.

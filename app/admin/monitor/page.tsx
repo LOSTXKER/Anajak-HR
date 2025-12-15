@@ -258,7 +258,7 @@ function MonitorContent() {
   }
 
   return (
-    <AdminLayout title="📊 Monitor" description="ติดตามสถานะและความผิดปกติ">
+    <AdminLayout title="Monitor" description="ติดตามสถานะและความผิดปกติ">
       {/* View Mode Toggle */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2 p-1 bg-[#f5f5f7] rounded-2xl w-fit">
@@ -505,7 +505,7 @@ function MonitorContent() {
             <Card elevated className="text-center py-12">
               <CheckCircle className="w-16 h-16 text-[#34c759] mx-auto mb-4" />
               <h3 className="text-[17px] font-semibold text-[#1d1d1f] mb-2">ไม่มีรายการที่ต้องตรวจสอบ</h3>
-              <p className="text-[15px] text-[#86868b]">ระบบทำงานปกติ ✨</p>
+              <p className="text-[15px] text-[#86868b]">ระบบทำงานปกติ</p>
             </Card>
           ) : (
             <div className="space-y-3">
@@ -552,8 +552,9 @@ function MonitorContent() {
 
                         <p className="text-[13px] text-[#86868b] mb-2">{anomaly.description}</p>
 
-                        <p className="text-[12px] text-[#86868b]">
-                          📅 {format(new Date(anomaly.date), "d MMM yyyy", { locale: th })}
+                        <p className="text-[12px] text-[#86868b] flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {format(new Date(anomaly.date), "d MMM yyyy", { locale: th })}
                         </p>
                       </div>
 

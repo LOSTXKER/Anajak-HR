@@ -19,6 +19,7 @@ import {
   Edit,
   RefreshCw,
   TrendingUp,
+  User,
 } from "lucide-react";
 import { format, parseISO, differenceInHours } from "date-fns";
 import { th } from "date-fns/locale";
@@ -290,7 +291,7 @@ function QuickFixDashboardContent() {
             ไม่มีปัญหาที่ต้องแก้ไข
           </h3>
           <p className="text-[15px] text-[#86868b]">
-            ระบบทำงานปกติ ทุกอย่างเรียบร้อย ✨
+            ระบบทำงานปกติ ทุกอย่างเรียบร้อย
           </p>
         </Card>
       )}
@@ -404,8 +405,14 @@ function ProblemCard({
           </div>
 
           <div className="flex items-center gap-4 text-[13px] text-[#86868b] mb-4">
-            <span>👤 {problem.employeeName}</span>
-            <span>📅 {format(parseISO(problem.date), "d MMM yyyy", { locale: th })}</span>
+            <span className="flex items-center gap-1">
+              <User className="w-3.5 h-3.5" />
+              {problem.employeeName}
+            </span>
+            <span className="flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5" />
+              {format(parseISO(problem.date), "d MMM yyyy", { locale: th })}
+            </span>
           </div>
 
           <div className="flex gap-2">
