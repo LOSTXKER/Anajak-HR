@@ -146,8 +146,9 @@ function LeaveQuotaSettingsContent() {
                   <p className="text-xs text-[#86868b]">วัน</p>
                 </div>
               </div>
-              <p className="text-xs text-[#86868b] mt-2">
-                💡 โดยทั่วไปมักกำหนดไว้ที่ 6-10 วันต่อปี
+              <p className="text-xs text-[#86868b] mt-2 flex items-center gap-1">
+                <Info className="w-3.5 h-3.5" />
+                โดยทั่วไปมักกำหนดไว้ที่ 6-10 วันต่อปี
               </p>
             </div>
 
@@ -170,8 +171,9 @@ function LeaveQuotaSettingsContent() {
                   <p className="text-xs text-[#86868b]">วัน</p>
                 </div>
               </div>
-              <p className="text-xs text-[#86868b] mt-2">
-                💡 โดยทั่วไปมักกำหนดไว้ที่ 30 วันต่อปี
+              <p className="text-xs text-[#86868b] mt-2 flex items-center gap-1">
+                <Info className="w-3.5 h-3.5" />
+                โดยทั่วไปมักกำหนดไว้ที่ 30 วันต่อปี
               </p>
             </div>
 
@@ -194,8 +196,9 @@ function LeaveQuotaSettingsContent() {
                   <p className="text-xs text-[#86868b]">วัน</p>
                 </div>
               </div>
-              <p className="text-xs text-[#86868b] mt-2">
-                💡 โดยทั่วไปมักกำหนดไว้ที่ 3 วันต่อปี
+              <p className="text-xs text-[#86868b] mt-2 flex items-center gap-1">
+                <Info className="w-3.5 h-3.5" />
+                โดยทั่วไปมักกำหนดไว้ที่ 3 วันต่อปี
               </p>
             </div>
           </div>
@@ -220,8 +223,9 @@ function LeaveQuotaSettingsContent() {
             <p>• พนักงานใหม่จะได้รับ <strong className="text-[#34c759]">{settings.defaultAnnual} วันพักร้อน</strong></p>
             <p>• พนักงานใหม่จะได้รับ <strong className="text-[#ff3b30]">{settings.defaultSick} วันลาป่วย</strong></p>
             <p>• พนักงานใหม่จะได้รับ <strong className="text-[#ff9500]">{settings.defaultPersonal} วันลากิจ</strong></p>
-            <p className="pt-2 border-t border-[#e8e8ed] mt-3">
-              💡 หากต้องการแก้ไขโควต้าของพนักงานปัจจุบัน ให้ไปที่หน้า{" "}
+            <p className="pt-2 border-t border-[#e8e8ed] mt-3 flex items-center gap-1">
+              <Info className="w-3.5 h-3.5 flex-shrink-0" />
+              หากต้องการแก้ไขโควต้าของพนักงานปัจจุบัน ให้ไปที่หน้า{" "}
               <Link href="/admin/employees" className="text-[#0071e3] hover:underline">
                 จัดการพนักงาน
               </Link>

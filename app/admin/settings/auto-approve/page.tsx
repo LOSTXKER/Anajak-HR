@@ -237,9 +237,10 @@ function AutoApproveContent() {
           <div className="flex items-start gap-3">
             <Zap className="w-5 h-5 text-[#ff9500] flex-shrink-0 mt-0.5" />
             <div>
-              <h3 className="text-[14px] font-semibold text-[#1d1d1f] mb-1">
-                ⚠️ คำเตือน
-              </h3>
+              <div className="flex items-center gap-1.5 mb-1">
+                <AlertTriangle className="w-4 h-4 text-[#ff9500]" />
+                <h3 className="text-[14px] font-semibold text-[#1d1d1f]">คำเตือน</h3>
+              </div>
               <p className="text-[13px] text-[#86868b] leading-relaxed">
                 คำขอที่อนุมัติอัตโนมัติจะไม่สามารถปฏิเสธได้ในภายหลัง 
                 Admin สามารถดูประวัติได้ในหน้าการเข้างานและรายงาน

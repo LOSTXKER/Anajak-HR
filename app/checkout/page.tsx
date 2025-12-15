@@ -187,7 +187,7 @@ function CheckoutContent() {
       // ป้องกันการ checkout หลังเวลาที่กำหนด (เกินเวลาไป)
       if (currentTimeInMinutes > endTimeInMinutes) {
         setError(
-          `⚠️ ไม่สามารถเช็คเอาท์ได้\n\n` +
+          `ไม่สามารถเช็คเอาท์ได้\n\n` +
           `เวลาที่อนุญาต: ${allowedTime.checkoutStart} - ${allowedTime.checkoutEnd} น.\n` +
           `หากต้องการทำงานนอกเวลา กรุณาขอ OT ก่อน`
         );
@@ -465,8 +465,9 @@ function CheckoutContent() {
                   >
                     {radiusCheck.inRadius ? "อยู่ในรัศมีสาขา ✓" : "อยู่นอกรัศมีสาขา"}
                   </p>
-                  <p className="text-[13px] text-[#86868b]">
-                    📍 {branch.name} • ห่าง {formatDistance(radiusCheck.distance)}
+                  <p className="text-[13px] text-[#86868b] flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5" />
+                    {branch.name} • ห่าง {formatDistance(radiusCheck.distance)}
                   </p>
                 </div>
               </div>

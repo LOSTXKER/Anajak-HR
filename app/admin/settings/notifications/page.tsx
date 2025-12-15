@@ -17,6 +17,7 @@ import {
   LogIn,
   LogOut,
   Timer,
+  Info,
 } from "lucide-react";
 import Link from "next/link";
 import { TimeInput } from "@/components/ui/TimeInput";
@@ -455,8 +456,9 @@ function NotificationSettingsContent() {
                 </div>
               )}
 
-              <p className="text-xs text-[#86868b] mt-2">
-                💡 เตือนก่อน Auto Check-out เช่น 60 นาที, 30 นาที, 15 นาที
+              <p className="text-xs text-[#86868b] mt-2 flex items-center gap-1">
+                <Info className="w-3.5 h-3.5" />
+                เตือนก่อน Auto Check-out เช่น 60 นาที, 30 นาที, 15 นาที
               </p>
             </div>
           </Card>

@@ -18,6 +18,7 @@ import {
   Clock,
   AlertTriangle,
   XCircle,
+  FileText,
   Briefcase,
   Home,
   RotateCcw,
@@ -78,7 +79,7 @@ const MESSAGE_TEMPLATES = [
   },
   {
     key: "line_msg_early_checkout",
-    label: "⚠️ เช็คเอาท์ก่อนเวลา",
+    label: "เช็คเอาท์ก่อนเวลา",
     description: "แจ้งเตือนเมื่อพนักงานเช็คเอาท์ก่อนเวลา",
     icon: <AlertTriangle className="w-5 h-5" />,
     color: "#ff9500",
@@ -387,7 +388,10 @@ function LineSettingsContent() {
 
           {/* Info Card */}
           <Card elevated className="bg-[#f9f9fb]">
-            <h4 className="text-sm font-semibold text-[#1d1d1f] mb-3">📝 วิธีการตั้งค่า</h4>
+            <div className="flex items-center gap-1.5 mb-3">
+              <FileText className="w-4 h-4 text-[#0071e3]" />
+              <h4 className="text-sm font-semibold text-[#1d1d1f]">วิธีการตั้งค่า</h4>
+            </div>
             <ol className="space-y-2 text-[13px] text-[#86868b] list-decimal list-inside">
               <li>ไปที่ <a href="https://developers.line.biz/console" target="_blank" rel="noopener noreferrer" className="text-[#06C755] hover:underline">LINE Developers Console</a></li>
               <li>สร้าง Provider และ Channel (Messaging API)</li>

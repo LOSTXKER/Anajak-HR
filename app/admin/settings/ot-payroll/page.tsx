@@ -520,8 +520,9 @@ function OTPayrollSettingsContent() {
                 />
               </div>
             </div>
-            <p className="text-xs text-[#86868b] mt-3">
-              ⚠️ ระบบจะเตือนเมื่อพนักงาน OT ใกล้ถึงขีดจำกัด
+            <p className="text-xs text-[#86868b] mt-3 flex items-center gap-1">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              ระบบจะเตือนเมื่อพนักงาน OT ใกล้ถึงขีดจำกัด
             </p>
           </Card>
 
