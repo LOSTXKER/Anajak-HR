@@ -19,6 +19,8 @@ import {
   MapPin,
   UserPlus,
   CheckCircle,
+  DollarSign,
+  FileText,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -238,8 +240,9 @@ function CreateRequestContent() {
       <form onSubmit={handleSubmit} className="max-w-3xl">
         {/* Info */}
         <Card className="mb-6 !bg-[#0071e3]/5 border-[#0071e3]/20">
-          <p className="text-[14px] text-[#86868b]">
-            📝 เพิ่มคำขอแทนพนักงาน (กรณีลืมกรอก หรือไม่สะดวก) คำขอจะได้รับการอนุมัติทันที
+          <p className="text-[14px] text-[#86868b] flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            เพิ่มคำขอแทนพนักงาน (กรณีลืมกรอก หรือไม่สะดวก) คำขอจะได้รับการอนุมัติทันที
           </p>
         </Card>
 
@@ -314,8 +317,9 @@ function CreateRequestContent() {
                         className="w-5 h-5 rounded"
                       />
                       <div>
-                        <span className="text-[15px] font-medium text-[#1d1d1f]">
-                          ✅ OT ทำเสร็จแล้ว (สร้างย้อนหลัง)
+                        <span className="text-[15px] font-medium text-[#1d1d1f] flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4" />
+                          OT ทำเสร็จแล้ว (สร้างย้อนหลัง)
                         </span>
                         <p className="text-[13px] text-[#86868b]">
                           {formData.otIsCompleted 
@@ -403,7 +407,10 @@ function CreateRequestContent() {
                   {/* OT Preview */}
                   {formData.otIsCompleted && formData.otStartTime && formData.otEndTime && (
                     <div className="p-4 bg-[#34c759]/10 rounded-xl">
-                      <p className="text-[13px] text-[#34c759] font-medium mb-1">💰 ประมาณการ OT</p>
+                      <p className="text-[13px] text-[#34c759] font-medium mb-1 flex items-center gap-1.5">
+                        <DollarSign className="w-4 h-4" />
+                        ประมาณการ OT
+                      </p>
                       <p className="text-[15px] text-[#1d1d1f]">
                         {(() => {
                           const start = new Date(`2000-01-01T${formData.otStartTime}:00`);

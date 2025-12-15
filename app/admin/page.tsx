@@ -20,6 +20,7 @@ import {
   FileText,
   Home,
   ChevronRight,
+  AlertCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
@@ -353,9 +354,12 @@ function AdminDashboardContent() {
         <div className="space-y-6">
           <Card elevated>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
-                ⚠️ รอการอนุมัติ
-              </h3>
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-[#ff9500]" />
+                <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
+                  รอการอนุมัติ
+                </h3>
+              </div>
               <Link
                 href="/admin/approvals"
                 className="text-[14px] text-[#0071e3] hover:underline"
@@ -377,7 +381,7 @@ function AdminDashboardContent() {
                     className="flex items-center justify-between p-3 bg-[#ff9500]/10 rounded-xl hover:bg-[#ff9500]/15 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-[20px]">🕐</span>
+                      <Clock className="w-5 h-5 text-[#0071e3]" />
                       <span className="text-[14px] text-[#1d1d1f]">คำขอ OT</span>
                     </div>
                     <Badge variant="warning">{pendingRequests.ot.length}</Badge>
@@ -390,7 +394,7 @@ function AdminDashboardContent() {
                     className="flex items-center justify-between p-3 bg-[#0071e3]/10 rounded-xl hover:bg-[#0071e3]/15 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-[20px]">📝</span>
+                      <FileText className="w-5 h-5 text-[#34c759]" />
                       <span className="text-[14px] text-[#1d1d1f]">คำขอลางาน</span>
                     </div>
                     <Badge variant="info">{pendingRequests.leave.length}</Badge>
@@ -403,7 +407,7 @@ function AdminDashboardContent() {
                     className="flex items-center justify-between p-3 bg-[#34c759]/10 rounded-xl hover:bg-[#34c759]/15 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-[20px]">🏠</span>
+                      <Home className="w-5 h-5 text-[#af52de]" />
                       <span className="text-[14px] text-[#1d1d1f]">คำขอ WFH</span>
                     </div>
                     <Badge variant="success">{pendingRequests.wfh.length}</Badge>
