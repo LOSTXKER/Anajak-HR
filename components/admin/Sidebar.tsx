@@ -8,7 +8,6 @@ import {
   LayoutGrid,
   Users,
   Clock,
-  Calendar,
   BarChart3,
   Settings,
   LogOut,
@@ -17,9 +16,6 @@ import {
   FileText,
   DollarSign,
   Activity,
-  AlertTriangle,
-  Building2,
-  CalendarDays,
   Wrench,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
@@ -35,6 +31,7 @@ interface MenuItem {
   href: string;
   icon: any;
   badge?: number;
+  isNew?: boolean;
 }
 
 export function Sidebar() {
@@ -44,10 +41,7 @@ export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pendingCounts, setPendingCounts] = useState({
     employees: 0,
-    ot: 0,
-    leave: 0,
-    wfh: 0,
-    late: 0,
+    approvals: 0,
   });
 
   useEffect(() => {
@@ -83,33 +77,29 @@ export function Sidebar() {
 
       setPendingCounts({
         employees: employeesResult.count || 0,
-        ot: otResult.count || 0,
-        leave: leaveResult.count || 0,
-        wfh: wfhResult.count || 0,
-        late: lateResult.count || 0,
+        approvals: (otResult.count || 0) + (leaveResult.count || 0) + (wfhResult.count || 0) + (lateResult.count || 0),
       });
     } catch (error) {
       console.error("Error fetching pending counts:", error);
     }
   };
 
+  // Simplified menu structure
   const menuSections: MenuSection[] = [
     {
       title: "หลัก",
       items: [
         { title: "Dashboard", href: "/admin", icon: LayoutGrid },
-        { title: "Admin Tools", href: "/admin/tools", icon: Wrench },
-        { title: "อนุมัติ", href: "/admin/approvals", icon: FileText, badge: pendingCounts.ot + pendingCounts.leave + pendingCounts.wfh + pendingCounts.late },
-        { title: "เพิ่มคำขอ", href: "/admin/requests/create", icon: Users },
-        { title: "การเข้างาน", href: "/admin/attendance", icon: Clock },
-        { title: "พนักงาน", href: "/admin/employees", icon: Users, badge: pendingCounts.employees },
+        { title: "Admin Tools", href: "/admin/tools", icon: Wrench, isNew: true },
+        { title: "อนุมัติ", href: "/admin/approvals", icon: FileText, badge: pendingCounts.approvals },
       ],
     },
     {
-      title: "ติดตาม",
+      title: "จัดการ",
       items: [
+        { title: "พนักงาน", href: "/admin/employees", icon: Users, badge: pendingCounts.employees },
+        { title: "การเข้างาน", href: "/admin/attendance", icon: Clock },
         { title: "Monitor", href: "/admin/monitor", icon: Activity },
-        { title: "ความผิดปกติ", href: "/admin/anomalies", icon: AlertTriangle },
       ],
     },
     {
@@ -122,14 +112,12 @@ export function Sidebar() {
     {
       title: "ตั้งค่า",
       items: [
-        { title: "สาขา", href: "/admin/branches", icon: Building2 },
-        { title: "วันหยุด", href: "/admin/holidays", icon: CalendarDays },
         { title: "ตั้งค่าระบบ", href: "/admin/settings", icon: Settings },
       ],
     },
   ];
 
-  const totalPending = pendingCounts.employees + pendingCounts.ot + pendingCounts.leave + pendingCounts.wfh + pendingCounts.late;
+  const totalPending = pendingCounts.employees + pendingCounts.approvals;
 
   const handleSignOut = async () => {
     await signOut();
@@ -162,7 +150,9 @@ export function Sidebar() {
             {/* Section Items */}
             <div className="space-y-0.5">
               {section.items.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                const isActive = pathname === item.href || 
+                  (item.href !== "/admin" && pathname.startsWith(item.href + "/")) ||
+                  (item.href === "/admin" && pathname === "/admin");
                 return (
                   <Link
                     key={item.href}
@@ -179,6 +169,11 @@ export function Sidebar() {
                   >
                     <item.icon className="w-[18px] h-[18px]" />
                     <span className="flex-1">{item.title}</span>
+                    {item.isNew && !isActive && (
+                      <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-[#34c759] text-white">
+                        NEW
+                      </span>
+                    )}
                     {item.badge !== undefined && item.badge > 0 && (
                       <span
                         className={`
