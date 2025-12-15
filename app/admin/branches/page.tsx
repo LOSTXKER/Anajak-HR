@@ -250,8 +250,9 @@ function BranchesContent() {
                       <p className="text-[14px] text-[#86868b] mt-1">{branch.address}</p>
                     )}
                     <div className="flex items-center gap-4 mt-2 text-[13px] text-[#6e6e73]">
-                      <span>
-                        📍 {branch.gps_lat?.toFixed(4)}, {branch.gps_lng?.toFixed(4)}
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5" />
+                        {branch.gps_lat?.toFixed(4)}, {branch.gps_lng?.toFixed(4)}
                       </span>
                       <span>📏 {branch.radius_meters}m</span>
                     </div>

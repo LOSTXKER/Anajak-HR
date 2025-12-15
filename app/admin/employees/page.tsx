@@ -28,6 +28,8 @@ import {
   Shield,
   CheckCircle,
   XCircle,
+  AlertTriangle,
+  X,
   Clock,
   Eye,
   ChevronRight,
@@ -247,9 +249,9 @@ function EmployeesContent() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "approved": return <Badge variant="success">✅ อนุมัติแล้ว</Badge>;
-      case "pending": return <Badge variant="warning">⏳ รออนุมัติ</Badge>;
-      case "rejected": return <Badge variant="danger">❌ ปฏิเสธ</Badge>;
+      case "approved": return <Badge variant="success">อนุมัติแล้ว</Badge>;
+      case "pending": return <Badge variant="warning">รออนุมัติ</Badge>;
+      case "rejected": return <Badge variant="danger">ปฏิเสธ</Badge>;
       default: return <Badge>{status}</Badge>;
     }
   };
@@ -357,9 +359,9 @@ function EmployeesContent() {
             onChange={setFilterStatus}
             options={[
               { value: "all", label: "ทุกสถานะ" },
-              { value: "pending", label: `⏳ รออนุมัติ (${stats.pending})` },
-              { value: "approved", label: "✅ อนุมัติแล้ว" },
-              { value: "rejected", label: "❌ ปฏิเสธ" },
+              { value: "pending", label: `รออนุมัติ (${stats.pending})` },
+              { value: "approved", label: "อนุมัติแล้ว" },
+              { value: "rejected", label: "ปฏิเสธ" },
             ]}
           />
           <Select
@@ -563,12 +565,14 @@ function EmployeesContent() {
               />
               {editModal?.role === "admin" && editForm.role !== "admin" && (
                 <div className="p-3 bg-[#fff7ed] border border-[#fed7aa] rounded-lg">
-                  <p className="text-[13px] text-[#9a3412] font-medium">
-                    ⚠️ กำลังลดสิทธิ์จาก Admin เป็น {editForm.role === "staff" ? "Staff" : "Supervisor"}
+                  <p className="text-[13px] text-[#9a3412] font-medium flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    กำลังลดสิทธิ์จาก Admin เป็น {editForm.role === "staff" ? "Staff" : "Supervisor"}
                   </p>
                   {employees.filter(e => e.role === "admin").length <= 1 && (
-                    <p className="text-[12px] text-[#ff3b30] mt-1 font-semibold">
-                      ❌ ไม่สามารถเปลี่ยนได้! นี่คือ Admin คนสุดท้ายในระบบ
+                    <p className="text-[12px] text-[#ff3b30] mt-1 font-semibold flex items-center gap-1">
+                      <X className="w-3.5 h-3.5" />
+                      ไม่สามารถเปลี่ยนได้! นี่คือ Admin คนสุดท้ายในระบบ
                     </p>
                   )}
                 </div>

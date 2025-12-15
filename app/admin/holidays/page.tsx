@@ -280,8 +280,9 @@ function HolidaysContent() {
               } else if (diffDays < 0) {
                 return (
                   <div className="p-4 bg-[#ff3b30]/10 border-2 border-[#ff3b30]/30 rounded-xl">
-                    <span className="text-[#ff3b30] text-[14px]">
-                      ⚠️ วันที่สิ้นสุดต้องมากกว่าหรือเท่ากับวันที่เริ่มต้น
+                    <span className="text-[#ff3b30] text-[14px] flex items-center gap-1">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      วันที่สิ้นสุดต้องมากกว่าหรือเท่ากับวันที่เริ่มต้น
                     </span>
                   </div>
                 );

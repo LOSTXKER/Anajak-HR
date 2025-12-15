@@ -263,9 +263,10 @@ function FieldWorkRequestContent() {
 
         {/* Info Card */}
         <Card className="mt-4 bg-[#f5f5f7] border-none">
-          <p className="text-[13px] text-[#86868b] leading-relaxed">
-            💡 <strong>หมายเหตุ:</strong> ทำงานนอกสถานที่จะไม่ถูกตรวจสอบตำแหน่ง GPS เมื่อเช็คอินเข้างาน
-            แต่ต้องได้รับการอนุมัติจากหัวหน้างานล่วงหน้า
+          <p className="text-[13px] text-[#86868b] leading-relaxed flex items-start gap-1">
+            <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+            <span><strong>หมายเหตุ:</strong> ทำงานนอกสถานที่จะไม่ถูกตรวจสอบตำแหน่ง GPS เมื่อเช็คอินเข้างาน
+            แต่ต้องได้รับการอนุมัติจากหัวหน้างานล่วงหน้า</span>
           </p>
         </Card>
       </div>

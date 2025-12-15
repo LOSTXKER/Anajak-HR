@@ -22,6 +22,7 @@ import {
   TrendingUp,
   RefreshCw,
   FileText,
+  Settings,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, isWeekend } from "date-fns";
 import { th } from "date-fns/locale";
@@ -790,8 +791,9 @@ function ReportsContent() {
 
           {/* Top 5 Late */}
           <Card elevated padding="none">
-            <div className="px-4 py-3 border-b border-[#e8e8ed]">
-              <h4 className="text-[15px] font-semibold text-[#1d1d1f]">⚠️ Top 5 มาสาย</h4>
+            <div className="px-4 py-3 border-b border-[#e8e8ed] flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-[#ff9500]" />
+              <h4 className="text-[15px] font-semibold text-[#1d1d1f]">Top 5 มาสาย</h4>
             </div>
             <div className="divide-y divide-[#e8e8ed]">
               {[...filteredReports]
@@ -947,7 +949,10 @@ function ReportsContent() {
       {/* Debug Info (only in development) */}
       {process.env.NODE_ENV === "development" && (
         <Card elevated className="mt-6">
-          <h4 className="text-[13px] font-semibold text-[#1d1d1f] mb-2">🔧 Debug Info</h4>
+          <div className="flex items-center gap-1.5 mb-2">
+            <Settings className="w-3.5 h-3.5 text-[#0071e3]" />
+            <h4 className="text-[13px] font-semibold text-[#1d1d1f]">Debug Info</h4>
+          </div>
           <div className="text-[11px] text-[#86868b] space-y-1">
             <p>Employees: {employees.length}</p>
             <p>Attendance Logs: {attendanceLogs.length}</p>

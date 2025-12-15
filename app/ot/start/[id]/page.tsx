@@ -236,7 +236,7 @@ function OTStartContent({ id }: { id: string }) {
     if (!isCorrectDay()) {
       return {
         type: "wrong_date",
-        message: `❌ ยังไม่ถึงวัน OT (${format(new Date(otRequest?.request_date || ""), "d MMMM yyyy", { locale: th })})`,
+        message: `ยังไม่ถึงวัน OT (${format(new Date(otRequest?.request_date || ""), "d MMMM yyyy", { locale: th })})`,
         canProceed: false,
       };
     }
@@ -255,7 +255,6 @@ function OTStartContent({ id }: { id: string }) {
     if (dayInfo) {
       // Holiday or weekend - no check-in required based on settings
       if (!dayInfo.requireCheckin) {
-        const emoji = dayInfo.type === "holiday" ? "🎉" : dayInfo.type === "weekend" ? "🌅" : "📋";
         return {
           type: dayInfo.type,
           message: `${emoji} ${dayInfo.typeName} (${dayInfo.rate}x) - ไม่ต้องเช็คอินก่อน`,
@@ -268,7 +267,7 @@ function OTStartContent({ id }: { id: string }) {
     if (!todayAttendance?.clock_in_time) {
       return {
         type: "no_checkin",
-        message: "❌ กรุณาเช็คอินก่อนเริ่มทำ OT",
+        message: "กรุณาเช็คอินก่อนเริ่มทำ OT",
         canProceed: false,
       };
     }
@@ -276,14 +275,14 @@ function OTStartContent({ id }: { id: string }) {
     if (!todayAttendance?.clock_out_time) {
       return {
         type: "no_checkout",
-        message: "⚠️ แนะนำให้เช็คเอาท์ก่อนเริ่ม OT (หรือเริ่มได้เลยถ้าต่อเนื่อง)",
+        message: "แนะนำให้เช็คเอาท์ก่อนเริ่ม OT (หรือเริ่มได้เลยถ้าต่อเนื่อง)",
         canProceed: true,
       };
     }
 
     return {
       type: "ready",
-      message: `✅ พร้อมเริ่ม OT ${dayInfo ? `(${dayInfo.rate}x)` : ""}`,
+      message: `พร้อมเริ่ม OT ${dayInfo ? `(${dayInfo.rate}x)` : ""}`,
       canProceed: true,
     };
   };
@@ -496,8 +495,8 @@ function OTStartContent({ id }: { id: string }) {
                 dayInfo.type === "holiday" ? "danger" :
                   dayInfo.type === "weekend" ? "warning" : "info"
               }>
-                {dayInfo.type === "holiday" ? "🎉 วันหยุดนักขัตฤกษ์" :
-                  dayInfo.type === "weekend" ? "🌅 วันหยุดสุดสัปดาห์" : "📋 วันทำงานปกติ"} ({dayInfo.rate}x)
+                {dayInfo.type === "holiday" ? "วันหยุดนักขัตฤกษ์" :
+                  dayInfo.type === "weekend" ? "วันหยุดสุดสัปดาห์" : "วันทำงานปกติ"} ({dayInfo.rate}x)
               </Badge>
             )}
           </div>

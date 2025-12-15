@@ -12,7 +12,7 @@ import { TimeInput } from "@/components/ui/TimeInput";
 import { DateInput } from "@/components/ui/DateInput";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { ArrowLeft, Calendar, Clock, FileText, CheckCircle, AlertCircle, PartyPopper, Sun, Briefcase } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, FileText, CheckCircle, AlertCircle, PartyPopper, Sun, Briefcase, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { getOTRateForDate } from "@/lib/utils/holiday";
 
@@ -162,7 +162,7 @@ function OTRequestContent() {
           </h2>
           <p className="text-[17px] text-[#86868b]">
             {isAutoApproved 
-              ? "คำขอของคุณได้รับการอนุมัติทันที ✅" 
+              ? "คำขอของคุณได้รับการอนุมัติทันที" 
               : "รอการอนุมัติจากหัวหน้างาน"}
           </p>
         </div>
@@ -236,8 +236,8 @@ function OTRequestContent() {
                             {dayInfo.type === "holiday"
                               ? `🎉 ${dayInfo.holidayName}`
                               : dayInfo.type === "weekend"
-                                ? "🌅 วันหยุดสุดสัปดาห์"
-                                : "📋 วันทำงานปกติ"}
+                                ? "วันหยุดสุดสัปดาห์"
+                                : "วันทำงานปกติ"}
                           </p>
                           <Badge variant={
                             dayInfo.type === "holiday"
@@ -255,9 +255,19 @@ function OTRequestContent() {
                             ? "text-[#ff9500]/80"
                             : "text-[#0071e3]/80"
                           }`}>
-                          {dayInfo.requireCheckin
-                            ? "⚠️ ต้องเช็คอินก่อนเริ่ม OT"
-                            : "✅ ไม่ต้องเช็คอินก่อน"}
+                          <span className="flex items-center gap-1">
+                            {dayInfo.requireCheckin ? (
+                              <>
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                                ต้องเช็คอินก่อนเริ่ม OT
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="w-3.5 h-3.5" />
+                                ไม่ต้องเช็คอินก่อน
+                              </>
+                            )}
+                          </span>
                         </p>
                       </div>
                     </div>

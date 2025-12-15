@@ -263,7 +263,7 @@ function LeaveRequestContent() {
           </h2>
           <p className="text-[17px] text-[#86868b]">
             {isAutoApproved 
-              ? "คำขอของคุณได้รับการอนุมัติทันที ✅" 
+              ? "คำขอของคุณได้รับการอนุมัติทันที" 
               : "รอการอนุมัติจากหัวหน้างาน"}
           </p>
         </div>

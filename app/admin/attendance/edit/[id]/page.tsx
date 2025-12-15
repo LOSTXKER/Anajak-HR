@@ -260,8 +260,9 @@ function EditAttendanceContent() {
               <p className="text-[15px] text-[#86868b]">
                 📧 {attendance.employee?.email || "-"}
               </p>
-              <p className="text-[15px] text-[#86868b]">
-                📅 {format(clockInDate, "EEEE d MMMM yyyy", { locale: th })}
+              <p className="text-[15px] text-[#86868b] flex items-center gap-1">
+                <Calendar className="w-4 h-4" />
+                {format(clockInDate, "EEEE d MMMM yyyy", { locale: th })}
               </p>
             </div>
           </div>
@@ -316,8 +317,9 @@ function EditAttendanceContent() {
 
           {attendance.edit_reason && (
             <div className="mt-4 p-3 bg-[#f5f5f7] rounded-lg">
-              <p className="text-[12px] text-[#86868b]">
-                📝 เคยแก้ไขแล้ว: {attendance.edit_reason}
+              <p className="text-[12px] text-[#86868b] flex items-center gap-1">
+                <FileText className="w-3.5 h-3.5" />
+                เคยแก้ไขแล้ว: {attendance.edit_reason}
               </p>
             </div>
           )}
