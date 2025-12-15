@@ -69,6 +69,9 @@ export interface OTRequest {
     ot_amount?: number | null;
     approved_by?: string | null;
     approved_at?: string | null;
+    cancelled_by?: string | null;
+    cancelled_at?: string | null;
+    cancel_reason?: string | null;
     created_at?: string;
     // Joined data
     employee?: Employee;
@@ -85,6 +88,9 @@ export interface LeaveRequest {
     status: "pending" | "approved" | "rejected" | "cancelled";
     approved_by?: string | null;
     approved_at?: string | null;
+    cancelled_by?: string | null;
+    cancelled_at?: string | null;
+    cancel_reason?: string | null;
     created_at?: string;
     // Joined data
     employee?: Employee;
@@ -98,6 +104,9 @@ export interface WFHRequest {
     status: "pending" | "approved" | "rejected" | "cancelled";
     approved_by?: string | null;
     approved_at?: string | null;
+    cancelled_by?: string | null;
+    cancelled_at?: string | null;
+    cancel_reason?: string | null;
     created_at?: string;
     // Joined data
     employee?: Employee;
@@ -108,9 +117,12 @@ export interface LateRequest {
     employee_id: string;
     request_date: string;
     reason: string;
-    status: "pending" | "approved" | "rejected";
+    status: "pending" | "approved" | "rejected" | "cancelled";
     approved_by?: string | null;
     approved_at?: string | null;
+    cancelled_by?: string | null;
+    cancelled_at?: string | null;
+    cancel_reason?: string | null;
     created_at?: string;
     // Joined data
     employee?: Employee;
