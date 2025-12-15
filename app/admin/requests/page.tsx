@@ -102,6 +102,8 @@ function RequestsManagementContent() {
   const [processing, setProcessing] = useState(false);
   const [createModal, setCreateModal] = useState(false);
   const [createType, setCreateType] = useState<RequestType | null>(null);
+  const [editModal, setEditModal] = useState<RequestItem | null>(null);
+  const [editData, setEditData] = useState<any>({});
 
   // Fetch all requests
   const fetchRequests = useCallback(async () => {
@@ -407,6 +409,124 @@ function RequestsManagementContent() {
     }
   };
 
+  // Handle edit
+  const openEditModal = (request: RequestItem) => {
+    setEditModal(request);
+    // Initialize edit data based on type
+    switch (request.type) {
+      case "ot":
+        setEditData({
+          requested_start_time: request.rawData.requested_start_time?.split('T')[1]?.substring(0, 5) || "",
+          requested_end_time: request.rawData.requested_end_time?.split('T')[1]?.substring(0, 5) || "",
+          reason: request.reason || "",
+        });
+        break;
+      case "leave":
+        setEditData({
+          leave_type: request.rawData.leave_type || "sick",
+          start_date: request.rawData.start_date || "",
+          end_date: request.rawData.end_date || "",
+          is_half_day: request.rawData.is_half_day || false,
+          reason: request.reason || "",
+        });
+        break;
+      case "wfh":
+        setEditData({
+          date: request.rawData.date || "",
+          is_half_day: request.rawData.is_half_day || false,
+          reason: request.reason || "",
+        });
+        break;
+      case "late":
+        setEditData({
+          request_date: request.rawData.request_date || "",
+          actual_late_minutes: request.rawData.actual_late_minutes || 0,
+          reason: request.reason || "",
+        });
+        break;
+      case "field_work":
+        setEditData({
+          date: request.rawData.date || "",
+          location: request.rawData.location || "",
+          is_half_day: request.rawData.is_half_day || false,
+          reason: request.reason || "",
+        });
+        break;
+    }
+  };
+
+  const handleEdit = async () => {
+    if (!editModal || !currentAdmin) return;
+    setProcessing(true);
+    try {
+      const tableMap: Record<RequestType, string> = {
+        ot: "ot_requests", leave: "leave_requests", wfh: "wfh_requests",
+        late: "late_requests", field_work: "field_work_requests",
+      };
+
+      let updateData: any = {};
+
+      switch (editModal.type) {
+        case "ot":
+          const startDateTime = `${editModal.rawData.request_date}T${editData.requested_start_time}:00`;
+          const endDateTime = `${editModal.rawData.request_date}T${editData.requested_end_time}:00`;
+          updateData = {
+            requested_start_time: startDateTime,
+            requested_end_time: endDateTime,
+            reason: editData.reason,
+          };
+          break;
+        case "leave":
+          updateData = {
+            leave_type: editData.leave_type,
+            start_date: editData.start_date,
+            end_date: editData.end_date,
+            is_half_day: editData.is_half_day,
+            reason: editData.reason,
+          };
+          break;
+        case "wfh":
+          updateData = {
+            date: editData.date,
+            is_half_day: editData.is_half_day,
+            reason: editData.reason,
+          };
+          break;
+        case "late":
+          updateData = {
+            request_date: editData.request_date,
+            actual_late_minutes: parseInt(editData.actual_late_minutes) || 0,
+            reason: editData.reason,
+          };
+          break;
+        case "field_work":
+          updateData = {
+            date: editData.date,
+            location: editData.location,
+            is_half_day: editData.is_half_day,
+            reason: editData.reason,
+          };
+          break;
+      }
+
+      const { error } = await supabase
+        .from(tableMap[editModal.type])
+        .update(updateData)
+        .eq("id", editModal.id);
+
+      if (error) throw error;
+
+      toast.success("แก้ไขสำเร็จ", `${typeConfig[editModal.type].label} ของ ${editModal.employeeName}`);
+      setEditModal(null);
+      setEditData({});
+      fetchRequests();
+    } catch (error: any) {
+      toast.error("เกิดข้อผิดพลาด", error?.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   return (
     <AdminLayout title="จัดการคำขอ" description="ดูและจัดการคำขอทั้งหมด (OT, ลา, WFH, มาสาย, งานนอกสถานที่)">
       {/* Stats */}
@@ -574,6 +694,17 @@ function RequestsManagementContent() {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
+
+                          {/* Edit for pending */}
+                          {request.status === "pending" && (
+                            <button
+                              onClick={() => openEditModal(request)}
+                              className="p-1.5 text-[#ff9500] hover:bg-[#ff9500]/10 rounded-lg transition-colors"
+                              title="แก้ไข"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                          )}
 
                           {/* Approve/Reject for pending */}
                           {request.status === "pending" && (
@@ -764,6 +895,235 @@ function RequestsManagementContent() {
             </Link>
           </div>
         </div>
+      </Modal>
+
+      {/* Edit Modal */}
+      <Modal isOpen={!!editModal} onClose={() => { setEditModal(null); setEditData({}); }} title={`แก้ไข${typeConfig[editModal?.type || "ot"].label}`}>
+        {editModal && (
+          <div className="space-y-4">
+            {/* Employee Info */}
+            <div className="p-4 bg-[#f5f5f7] rounded-xl">
+              <p className="text-[13px] text-[#86868b] mb-1">พนักงาน</p>
+              <p className="text-[15px] font-medium text-[#1d1d1f]">{editModal.employeeName}</p>
+            </div>
+
+            {/* Edit Forms based on type */}
+            {editModal.type === "ot" && (
+              <>
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เวลาเริ่ม OT</label>
+                  <input
+                    type="time"
+                    value={editData.requested_start_time || ""}
+                    onChange={(e) => setEditData({ ...editData, requested_start_time: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เวลาสิ้นสุด OT</label>
+                  <input
+                    type="time"
+                    value={editData.requested_end_time || ""}
+                    onChange={(e) => setEditData({ ...editData, requested_end_time: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เหตุผล</label>
+                  <Textarea
+                    value={editData.reason || ""}
+                    onChange={(e) => setEditData({ ...editData, reason: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+              </>
+            )}
+
+            {editModal.type === "leave" && (
+              <>
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">ประเภทการลา</label>
+                  <select
+                    value={editData.leave_type || "sick"}
+                    onChange={(e) => setEditData({ ...editData, leave_type: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                  >
+                    <option value="sick">ลาป่วย</option>
+                    <option value="personal">ลากิจ</option>
+                    <option value="annual">ลาพักร้อน</option>
+                    <option value="maternity">ลาคลอด</option>
+                    <option value="military">ลากรณีทหาร</option>
+                    <option value="other">อื่นๆ</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-lg">
+                  <input
+                    type="checkbox"
+                    checked={editData.is_half_day || false}
+                    onChange={(e) => setEditData({ ...editData, is_half_day: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <label className="text-[14px] text-[#1d1d1f]">ลาครึ่งวัน</label>
+                </div>
+                {!editData.is_half_day && (
+                  <>
+                    <div>
+                      <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">วันที่เริ่ม</label>
+                      <input
+                        type="date"
+                        value={editData.start_date || ""}
+                        onChange={(e) => setEditData({ ...editData, start_date: e.target.value })}
+                        className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">วันที่สิ้นสุด</label>
+                      <input
+                        type="date"
+                        value={editData.end_date || ""}
+                        onChange={(e) => setEditData({ ...editData, end_date: e.target.value })}
+                        className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                      />
+                    </div>
+                  </>
+                )}
+                {editData.is_half_day && (
+                  <div>
+                    <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">วันที่</label>
+                    <input
+                      type="date"
+                      value={editData.start_date || ""}
+                      onChange={(e) => setEditData({ ...editData, start_date: e.target.value, end_date: e.target.value })}
+                      className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                    />
+                  </div>
+                )}
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เหตุผล</label>
+                  <Textarea
+                    value={editData.reason || ""}
+                    onChange={(e) => setEditData({ ...editData, reason: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+              </>
+            )}
+
+            {editModal.type === "wfh" && (
+              <>
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">วันที่</label>
+                  <input
+                    type="date"
+                    value={editData.date || ""}
+                    onChange={(e) => setEditData({ ...editData, date: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                  />
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-lg">
+                  <input
+                    type="checkbox"
+                    checked={editData.is_half_day || false}
+                    onChange={(e) => setEditData({ ...editData, is_half_day: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <label className="text-[14px] text-[#1d1d1f]">WFH ครึ่งวัน</label>
+                </div>
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เหตุผล</label>
+                  <Textarea
+                    value={editData.reason || ""}
+                    onChange={(e) => setEditData({ ...editData, reason: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+              </>
+            )}
+
+            {editModal.type === "late" && (
+              <>
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">วันที่</label>
+                  <input
+                    type="date"
+                    value={editData.request_date || ""}
+                    onChange={(e) => setEditData({ ...editData, request_date: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">จำนวนนาทีที่มาสาย</label>
+                  <input
+                    type="number"
+                    value={editData.actual_late_minutes || 0}
+                    onChange={(e) => setEditData({ ...editData, actual_late_minutes: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เหตุผล</label>
+                  <Textarea
+                    value={editData.reason || ""}
+                    onChange={(e) => setEditData({ ...editData, reason: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+              </>
+            )}
+
+            {editModal.type === "field_work" && (
+              <>
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">วันที่</label>
+                  <input
+                    type="date"
+                    value={editData.date || ""}
+                    onChange={(e) => setEditData({ ...editData, date: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">สถานที่</label>
+                  <input
+                    type="text"
+                    value={editData.location || ""}
+                    onChange={(e) => setEditData({ ...editData, location: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg bg-white border border-[#e8e8ed] text-[15px]"
+                    placeholder="ระบุสถานที่"
+                  />
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-lg">
+                  <input
+                    type="checkbox"
+                    checked={editData.is_half_day || false}
+                    onChange={(e) => setEditData({ ...editData, is_half_day: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <label className="text-[14px] text-[#1d1d1f]">ครึ่งวัน</label>
+                </div>
+                <div>
+                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เหตุผล</label>
+                  <Textarea
+                    value={editData.reason || ""}
+                    onChange={(e) => setEditData({ ...editData, reason: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-2">
+              <Button variant="secondary" onClick={() => { setEditModal(null); setEditData({}); }} fullWidth>
+                ยกเลิก
+              </Button>
+              <Button onClick={handleEdit} loading={processing} fullWidth>
+                บันทึก
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Cancel Modal */}
