@@ -28,9 +28,17 @@ import {
   ChevronDown,
   Plus,
 } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, getDay } from "date-fns";
 import { th } from "date-fns/locale";
 import Link from "next/link";
+
+// OT Rate Info
+interface OTRateInfo {
+  rate: number;
+  type: "workday" | "weekend" | "holiday";
+  typeName: string;
+  holidayName?: string;
+}
 
 // Types
 type RequestType = "ot" | "leave" | "wfh" | "late" | "field_work";
@@ -107,6 +115,10 @@ function RequestsManagementContent() {
   
   // Create Form State
   const [employees, setEmployees] = useState<any[]>([]);
+  const [holidays, setHolidays] = useState<any[]>([]);
+  const [otSettings, setOtSettings] = useState({ workday: 1.5, weekend: 1.5, holiday: 2 });
+  const [workingDays, setWorkingDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [detectedOTInfo, setDetectedOTInfo] = useState<OTRateInfo | null>(null);
   const [createFormData, setCreateFormData] = useState<any>({
     employeeId: "",
     // OT
@@ -327,6 +339,92 @@ function RequestsManagementContent() {
       .order("name");
     setEmployees(data || []);
   };
+
+  // Fetch holidays and OT settings
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        // Fetch holidays
+        const { data: holidaysData } = await supabase
+          .from("holidays")
+          .select("date, name");
+        setHolidays(holidaysData || []);
+
+        // Fetch OT rate settings
+        const { data: settingsData } = await supabase
+          .from("system_settings")
+          .select("setting_key, setting_value")
+          .in("setting_key", ["ot_rate_workday", "ot_rate_weekend", "ot_rate_holiday", "working_days"]);
+
+        const settings: Record<string, string> = {};
+        settingsData?.forEach((item: any) => {
+          settings[item.setting_key] = item.setting_value;
+        });
+
+        setOtSettings({
+          workday: parseFloat(settings.ot_rate_workday) || 1.5,
+          weekend: parseFloat(settings.ot_rate_weekend) || 1.5,
+          holiday: parseFloat(settings.ot_rate_holiday) || 2,
+        });
+
+        if (settings.working_days) {
+          setWorkingDays(settings.working_days.split(",").map(Number));
+        }
+      } catch (error) {
+        console.error("Error fetching settings:", error);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  // Auto-detect OT rate when date changes
+  const detectOTRate = useCallback((dateStr: string) => {
+    const date = new Date(dateStr);
+    const dayOfWeek = getDay(date); // 0=Sunday, 1=Monday, ..., 6=Saturday
+    const dayOfWeekISO = dayOfWeek === 0 ? 7 : dayOfWeek; // Convert to ISO (1=Monday, 7=Sunday)
+
+    // Check if holiday
+    const holiday = holidays.find(h => h.date === dateStr);
+    if (holiday) {
+      const info: OTRateInfo = {
+        rate: otSettings.holiday,
+        type: "holiday",
+        typeName: `วันหยุดนักขัตฤกษ์ (${holiday.name})`,
+        holidayName: holiday.name,
+      };
+      setDetectedOTInfo(info);
+      setCreateFormData((prev: any) => ({ ...prev, otType: "holiday", otRate: otSettings.holiday }));
+      return;
+    }
+
+    // Check if weekend (not in working days)
+    if (!workingDays.includes(dayOfWeekISO)) {
+      const info: OTRateInfo = {
+        rate: otSettings.weekend,
+        type: "weekend",
+        typeName: "วันหยุดสุดสัปดาห์",
+      };
+      setDetectedOTInfo(info);
+      setCreateFormData((prev: any) => ({ ...prev, otType: "weekend", otRate: otSettings.weekend }));
+      return;
+    }
+
+    // Workday
+    const info: OTRateInfo = {
+      rate: otSettings.workday,
+      type: "workday",
+      typeName: "วันทำงานปกติ",
+    };
+    setDetectedOTInfo(info);
+    setCreateFormData((prev: any) => ({ ...prev, otType: "workday", otRate: otSettings.workday }));
+  }, [holidays, otSettings, workingDays]);
+
+  // Detect OT rate when modal opens or date changes
+  useEffect(() => {
+    if (createType === "ot" && createFormData.otDate) {
+      detectOTRate(createFormData.otDate);
+    }
+  }, [createType, createFormData.otDate, detectOTRate]);
 
   // Filtered requests
   const filteredRequests = useMemo(() => {
@@ -1112,6 +1210,29 @@ function RequestsManagementContent() {
                   />
                 </div>
 
+                {/* Auto-detected OT Type */}
+                {detectedOTInfo && (
+                  <div className={`p-3 rounded-xl flex items-center gap-3 ${
+                    detectedOTInfo.type === "holiday" ? "bg-[#ff3b30]/10" :
+                    detectedOTInfo.type === "weekend" ? "bg-[#ff9500]/10" :
+                    "bg-[#0071e3]/10"
+                  }`}>
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold ${
+                      detectedOTInfo.type === "holiday" ? "bg-[#ff3b30]" :
+                      detectedOTInfo.type === "weekend" ? "bg-[#ff9500]" :
+                      "bg-[#0071e3]"
+                    }`}>
+                      {detectedOTInfo.rate}x
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[14px] font-medium text-[#1d1d1f]">{detectedOTInfo.typeName}</p>
+                      <p className="text-[12px] text-[#86868b]">
+                        ระบบตรวจพบจากการตั้งค่า (อัตราจากตั้งค่าระบบ)
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">เวลาเริ่ม</label>
@@ -1133,35 +1254,39 @@ function RequestsManagementContent() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-[14px] font-medium text-[#1d1d1f] mb-2">ประเภท OT & อัตราคูณ</label>
-                  <div className="grid grid-cols-3 gap-2">
+                {/* Manual Override (collapsed by default) */}
+                <details className="group">
+                  <summary className="cursor-pointer text-[13px] text-[#86868b] hover:text-[#0071e3] transition-colors flex items-center gap-1">
+                    <ChevronDown className="w-4 h-4 group-open:rotate-180 transition-transform" />
+                    ปรับอัตราคูณด้วยตนเอง (override)
+                  </summary>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
                     <button
                       type="button"
-                      onClick={() => setCreateFormData({ ...createFormData, otType: "workday", otRate: 1.5 })}
+                      onClick={() => setCreateFormData({ ...createFormData, otType: "workday", otRate: otSettings.workday })}
                       className={`p-3 rounded-xl text-center transition-all ${createFormData.otType === "workday" ? "bg-[#0071e3] text-white" : "bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e8e8ed]"}`}
                     >
-                      <span className="block text-[20px] font-bold">1.5x</span>
-                      <span className="block text-[11px] mt-0.5">วันธรรมดา</span>
+                      <span className="block text-[18px] font-bold">{otSettings.workday}x</span>
+                      <span className="block text-[10px] mt-0.5">วันธรรมดา</span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => setCreateFormData({ ...createFormData, otType: "weekend", otRate: 2 })}
-                      className={`p-3 rounded-xl text-center transition-all ${createFormData.otType === "weekend" ? "bg-[#0071e3] text-white" : "bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e8e8ed]"}`}
+                      onClick={() => setCreateFormData({ ...createFormData, otType: "weekend", otRate: otSettings.weekend })}
+                      className={`p-3 rounded-xl text-center transition-all ${createFormData.otType === "weekend" ? "bg-[#ff9500] text-white" : "bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e8e8ed]"}`}
                     >
-                      <span className="block text-[20px] font-bold">2x</span>
-                      <span className="block text-[11px] mt-0.5">วันหยุด</span>
+                      <span className="block text-[18px] font-bold">{otSettings.weekend}x</span>
+                      <span className="block text-[10px] mt-0.5">วันหยุด</span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => setCreateFormData({ ...createFormData, otType: "holiday", otRate: 3 })}
-                      className={`p-3 rounded-xl text-center transition-all ${createFormData.otType === "holiday" ? "bg-[#0071e3] text-white" : "bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e8e8ed]"}`}
+                      onClick={() => setCreateFormData({ ...createFormData, otType: "holiday", otRate: otSettings.holiday })}
+                      className={`p-3 rounded-xl text-center transition-all ${createFormData.otType === "holiday" ? "bg-[#ff3b30] text-white" : "bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#e8e8ed]"}`}
                     >
-                      <span className="block text-[20px] font-bold">3x</span>
-                      <span className="block text-[11px] mt-0.5">นักขัตฤกษ์</span>
+                      <span className="block text-[18px] font-bold">{otSettings.holiday}x</span>
+                      <span className="block text-[10px] mt-0.5">นักขัตฤกษ์</span>
                     </button>
                   </div>
-                </div>
+                </details>
 
                 {/* OT Preview */}
                 {createFormData.otIsCompleted && createFormData.otStartTime && createFormData.otEndTime && (
