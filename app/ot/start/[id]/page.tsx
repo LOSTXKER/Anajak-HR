@@ -257,7 +257,7 @@ function OTStartContent({ id }: { id: string }) {
       if (!dayInfo.requireCheckin) {
         return {
           type: dayInfo.type,
-          message: `${emoji} ${dayInfo.typeName} (${dayInfo.rate}x) - ไม่ต้องเช็คอินก่อน`,
+          message: `${dayInfo.typeName} (${dayInfo.rate}x) - ไม่ต้องเช็คอินก่อน`,
           canProceed: true,
         };
       }
