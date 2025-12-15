@@ -598,7 +598,7 @@ function PayrollContent() {
 
                   <ColumnHeader
                     label="เงินเดือน"
-                    tooltip={`(เงินเดือนตั้ง ÷ ${settings.days_per_month} วัน) × วันทำงานจริง`}
+                    tooltip="เงินเดือนเต็มจำนวนทุกเดือน (ไม่ขึ้นกับวันทำงาน)"
                     align="right"
                   />
                   <ColumnHeader
@@ -726,7 +726,7 @@ function PayrollContent() {
           <div className="text-[13px] text-[#86868b]">
             <p className="font-medium text-[#1d1d1f] mb-1">สูตรคำนวณ:</p>
             <ul className="list-disc list-inside space-y-1">
-              <li>เงินเดือน = (เงินเดือนตั้ง ÷ {settings.days_per_month} วัน) × วันทำงานจริง</li>
+              <li>เงินเดือน = เงินเดือนตั้ง (เต็มจำนวนทุกเดือน)</li>
               <li>หักสาย = นาทีสาย × {settings.late_deduction_per_minute} บาท/นาที</li>
               <li>รวม = เงินเดือน + คอมมิชชั่น + OT - หักสาย</li>
             </ul>
