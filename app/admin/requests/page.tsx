@@ -100,6 +100,8 @@ function RequestsManagementContent() {
   const [cancelModal, setCancelModal] = useState<RequestItem | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [createModal, setCreateModal] = useState(false);
+  const [createType, setCreateType] = useState<RequestType | null>(null);
 
   // Fetch all requests
   const fetchRequests = useCallback(async () => {
@@ -491,11 +493,9 @@ function RequestsManagementContent() {
           </Button>
 
           {/* Add New */}
-          <Link href="/admin/requests/create">
-            <Button icon={<Plus className="w-4 h-4" />}>
-              เพิ่มคำขอ
-            </Button>
-          </Link>
+          <Button icon={<Plus className="w-4 h-4" />} onClick={() => setCreateModal(true)}>
+            เพิ่มคำขอ
+          </Button>
         </div>
       </Card>
 
@@ -690,6 +690,80 @@ function RequestsManagementContent() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Create Request Modal - Step 1: Select Type */}
+      <Modal isOpen={createModal && !createType} onClose={() => setCreateModal(false)} title="เลือกประเภทคำขอ">
+        <div className="space-y-3">
+          <p className="text-[14px] text-[#86868b] mb-4">เลือกประเภทคำขอที่ต้องการสร้าง</p>
+          {(Object.keys(typeConfig) as RequestType[]).map((type) => {
+            const config = typeConfig[type];
+            const Icon = config.icon;
+            return (
+              <button
+                key={type}
+                onClick={() => setCreateType(type)}
+                className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-[#f5f5f7] transition-all group"
+              >
+                <div className={`w-12 h-12 ${config.bgColor} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                  <Icon className={`w-6 h-6 ${config.color}`} />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-[15px] font-semibold text-[#1d1d1f]">{config.label}</p>
+                  <p className="text-[13px] text-[#86868b]">
+                    {type === "ot" && "สร้างคำขอ OT แทนพนักงาน"}
+                    {type === "leave" && "สร้างคำขอลางานแทนพนักงาน"}
+                    {type === "wfh" && "สร้างคำขอ WFH แทนพนักงาน"}
+                    {type === "late" && "สร้างคำขออนุมัติมาสายแทนพนักงาน"}
+                    {type === "field_work" && "สร้างคำของานนอกสถานที่แทนพนักงาน"}
+                  </p>
+                </div>
+                <ChevronDown className="w-5 h-5 text-[#86868b] -rotate-90 group-hover:translate-x-1 transition-transform" />
+              </button>
+            );
+          })}
+        </div>
+      </Modal>
+
+      {/* Create Request Modal - Step 2: Form */}
+      <Modal
+        isOpen={!!createType}
+        onClose={() => {
+          setCreateType(null);
+          setCreateModal(false);
+        }}
+        title={`สร้าง${typeConfig[createType || "ot"].label}ใหม่`}
+      >
+        <div className="text-center py-8">
+          <div className={`w-16 h-16 mx-auto ${typeConfig[createType || "ot"].bgColor} rounded-full flex items-center justify-center mb-4`}>
+            {React.createElement(typeConfig[createType || "ot"].icon, {
+              className: `w-8 h-8 ${typeConfig[createType || "ot"].color}`,
+            })}
+          </div>
+          <p className="text-[15px] text-[#86868b] mb-4">
+            ฟีเจอร์นี้จะเปิดให้ใช้งานเร็วๆ นี้
+          </p>
+          <p className="text-[13px] text-[#86868b] mb-6">
+            ขณะนี้กรุณาใช้หน้า <strong>สร้างคำขอ</strong> แทน
+          </p>
+          <div className="flex gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setCreateType(null);
+                setCreateModal(false);
+              }}
+              fullWidth
+            >
+              ปิด
+            </Button>
+            <Link href="/admin/requests/create" className="flex-1">
+              <Button fullWidth>
+                ไปหน้าสร้างคำขอ
+              </Button>
+            </Link>
+          </div>
+        </div>
       </Modal>
 
       {/* Cancel Modal */}
