@@ -38,21 +38,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check active sessions and sets the user
     supabase.auth.getSession()
       .then(({ data: { session } }: { data: { session: Session | null } }) => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          fetchEmployee(session.user.id);
-        } else {
-          setLoading(false);
-        }
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchEmployee(session.user.id);
+      } else {
+        setLoading(false);
+      }
       })
-      .catch((error) => {
+      .catch((error: any) => {
         console.error('Session error:', error);
         // If refresh token is invalid, sign out
         if (error?.message?.includes('refresh')) {
           supabase.auth.signOut();
         }
         setLoading(false);
-      });
+    });
 
     // Listen for changes on auth state (sign in, sign out, etc.)
     const {
