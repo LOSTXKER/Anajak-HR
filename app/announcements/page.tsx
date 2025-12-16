@@ -189,15 +189,18 @@ function AnnouncementsContent() {
         ) : (
           <div className="space-y-4">
             {filteredAnnouncements.map((announcement) => (
-              <Card
+              <button
                 key={announcement.id}
-                elevated
-                className={`overflow-hidden cursor-pointer transition-all hover:shadow-lg ${
-                  !announcement.is_read ? "border-l-4 border-l-[#0071e3]" : ""
-                }`}
+                className="w-full text-left"
                 onClick={() => markAsRead(announcement.id)}
               >
-                <div className="p-5">
+                <Card
+                  elevated
+                  className={`overflow-hidden cursor-pointer transition-all hover:shadow-lg ${
+                    !announcement.is_read ? "border-l-4 border-l-[#0071e3]" : ""
+                  }`}
+                >
+                  <div className="p-5">
                   {/* Header */}
                   <div className="flex items-start gap-4 mb-3">
                     <div
@@ -263,6 +266,7 @@ function AnnouncementsContent() {
                   </div>
                 </div>
               </Card>
+              </button>
             ))}
           </div>
         )}
