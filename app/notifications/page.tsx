@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -17,6 +18,7 @@ import {
   AlertCircle,
   Smartphone,
   Volume2,
+  ArrowLeft,
 } from "lucide-react";
 import {
   requestNotificationPermission,
@@ -113,7 +115,15 @@ function NotificationSettingsContent() {
     <div className="min-h-screen bg-[#fbfbfd] pb-20 pt-safe">
       <main className="max-w-[600px] mx-auto px-4 sm:px-6 pt-6 pb-4 space-y-5 sm:space-y-6">
         {/* Page Title */}
-        <h1 className="text-[32px] font-bold text-[#1d1d1f] mb-6">การแจ้งเตือน</h1>
+        <div className="flex items-center gap-4 mb-6">
+          <Link
+            href="/settings"
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-[#f5f5f7] hover:bg-[#e8e8ed] transition-colors active:scale-95"
+          >
+            <ArrowLeft className="w-5 h-5 text-[#86868b]" />
+          </Link>
+          <h1 className="text-[32px] font-bold text-[#1d1d1f]">การแจ้งเตือน</h1>
+        </div>
         {/* Permission Status */}
         {permissionStatus === "unsupported" && (
           <div className="flex items-center gap-3 p-4 bg-[#ff9500]/10 rounded-xl border border-[#ff9500]/30">

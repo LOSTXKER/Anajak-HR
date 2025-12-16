@@ -1,16 +1,25 @@
 "use client";
 
+import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { BottomNav } from "@/components/BottomNav";
-import { Info, Package, Code, Heart, Users, Sparkles } from "lucide-react";
+import { Info, Package, Code, Heart, Users, Sparkles, ArrowLeft } from "lucide-react";
 
 function AboutContent() {
   return (
     <div className="min-h-screen bg-[#fbfbfd] pb-20 pt-safe">
       <main className="max-w-[600px] mx-auto px-4 pt-6 pb-4">
         {/* Page Title */}
-        <h1 className="text-[32px] font-bold text-[#1d1d1f] mb-6">เกี่ยวกับแอป</h1>
+        <div className="flex items-center gap-4 mb-6">
+          <Link
+            href="/settings"
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-[#f5f5f7] hover:bg-[#e8e8ed] transition-colors active:scale-95"
+          >
+            <ArrowLeft className="w-5 h-5 text-[#86868b]" />
+          </Link>
+          <h1 className="text-[32px] font-bold text-[#1d1d1f]">เกี่ยวกับแอป</h1>
+        </div>
 
         {/* App Logo & Version */}
         <Card elevated className="mb-6">
