@@ -22,7 +22,7 @@ import {
 import {
   requestNotificationPermission,
   canShowNotifications,
-  getNotificationSettings,
+  getNotificationSettingsAsync,
   saveNotificationSettings,
   testNotification,
   scheduleDailyNotifications,
@@ -46,15 +46,19 @@ function NotificationSettingsContent() {
 
   // Load settings on mount
   useEffect(() => {
-    const loadedSettings = getNotificationSettings();
-    setSettings(loadedSettings);
+    const loadSettings = async () => {
+      const loadedSettings = await getNotificationSettingsAsync();
+      setSettings(loadedSettings);
 
-    // Check notification permission
-    if ("Notification" in window) {
-      setPermissionStatus(Notification.permission);
-    } else {
-      setPermissionStatus("unsupported");
-    }
+      // Check notification permission
+      if ("Notification" in window) {
+        setPermissionStatus(Notification.permission);
+      } else {
+        setPermissionStatus("unsupported");
+      }
+    };
+    
+    loadSettings();
   }, []);
 
   const handleRequestPermission = async () => {

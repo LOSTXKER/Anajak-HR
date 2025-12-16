@@ -61,6 +61,10 @@ function NotificationSettingsContent() {
     enableCheckinNotifications: false,
     enableCheckoutNotifications: false,
     
+    // Default reminder times for employees
+    defaultCheckinReminderTime: "08:00",
+    defaultCheckoutReminderTime: "17:00",
+    
     // Holiday Notifications
     enableHolidayNotifications: true,
     holidayNotificationDaysBefore: "1",
@@ -103,6 +107,9 @@ function NotificationSettingsContent() {
           enableCheckinNotifications: map.enable_checkin_notifications === "true",
           enableCheckoutNotifications: map.enable_checkout_notifications === "true",
           
+          defaultCheckinReminderTime: map.default_checkin_reminder_time || "08:00",
+          defaultCheckoutReminderTime: map.default_checkout_reminder_time || "17:00",
+          
           enableHolidayNotifications: map.enable_holiday_notifications !== "false",
           holidayNotificationDaysBefore: map.holiday_notification_days_before || "1",
           holidayNotificationTime: map.holiday_notification_time || "09:00",
@@ -136,6 +143,9 @@ function NotificationSettingsContent() {
       const updates = [
         { key: "enable_checkin_notifications", value: settings.enableCheckinNotifications.toString() },
         { key: "enable_checkout_notifications", value: settings.enableCheckoutNotifications.toString() },
+        
+        { key: "default_checkin_reminder_time", value: settings.defaultCheckinReminderTime },
+        { key: "default_checkout_reminder_time", value: settings.defaultCheckoutReminderTime },
         
         { key: "enable_holiday_notifications", value: settings.enableHolidayNotifications.toString() },
         { key: "holiday_notification_days_before", value: settings.holidayNotificationDaysBefore },
@@ -230,6 +240,47 @@ function NotificationSettingsContent() {
                   enabled={settings.enableCheckoutNotifications} 
                   onChange={() => setSettings({ ...settings, enableCheckoutNotifications: !settings.enableCheckoutNotifications })}
                 />
+              </div>
+            </div>
+          </Card>
+
+          {/* Default Reminder Times */}
+          <Card elevated>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-[#5856d6]/10 rounded-xl flex items-center justify-center">
+                <Clock className="w-5 h-5 text-[#5856d6]" />
+              </div>
+              <div>
+                <h3 className="text-[17px] font-semibold text-[#1d1d1f]">เวลาแจ้งเตือนเริ่มต้น</h3>
+                <p className="text-[13px] text-[#86868b]">เวลา default สำหรับพนักงาน</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-2">
+                  ⏰ เวลาแจ้งเตือนเช็คอิน
+                </label>
+                <input
+                  type="time"
+                  value={settings.defaultCheckinReminderTime}
+                  onChange={(e) => setSettings({ ...settings, defaultCheckinReminderTime: e.target.value })}
+                  className="w-full px-4 py-3 bg-[#f5f5f7] border border-[#e8e8ed] rounded-xl text-[15px] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20"
+                />
+                <p className="text-[12px] text-[#86868b] mt-1">พนักงานจะเห็นเวลานี้เป็นค่าเริ่มต้น</p>
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-2">
+                  🏠 เวลาแจ้งเตือนเช็คเอาท์
+                </label>
+                <input
+                  type="time"
+                  value={settings.defaultCheckoutReminderTime}
+                  onChange={(e) => setSettings({ ...settings, defaultCheckoutReminderTime: e.target.value })}
+                  className="w-full px-4 py-3 bg-[#f5f5f7] border border-[#e8e8ed] rounded-xl text-[15px] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20"
+                />
+                <p className="text-[12px] text-[#86868b] mt-1">พนักงานสามารถปรับเวลาได้เอง</p>
               </div>
             </div>
           </Card>

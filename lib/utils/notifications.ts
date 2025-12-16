@@ -172,7 +172,28 @@ export function scheduleDailyNotifications(settings: NotificationSettings): void
 }
 
 /**
- * Get notification settings from localStorage
+ * Get notification settings from localStorage (with DB defaults)
+ */
+export async function getNotificationSettingsAsync(): Promise<NotificationSettings> {
+  if (typeof window === 'undefined') {
+    return getDefaultNotificationSettings();
+  }
+  
+  try {
+    const stored = localStorage.getItem('notification_settings');
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error('Error loading notification settings:', error);
+  }
+  
+  // If no stored settings, get defaults from DB
+  return await getDefaultNotificationSettingsFromDB();
+}
+
+/**
+ * Get notification settings from localStorage (sync version)
  */
 export function getNotificationSettings(): NotificationSettings {
   if (typeof window === 'undefined') {
@@ -206,7 +227,46 @@ export function saveNotificationSettings(settings: NotificationSettings): void {
 }
 
 /**
- * Get default notification settings
+ * Get default notification settings from system settings
+ */
+export async function getDefaultNotificationSettingsFromDB(): Promise<NotificationSettings> {
+  if (typeof window === 'undefined') {
+    return getDefaultNotificationSettings();
+  }
+
+  try {
+    // Dynamic import to avoid issues
+    const { supabase } = await import('@/lib/supabase/client');
+    
+    const { data } = await supabase
+      .from('system_settings')
+      .select('*')
+      .in('setting_key', ['default_checkin_reminder_time', 'default_checkout_reminder_time']);
+
+    if (data && data.length > 0) {
+      const map: any = {};
+      data.forEach((item: any) => {
+        map[item.setting_key] = item.setting_value;
+      });
+
+      return {
+        enabled: false,
+        checkinReminder: true,
+        checkinTime: map.default_checkin_reminder_time || '08:00',
+        checkoutReminder: true,
+        checkoutTime: map.default_checkout_reminder_time || '17:00',
+        workdaysOnly: true,
+      };
+    }
+  } catch (error) {
+    console.error('Error loading default settings from DB:', error);
+  }
+
+  return getDefaultNotificationSettings();
+}
+
+/**
+ * Get default notification settings (fallback)
  */
 export function getDefaultNotificationSettings(): NotificationSettings {
   return {
