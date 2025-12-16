@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Toggle } from "@/components/ui/Toggle";
 import { TimeInput } from "@/components/ui/TimeInput";
+import { BottomNav } from "@/components/BottomNav";
 import {
-  ArrowLeft,
   Bell,
   BellOff,
   Clock,
@@ -111,20 +110,10 @@ function NotificationSettingsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fbfbfd]">
-      {/* Header */}
-      <header className="sticky top-0 z-50 apple-glass border-b border-[#d2d2d7]/30">
-        <div className="max-w-[600px] mx-auto px-6 h-12 flex items-center justify-between">
-          <Link href="/my-profile" className="flex items-center gap-2 text-[#0071e3]">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-[15px]">กลับ</span>
-          </Link>
-          <h1 className="text-[17px] font-semibold text-[#1d1d1f]">การแจ้งเตือน</h1>
-          <div className="w-16" />
-        </div>
-      </header>
-
-      <main className="max-w-[600px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-5 sm:space-y-6">
+    <div className="min-h-screen bg-[#fbfbfd] pb-20 pt-safe">
+      <main className="max-w-[600px] mx-auto px-4 sm:px-6 pt-6 pb-4 space-y-5 sm:space-y-6">
+        {/* Page Title */}
+        <h1 className="text-[32px] font-bold text-[#1d1d1f] mb-6">การแจ้งเตือน</h1>
         {/* Permission Status */}
         {permissionStatus === "unsupported" && (
           <div className="flex items-center gap-3 p-4 bg-[#ff9500]/10 rounded-xl border border-[#ff9500]/30">
@@ -310,6 +299,8 @@ function NotificationSettingsContent() {
           )}
         </Button>
       </main>
+
+      <BottomNav />
     </div>
   );
 }

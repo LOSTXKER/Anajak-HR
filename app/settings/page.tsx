@@ -12,8 +12,9 @@ import {
   ChevronRight,
   Shield,
   Info,
-  Calendar,
-  HelpCircle,
+  Lock,
+  Globe,
+  FileText,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
 
@@ -37,11 +38,18 @@ function SettingsContent() {
       color: "#0071e3",
     },
     {
-      title: "ปฏิทินวันหยุด",
-      description: "ดูวันหยุดนักขัตฤกษ์ทั้งหมด",
-      icon: Calendar,
-      href: "/holidays",
-      color: "#34c759",
+      title: "ความเป็นส่วนตัว",
+      description: "จัดการข้อมูลส่วนตัวและความปลอดภัย",
+      icon: Lock,
+      href: "/settings/privacy",
+      color: "#5856d6",
+    },
+    {
+      title: "เกี่ยวกับแอป",
+      description: "ข้อมูลและเวอร์ชันของแอปพลิเคชัน",
+      icon: Info,
+      href: "/settings/about",
+      color: "#86868b",
     },
   ];
 

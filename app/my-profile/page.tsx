@@ -340,12 +340,7 @@ export default function MyProfilePage() {
       {/* Main Content */}
       <main className="max-w-[600px] mx-auto px-4 pt-6 pb-4">
         {/* Page Title */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-[32px] font-bold text-[#1d1d1f]">ประวัติของฉัน</h1>
-          <Link href="/my-profile/notifications" className="p-2 hover:bg-[#f5f5f7] rounded-xl transition-colors active:scale-95">
-            <Bell className="w-6 h-6 text-[#1d1d1f]" />
-          </Link>
-        </div>
+        <h1 className="text-[32px] font-bold text-[#1d1d1f] mb-6">ประวัติของฉัน</h1>
         {/* Profile Header */}
         <Card elevated className="mb-6">
           <div className="flex items-center gap-4">
