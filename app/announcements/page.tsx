@@ -56,7 +56,7 @@ function AnnouncementsContent() {
 
       if (readsError) throw readsError;
 
-      const readSet = new Set(readsData?.map((r: any) => r.announcement_id) || []);
+      const readSet = new Set<string>(readsData?.map((r: any) => r.announcement_id) || []);
       setReadIds(readSet);
 
       const announcementsWithMeta = (announcementsData || []).map((a: any) => ({
