@@ -9,7 +9,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { DateInput } from "@/components/ui/DateInput";
-import { X, Calendar, FileText, CheckCircle, AlertCircle, Home } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, CheckCircle, AlertCircle, Home } from "lucide-react";
 import { format } from "date-fns";
 
 function WFHRequestContent() {
@@ -126,7 +126,13 @@ function WFHRequestContent() {
     <div className="min-h-screen bg-[#fbfbfd] pt-safe">
       <main className="max-w-[600px] mx-auto px-4 pt-4 pb-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4 mb-6">
+          <Link
+            href="/my-profile?tab=wfh"
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-[#f5f5f7] hover:bg-[#e8e8ed] transition-colors active:scale-95"
+          >
+            <ArrowLeft className="w-5 h-5 text-[#86868b]" />
+          </Link>
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-[#0071e3]/10 rounded-xl flex items-center justify-center">
               <Home className="w-6 h-6 text-[#0071e3]" />
@@ -136,12 +142,6 @@ function WFHRequestContent() {
               <p className="text-[14px] text-[#86868b]">Work From Home</p>
             </div>
           </div>
-          <Link
-            href="/"
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-[#f5f5f7] hover:bg-[#e8e8ed] transition-colors active:scale-95"
-          >
-            <X className="w-5 h-5 text-[#86868b]" />
-          </Link>
         </div>
 
         <form onSubmit={handleSubmit}>

@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { uploadAttendancePhoto } from "@/lib/utils/upload-photo";
 import { isWithinRadius, formatDistance } from "@/lib/utils/geo";
-import { Camera, MapPin, X, CheckCircle, AlertCircle, Navigation, Calendar, Timer } from "lucide-react";
+import { Camera, MapPin, ArrowLeft, CheckCircle, AlertCircle, Navigation, Calendar, Timer } from "lucide-react";
 import { format, parseISO, isSameDay, startOfDay } from "date-fns";
 
 interface Branch {
@@ -365,14 +365,14 @@ function CheckinContent() {
     <div className="min-h-screen bg-[#fbfbfd] pt-safe">
       <main className="max-w-[600px] mx-auto px-4 pt-4 pb-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-[28px] font-bold text-[#1d1d1f]">เช็คอิน</h1>
+        <div className="flex items-center gap-4 mb-6">
           <Link
             href="/"
             className="w-10 h-10 flex items-center justify-center rounded-full bg-[#f5f5f7] hover:bg-[#e8e8ed] transition-colors active:scale-95"
           >
-            <X className="w-5 h-5 text-[#86868b]" />
+            <ArrowLeft className="w-5 h-5 text-[#86868b]" />
           </Link>
+          <h1 className="text-[28px] font-bold text-[#1d1d1f]">เช็คอิน</h1>
         </div>
 
         {/* Time Display */}
