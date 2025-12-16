@@ -8,8 +8,8 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
+import { BottomNav } from "@/components/BottomNav";
 import {
-  ArrowLeft,
   User,
   Mail,
   Phone,
@@ -336,18 +336,16 @@ export default function MyProfilePage() {
   const totalPending = pendingRequests.ot + pendingRequests.leave + pendingRequests.wfh + pendingRequests.late;
 
   return (
-    <div className="min-h-screen bg-[#fbfbfd]">
+    <div className="min-h-screen bg-[#fbfbfd] pb-20">
       {/* Header */}
-      <header className="sticky top-0 z-50 apple-glass border-b border-[#d2d2d7]/30">
-        <div className="max-w-[980px] mx-auto px-4 h-12 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-[#0071e3]">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-sm font-medium">กลับ</span>
-          </Link>
-          <h1 className="text-[17px] font-semibold text-[#1d1d1f]">ประวัติของฉัน</h1>
-          <Link href="/my-profile/notifications" className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors">
-            <Bell className="w-5 h-5 text-[#1d1d1f]" />
-          </Link>
+      <header className="bg-white border-b border-[#e8e8ed]">
+        <div className="max-w-[600px] mx-auto px-6 pt-safe">
+          <div className="py-6 flex items-center justify-between">
+            <h1 className="text-[28px] font-bold text-[#1d1d1f]">ประวัติของฉัน</h1>
+            <Link href="/my-profile/notifications" className="p-2 hover:bg-[#f5f5f7] rounded-xl transition-colors">
+              <Bell className="w-6 h-6 text-[#1d1d1f]" />
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -742,6 +740,8 @@ export default function MyProfilePage() {
           </>
         )}
       </main>
+
+      <BottomNav />
 
       {/* Photo Modal */}
       {photoModal && (

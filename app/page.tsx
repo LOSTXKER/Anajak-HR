@@ -30,6 +30,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
+import { BottomNav } from "@/components/BottomNav";
 import { format, differenceInCalendarDays, parseISO, startOfDay, isSameDay } from "date-fns";
 import { th } from "date-fns/locale";
 import { useDashboard } from "@/lib/hooks";
@@ -295,7 +296,7 @@ export default function HomePage() {
 
   // Logged in - Dashboard
   return (
-    <div className="min-h-screen bg-[#fbfbfd]">
+    <div className="min-h-screen bg-[#fbfbfd] pb-20">
       {/* Header */}
       <header className="sticky top-0 z-50 apple-glass border-b border-[#d2d2d7]/30">
         <div className="max-w-[980px] mx-auto px-6 h-12 flex items-center justify-between">
@@ -769,6 +770,9 @@ export default function HomePage() {
         </Link>
 
       </main>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }

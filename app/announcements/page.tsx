@@ -6,8 +6,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { BottomNav } from "@/components/BottomNav";
 import {
-  ArrowLeft,
   Megaphone,
   Calendar,
   Users,
@@ -137,16 +137,13 @@ function AnnouncementsContent() {
   const unreadCount = announcements.filter((a) => !a.is_read).length;
 
   return (
-    <div className="min-h-screen bg-[#fbfbfd]">
+    <div className="min-h-screen bg-[#fbfbfd] pb-20">
       {/* Header */}
-      <header className="sticky top-0 z-50 apple-glass border-b border-[#d2d2d7]/30">
-        <div className="max-w-[680px] mx-auto px-4 h-12 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-[#0071e3]">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-sm font-medium">กลับ</span>
-          </Link>
-          <h1 className="text-[17px] font-semibold text-[#1d1d1f]">ประกาศ</h1>
-          <div className="w-12" />
+      <header className="bg-white border-b border-[#e8e8ed]">
+        <div className="max-w-[600px] mx-auto px-6 pt-safe">
+          <div className="py-6">
+            <h1 className="text-[28px] font-bold text-[#1d1d1f]">ประกาศ</h1>
+          </div>
         </div>
       </header>
 
@@ -277,6 +274,8 @@ function AnnouncementsContent() {
           </div>
         )}
       </main>
+
+      <BottomNav />
     </div>
   );
 }
