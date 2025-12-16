@@ -124,7 +124,7 @@ function NotificationSettingsContent() {
         </div>
       </header>
 
-      <main className="max-w-[600px] mx-auto px-6 py-8 space-y-6">
+      <main className="max-w-[600px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-5 sm:space-y-6">
         {/* Permission Status */}
         {permissionStatus === "unsupported" && (
           <div className="flex items-center gap-3 p-4 bg-[#ff9500]/10 rounded-xl border border-[#ff9500]/30">
@@ -151,21 +151,21 @@ function NotificationSettingsContent() {
         )}
 
         {/* Main Toggle */}
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+        <Card className="p-5">
+          <div className="flex items-center justify-between min-h-[60px]">
+            <div className="flex items-center gap-4">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                 settings.enabled ? "bg-[#34c759]/10" : "bg-[#86868b]/10"
               }`}>
                 {settings.enabled ? (
-                  <Bell className="w-5 h-5 text-[#34c759]" />
+                  <Bell className="w-6 h-6 text-[#34c759]" />
                 ) : (
-                  <BellOff className="w-5 h-5 text-[#86868b]" />
+                  <BellOff className="w-6 h-6 text-[#86868b]" />
                 )}
               </div>
               <div>
-                <p className="text-[17px] font-medium text-[#1d1d1f]">เปิดการแจ้งเตือน</p>
-                <p className="text-[13px] text-[#86868b]">รับการแจ้งเตือนเช็คอิน/เช็คเอาท์</p>
+                <p className="text-[17px] sm:text-[18px] font-semibold text-[#1d1d1f]">เปิดการแจ้งเตือน</p>
+                <p className="text-[14px] text-[#86868b] mt-0.5">รับการแจ้งเตือนเช็คอิน/เช็คเอาท์</p>
               </div>
             </div>
             <Toggle
@@ -178,15 +178,15 @@ function NotificationSettingsContent() {
 
         {/* Check-in Reminder */}
         <Card className="overflow-hidden">
-          <div className="p-4 border-b border-[#e8e8ed]">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#0071e3]/10 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-[#0071e3]" />
+          <div className="p-5 border-b border-[#e8e8ed]">
+            <div className="flex items-center justify-between min-h-[60px]">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-[#0071e3]/10 flex items-center justify-center">
+                  <Clock className="w-6 h-6 text-[#0071e3]" />
                 </div>
                 <div>
-                  <p className="text-[17px] font-medium text-[#1d1d1f]">แจ้งเตือนเช็คอิน</p>
-                  <p className="text-[13px] text-[#86868b]">เตือนเมื่อถึงเวลาเข้างาน</p>
+                  <p className="text-[17px] sm:text-[18px] font-semibold text-[#1d1d1f]">แจ้งเตือนเช็คอิน</p>
+                  <p className="text-[14px] text-[#86868b] mt-0.5">เตือนเมื่อถึงเวลาเข้างาน</p>
                 </div>
               </div>
               <Toggle
@@ -198,8 +198,8 @@ function NotificationSettingsContent() {
           </div>
           
           {settings.checkinReminder && settings.enabled && (
-            <div className="p-4 bg-[#f5f5f7]">
-              <label className="text-[13px] text-[#86868b] mb-2 block">เวลาแจ้งเตือน</label>
+            <div className="p-5 bg-[#f5f5f7]">
+              <label className="text-[14px] font-medium text-[#86868b] mb-2 block">เวลาแจ้งเตือน</label>
               <TimeInput
                 value={settings.checkinTime}
                 onChange={(v) => updateSetting("checkinTime", v)}
@@ -210,15 +210,15 @@ function NotificationSettingsContent() {
 
         {/* Check-out Reminder */}
         <Card className="overflow-hidden">
-          <div className="p-4 border-b border-[#e8e8ed]">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#ff9500]/10 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-[#ff9500]" />
+          <div className="p-5 border-b border-[#e8e8ed]">
+            <div className="flex items-center justify-between min-h-[60px]">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-[#ff9500]/10 flex items-center justify-center">
+                  <Clock className="w-6 h-6 text-[#ff9500]" />
                 </div>
                 <div>
-                  <p className="text-[17px] font-medium text-[#1d1d1f]">แจ้งเตือนเช็คเอาท์</p>
-                  <p className="text-[13px] text-[#86868b]">เตือนเมื่อถึงเวลาเลิกงาน</p>
+                  <p className="text-[17px] sm:text-[18px] font-semibold text-[#1d1d1f]">แจ้งเตือนเช็คเอาท์</p>
+                  <p className="text-[14px] text-[#86868b] mt-0.5">เตือนเมื่อถึงเวลาเลิกงาน</p>
                 </div>
               </div>
               <Toggle
@@ -230,8 +230,8 @@ function NotificationSettingsContent() {
           </div>
           
           {settings.checkoutReminder && settings.enabled && (
-            <div className="p-4 bg-[#f5f5f7]">
-              <label className="text-[13px] text-[#86868b] mb-2 block">เวลาแจ้งเตือน</label>
+            <div className="p-5 bg-[#f5f5f7]">
+              <label className="text-[14px] font-medium text-[#86868b] mb-2 block">เวลาแจ้งเตือน</label>
               <TimeInput
                 value={settings.checkoutTime}
                 onChange={(v) => updateSetting("checkoutTime", v)}
@@ -241,15 +241,15 @@ function NotificationSettingsContent() {
         </Card>
 
         {/* Workdays Only */}
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#5856d6]/10 flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-[#5856d6]" />
+        <Card className="p-5">
+          <div className="flex items-center justify-between min-h-[60px]">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-[#5856d6]/10 flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-[#5856d6]" />
               </div>
               <div>
-                <p className="text-[17px] font-medium text-[#1d1d1f]">เฉพาะวันทำงาน</p>
-                <p className="text-[13px] text-[#86868b]">ไม่แจ้งเตือนวันเสาร์-อาทิตย์</p>
+                <p className="text-[17px] sm:text-[18px] font-semibold text-[#1d1d1f]">เฉพาะวันทำงาน</p>
+                <p className="text-[14px] text-[#86868b] mt-0.5">ไม่แจ้งเตือนวันเสาร์-อาทิตย์</p>
               </div>
             </div>
             <Toggle
@@ -262,12 +262,13 @@ function NotificationSettingsContent() {
 
         {/* Test Notification */}
         {settings.enabled && permissionStatus === "granted" && (
-          <Card className="p-4">
+          <Card className="p-5">
             <Button
               fullWidth
               variant="secondary"
               onClick={handleTest}
               loading={testing}
+              size="lg"
             >
               <Volume2 className="w-5 h-5" />
               ทดสอบการแจ้งเตือน

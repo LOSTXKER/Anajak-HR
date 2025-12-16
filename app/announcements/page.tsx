@@ -150,31 +150,31 @@ function AnnouncementsContent() {
         </div>
       </header>
 
-      <main className="max-w-[680px] mx-auto px-4 py-6">
+      <main className="max-w-[680px] mx-auto px-4 sm:px-6 py-4 sm:py-6">
         {/* Filter & Unread Count */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex gap-2">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <div className="flex gap-2 w-full sm:w-auto">
             <button
               onClick={() => setFilter("all")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-1 sm:flex-none min-h-[44px] px-5 py-3 rounded-xl text-[15px] font-medium transition-all ${
                 filter === "all"
-                  ? "bg-[#0071e3] text-white"
-                  : "bg-white text-[#86868b] hover:text-[#1d1d1f]"
+                  ? "bg-[#0071e3] text-white shadow-sm"
+                  : "bg-white text-[#86868b] hover:text-[#1d1d1f] border border-[#e8e8ed]"
               }`}
             >
               ทั้งหมด
             </button>
             <button
               onClick={() => setFilter("unread")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all relative ${
+              className={`flex-1 sm:flex-none min-h-[44px] px-5 py-3 rounded-xl text-[15px] font-medium transition-all relative ${
                 filter === "unread"
-                  ? "bg-[#0071e3] text-white"
-                  : "bg-white text-[#86868b] hover:text-[#1d1d1f]"
+                  ? "bg-[#0071e3] text-white shadow-sm"
+                  : "bg-white text-[#86868b] hover:text-[#1d1d1f] border border-[#e8e8ed]"
               }`}
             >
               ยังไม่อ่าน
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#ff3b30] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                <span className="absolute -top-1.5 -right-1.5 min-w-[22px] h-[22px] px-1 bg-[#ff3b30] text-white text-[11px] font-bold rounded-full flex items-center justify-center">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
@@ -207,11 +207,11 @@ function AnnouncementsContent() {
                 }`}
                 onClick={() => markAsRead(announcement.id)}
               >
-                <div className="p-4">
+                <div className="p-5">
                   {/* Header */}
-                  <div className="flex items-start gap-3 mb-3">
+                  <div className="flex items-start gap-4 mb-3">
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
                         announcement.priority === "urgent"
                           ? "bg-[#ff3b30]/10"
                           : announcement.priority === "high"
@@ -220,7 +220,7 @@ function AnnouncementsContent() {
                       }`}
                     >
                       <Megaphone
-                        className={`w-5 h-5 ${
+                        className={`w-6 h-6 ${
                           announcement.priority === "urgent"
                             ? "text-[#ff3b30]"
                             : announcement.priority === "high"
@@ -230,8 +230,8 @@ function AnnouncementsContent() {
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <h3 className="text-[18px] sm:text-[19px] font-semibold text-[#1d1d1f] leading-snug">
                           {announcement.title}
                           {!announcement.is_read && (
                             <span className="ml-2 inline-block w-2 h-2 bg-[#0071e3] rounded-full" />
@@ -241,12 +241,12 @@ function AnnouncementsContent() {
                           {getPriorityBadge(announcement.priority)}
                         </div>
                       </div>
-                      <p className="text-[15px] text-[#1d1d1f] whitespace-pre-wrap mb-3">
+                      <p className="text-[16px] text-[#1d1d1f] whitespace-pre-wrap mb-4 leading-relaxed">
                         {announcement.message}
                       </p>
 
                       {/* Meta Info */}
-                      <div className="flex flex-wrap gap-3 text-[12px] text-[#86868b]">
+                      <div className="flex flex-wrap gap-3 text-[13px] text-[#86868b]">
                         <div className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5" />
                           {format(new Date(announcement.created_at), "dd MMM yyyy HH:mm", {
