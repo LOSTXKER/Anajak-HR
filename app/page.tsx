@@ -296,109 +296,28 @@ export default function HomePage() {
 
   // Logged in - Dashboard
   return (
-    <div className="min-h-screen bg-[#fbfbfd] pb-20">
-      {/* Header */}
-      <header className="sticky top-0 z-50 apple-glass border-b border-[#d2d2d7]/30">
-        <div className="max-w-[980px] mx-auto px-6 h-12 flex items-center justify-between">
-          <Link href="/" className="text-[#1d1d1f] font-semibold">
-            Anajak HR
-          </Link>
-          <div className="flex items-center gap-4">
-            {(employee?.role === "admin" || employee?.role === "supervisor") && (
-              <Link
-                href="/admin"
-                className="text-sm text-[#86868b] hover:text-[#1d1d1f] transition-colors"
-              >
-                Admin
-              </Link>
-            )}
-            <Link
-              href="/history"
-              className="text-sm text-[#86868b] hover:text-[#1d1d1f] transition-colors"
-            >
-              ประวัติ
-            </Link>
-
-            {/* User Menu */}
-            <div className="relative" ref={menuRef}>
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-[#f5f5f7] transition-colors"
-              >
-                <Avatar name={employee?.name || "User"} size="sm" />
-                <ChevronDown className={`w-4 h-4 text-[#86868b] transition-transform ${showUserMenu ? "rotate-180" : ""}`} />
-              </button>
-
-              {showUserMenu && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-[#e8e8ed] py-2 animate-scale-in">
-                  {/* User Info */}
-                  <div className="px-4 py-3 border-b border-[#e8e8ed]">
-                    <p className="text-[15px] font-semibold text-[#1d1d1f] truncate">
-                      {employee?.name}
-                    </p>
-                    <p className="text-[13px] text-[#86868b] truncate">
-                      {employee?.email}
-                    </p>
-                    <Badge variant="info" className="mt-2">
-                      {employee?.role === "admin" ? "ผู้ดูแลระบบ" :
-                        employee?.role === "supervisor" ? "หัวหน้างาน" : "พนักงาน"}
-                    </Badge>
-                  </div>
-
-                  {/* Menu Items */}
-                  <div className="py-1">
-                    <Link
-                      href="/history"
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-4 py-2 text-[15px] text-[#1d1d1f] hover:bg-[#f5f5f7] transition-colors"
-                    >
-                      <ChartBar className="w-4 h-4 text-[#86868b]" />
-                      ประวัติการทำงาน
-                    </Link>
-                    {(employee?.role === "admin" || employee?.role === "supervisor") && (
-                      <Link
-                        href="/admin"
-                        onClick={() => setShowUserMenu(false)}
-                        className="flex items-center gap-3 px-4 py-2 text-[15px] text-[#1d1d1f] hover:bg-[#f5f5f7] transition-colors"
-                      >
-                        <Settings className="w-4 h-4 text-[#86868b]" />
-                        จัดการระบบ
-                      </Link>
-                    )}
-                  </div>
-
-                  {/* Logout */}
-                  <div className="border-t border-[#e8e8ed] pt-1">
-                    <button
-                      onClick={handleSignOut}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-[15px] text-[#ff3b30] hover:bg-[#ff3b30]/10 transition-colors"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      ออกจากระบบ
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <div className="min-h-screen bg-[#fbfbfd] pb-20 pt-safe">
       {/* Main Content */}
-      <main className="max-w-[480px] mx-auto px-4 py-6">
+      <main className="max-w-[600px] mx-auto px-4 pt-4 pb-4">
         {/* Welcome & Date */}
-        <div className="mb-6">
-          <p className="text-[13px] text-[#86868b] mb-1">
-            {new Date().toLocaleDateString("th-TH", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
-          </p>
-          <h1 className="text-[28px] font-bold text-[#1d1d1f]">
-            สวัสดี, {employee?.name?.split(" ")[0]}
-          </h1>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <p className="text-[14px] text-[#86868b] mb-1">
+              {format(new Date(), "EEEE d MMMM yyyy", { locale: th })}
+            </p>
+            <h1 className="text-[32px] font-bold text-[#1d1d1f]">
+              สวัสดี, {employee?.name?.split(" ")[0]}
+            </h1>
+          </div>
+          {(employee?.role === "admin" || employee?.role === "supervisor") && (
+            <Link
+              href="/admin"
+              className="flex items-center gap-2 px-4 py-2 bg-[#0071e3]/10 text-[#0071e3] text-[14px] font-medium rounded-xl hover:bg-[#0071e3]/20 transition-colors active:scale-95"
+            >
+              <Shield className="w-4 h-4" />
+              Admin
+            </Link>
+          )}
         </div>
 
         {/* Today's Status Card - Hide on holidays when actively doing OT */}
