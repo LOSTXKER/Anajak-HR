@@ -34,7 +34,7 @@ function SettingsContent() {
       title: "การแจ้งเตือน",
       description: "ตั้งค่าการแจ้งเตือนเช็คอิน/เช็คเอาท์",
       icon: Bell,
-      href: "/my-profile/notifications",
+      href: "/notifications",
       color: "#0071e3",
     },
     {

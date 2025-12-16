@@ -74,7 +74,7 @@ export function BottomNav() {
       name: "ตั้งค่า",
       href: "/settings",
       icon: Settings,
-      isActive: pathname?.startsWith("/settings"),
+      isActive: pathname?.startsWith("/settings") || pathname?.startsWith("/notifications"),
     },
   ];
 
