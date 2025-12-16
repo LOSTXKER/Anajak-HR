@@ -7,7 +7,6 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Toggle } from "@/components/ui/Toggle";
-import { TimeInput } from "@/components/ui/TimeInput";
 import { BottomNav } from "@/components/BottomNav";
 import {
   Bell,
@@ -45,45 +44,39 @@ function NotificationSettingsContent() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [resetting, setResetting] = useState(false);
-  const [adminDefaults, setAdminDefaults] = useState<{ checkinTime: string; checkoutTime: string } | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Load settings on mount
+  // Load settings on mount - ALWAYS use admin times
   useEffect(() => {
     const loadSettings = async () => {
-      const loadedSettings = await getNotificationSettingsAsync();
-      setSettings(loadedSettings);
+      setLoading(true);
+      try {
+        // Get stored user preferences (enabled, checkinReminder, etc.)
+        const storedSettings = await getNotificationSettingsAsync();
+        
+        // Get admin-configured times (ALWAYS use these)
+        const adminSettings = await getDefaultNotificationSettingsFromDB();
+        
+        // Merge: user preferences + admin times
+        setSettings({
+          ...storedSettings,
+          checkinTime: adminSettings.checkinTime,  // Always use admin time
+          checkoutTime: adminSettings.checkoutTime, // Always use admin time
+        });
 
-      // Load admin defaults for display
-      const dbDefaults = await getDefaultNotificationSettingsFromDB();
-      setAdminDefaults({
-        checkinTime: dbDefaults.checkinTime,
-        checkoutTime: dbDefaults.checkoutTime,
-      });
-
-      // Check notification permission
-      if ("Notification" in window) {
-        setPermissionStatus(Notification.permission);
-      } else {
-        setPermissionStatus("unsupported");
+        // Check notification permission
+        if ("Notification" in window) {
+          setPermissionStatus(Notification.permission);
+        } else {
+          setPermissionStatus("unsupported");
+        }
+      } finally {
+        setLoading(false);
       }
     };
     
     loadSettings();
   }, []);
-
-  // Reset to admin default settings
-  const handleResetToDefaults = async () => {
-    setResetting(true);
-    try {
-      const dbDefaults = await getDefaultNotificationSettingsFromDB();
-      setSettings(dbDefaults);
-      // Don't save yet, just update UI
-      setSaved(false);
-    } finally {
-      setResetting(false);
-    }
-  };
 
   const handleRequestPermission = async () => {
     const granted = await requestNotificationPermission();
@@ -199,67 +192,47 @@ function NotificationSettingsContent() {
         </Card>
 
         {/* Check-in Reminder */}
-        <Card className="overflow-hidden">
-          <div className="p-5 border-b border-[#e8e8ed]">
-            <div className="flex items-center justify-between min-h-[60px]">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-[#0071e3]/10 flex items-center justify-center">
-                  <Clock className="w-6 h-6 text-[#0071e3]" />
-                </div>
-                <div>
-                  <p className="text-[17px] sm:text-[18px] font-semibold text-[#1d1d1f]">แจ้งเตือนเช็คอิน</p>
-                  <p className="text-[14px] text-[#86868b] mt-0.5">เตือนเมื่อถึงเวลาเข้างาน</p>
-                </div>
+        <Card className="p-5">
+          <div className="flex items-center justify-between min-h-[60px]">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-[#0071e3]/10 flex items-center justify-center">
+                <Clock className="w-6 h-6 text-[#0071e3]" />
               </div>
-              <Toggle
-                checked={settings.checkinReminder}
-                onChange={(v) => updateSetting("checkinReminder", v)}
-                disabled={!settings.enabled}
-              />
+              <div>
+                <p className="text-[17px] sm:text-[18px] font-semibold text-[#1d1d1f]">แจ้งเตือนเช็คอิน</p>
+                <p className="text-[14px] text-[#86868b] mt-0.5">
+                  เวลา {settings.checkinTime} น.
+                </p>
+              </div>
             </div>
+            <Toggle
+              checked={settings.checkinReminder}
+              onChange={(v) => updateSetting("checkinReminder", v)}
+              disabled={!settings.enabled}
+            />
           </div>
-          
-          {settings.checkinReminder && settings.enabled && (
-            <div className="p-5 bg-[#f5f5f7]">
-              <label className="text-[14px] font-medium text-[#86868b] mb-2 block">เวลาแจ้งเตือน</label>
-              <TimeInput
-                value={settings.checkinTime}
-                onChange={(v) => updateSetting("checkinTime", v)}
-              />
-            </div>
-          )}
         </Card>
 
         {/* Check-out Reminder */}
-        <Card className="overflow-hidden">
-          <div className="p-5 border-b border-[#e8e8ed]">
-            <div className="flex items-center justify-between min-h-[60px]">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-[#ff9500]/10 flex items-center justify-center">
-                  <Clock className="w-6 h-6 text-[#ff9500]" />
-                </div>
-                <div>
-                  <p className="text-[17px] sm:text-[18px] font-semibold text-[#1d1d1f]">แจ้งเตือนเช็คเอาท์</p>
-                  <p className="text-[14px] text-[#86868b] mt-0.5">เตือนเมื่อถึงเวลาเลิกงาน</p>
-                </div>
+        <Card className="p-5">
+          <div className="flex items-center justify-between min-h-[60px]">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-[#ff9500]/10 flex items-center justify-center">
+                <Clock className="w-6 h-6 text-[#ff9500]" />
               </div>
-              <Toggle
-                checked={settings.checkoutReminder}
-                onChange={(v) => updateSetting("checkoutReminder", v)}
-                disabled={!settings.enabled}
-              />
+              <div>
+                <p className="text-[17px] sm:text-[18px] font-semibold text-[#1d1d1f]">แจ้งเตือนเช็คเอาท์</p>
+                <p className="text-[14px] text-[#86868b] mt-0.5">
+                  เวลา {settings.checkoutTime} น.
+                </p>
+              </div>
             </div>
+            <Toggle
+              checked={settings.checkoutReminder}
+              onChange={(v) => updateSetting("checkoutReminder", v)}
+              disabled={!settings.enabled}
+            />
           </div>
-          
-          {settings.checkoutReminder && settings.enabled && (
-            <div className="p-5 bg-[#f5f5f7]">
-              <label className="text-[14px] font-medium text-[#86868b] mb-2 block">เวลาแจ้งเตือน</label>
-              <TimeInput
-                value={settings.checkoutTime}
-                onChange={(v) => updateSetting("checkoutTime", v)}
-              />
-            </div>
-          )}
         </Card>
 
         {/* Workdays Only */}
@@ -298,29 +271,12 @@ function NotificationSettingsContent() {
           </Card>
         )}
 
-        {/* Admin Default Times Info */}
-        {adminDefaults && (
-          <Card className="p-4 bg-[#0071e3]/5 border border-[#0071e3]/20">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[14px] font-medium text-[#1d1d1f]">
-                  ค่าเริ่มต้นจากระบบ
-                </p>
-                <p className="text-[13px] text-[#86868b] mt-1">
-                  เช็คอิน: {adminDefaults.checkinTime} น. | เช็คเอาท์: {adminDefaults.checkoutTime} น.
-                </p>
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleResetToDefaults}
-                loading={resetting}
-              >
-                รีเซ็ต
-              </Button>
-            </div>
-          </Card>
-        )}
+        {/* Admin Info */}
+        <div className="p-4 bg-[#0071e3]/5 rounded-xl border border-[#0071e3]/20">
+          <p className="text-[13px] text-[#0071e3] text-center">
+            ⏰ เวลาแจ้งเตือนถูกกำหนดโดยผู้ดูแลระบบ
+          </p>
+        </div>
 
         {/* iOS PWA Info */}
         <div className="p-4 bg-[#f5f5f7] rounded-xl">
