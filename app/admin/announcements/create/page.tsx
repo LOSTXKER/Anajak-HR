@@ -7,7 +7,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
+import { NativeSelect } from "@/components/ui/NativeSelect";
 import { Textarea } from "@/components/ui/Textarea";
 import { Toggle } from "@/components/ui/Toggle";
 import {
@@ -162,7 +162,7 @@ function CreateAnnouncementContent() {
             />
 
             <div className="grid grid-cols-2 gap-4">
-              <Select
+              <NativeSelect
                 label="ความสำคัญ"
                 value={formData.priority}
                 onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
@@ -171,9 +171,9 @@ function CreateAnnouncementContent() {
                 <option value="normal">📢 ปกติ</option>
                 <option value="high">⚠️ สำคัญ</option>
                 <option value="urgent">🚨 ด่วนมาก</option>
-              </Select>
+              </NativeSelect>
 
-              <Select
+              <NativeSelect
                 label="หมวดหมู่"
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
@@ -183,10 +183,10 @@ function CreateAnnouncementContent() {
                 <option value="payroll">เงินเดือน</option>
                 <option value="holiday">วันหยุด</option>
                 <option value="urgent">ด่วน</option>
-              </Select>
+              </NativeSelect>
             </div>
 
-            <Select
+            <NativeSelect
               label="ส่งถึง"
               value={formData.target_type}
               onChange={(e) => {
@@ -201,10 +201,10 @@ function CreateAnnouncementContent() {
             >
               <option value="all">ทุกคน</option>
               <option value="branch">สาขาเฉพาะ</option>
-            </Select>
+            </NativeSelect>
 
             {formData.target_type === "branch" && (
-              <Select
+              <NativeSelect
                 label="เลือกสาขา"
                 value={formData.target_branch_id || ""}
                 onChange={(e) => setFormData({ ...formData, target_branch_id: e.target.value })}
@@ -215,7 +215,7 @@ function CreateAnnouncementContent() {
                     {branch.name}
                   </option>
                 ))}
-              </Select>
+              </NativeSelect>
             )}
 
             <Input
