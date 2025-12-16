@@ -25,9 +25,13 @@ import {
   getDefaultNotificationSettingsFromDB,
   saveNotificationSettings,
   testNotification,
-  scheduleDailyNotifications,
   NotificationSettings,
 } from "@/lib/utils/notifications";
+import {
+  subscribeToPushNotifications,
+  unsubscribeFromPushNotifications,
+  isPushSubscribed,
+} from "@/lib/utils/web-push";
 
 function NotificationSettingsContent() {
   const router = useRouter();
@@ -44,6 +48,7 @@ function NotificationSettingsContent() {
   const [saved, setSaved] = useState(false);
   const [testing, setTesting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isPushActive, setIsPushActive] = useState(false);
 
   // Load settings on mount - ALWAYS use admin times
   useEffect(() => {
@@ -69,6 +74,10 @@ function NotificationSettingsContent() {
         } else {
           setPermissionStatus("unsupported");
         }
+
+        // Check if already subscribed to push
+        const subscribed = await isPushSubscribed();
+        setIsPushActive(subscribed);
       } finally {
         setLoading(false);
       }
@@ -94,6 +103,16 @@ function NotificationSettingsContent() {
       }
       setPermissionStatus("granted");
     }
+
+    // Subscribe or unsubscribe from Web Push
+    if (enabled) {
+      const subscription = await subscribeToPushNotifications();
+      setIsPushActive(!!subscription);
+    } else {
+      await unsubscribeFromPushNotifications();
+      setIsPushActive(false);
+    }
+
     setSettings((prev) => ({ ...prev, enabled }));
   };
 
@@ -101,10 +120,8 @@ function NotificationSettingsContent() {
     setSaving(true);
     saveNotificationSettings(settings);
     
-    // Schedule notifications if enabled
-    if (settings.enabled && canShowNotifications()) {
-      scheduleDailyNotifications(settings);
-    }
+    // Note: Server will send push notifications based on work times
+    // No need to schedule locally anymore
     
     setTimeout(() => {
       setSaving(false);
@@ -250,6 +267,18 @@ function NotificationSettingsContent() {
           </Card>
         )}
 
+        {/* Push Status */}
+        {isPushActive && (
+          <div className="p-4 bg-[#34c759]/5 rounded-xl border border-[#34c759]/20">
+            <div className="flex items-center gap-2 justify-center">
+              <CheckCircle className="w-4 h-4 text-[#34c759]" />
+              <p className="text-[13px] text-[#34c759] font-semibold">
+                เชื่อมต่อ Web Push สำเร็จแล้ว
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Admin Info */}
         <div className="p-4 bg-[#0071e3]/5 rounded-xl border border-[#0071e3]/20">
           <div className="text-center space-y-1">
@@ -258,6 +287,9 @@ function NotificationSettingsContent() {
             </p>
             <p className="text-[12px] text-[#86868b]">
               ระบบจะไม่แจ้งเตือนในวันหยุดโดยอัตโนมัติ
+            </p>
+            <p className="text-[12px] text-[#86868b]">
+              ใช้ Web Push API - ทำงานได้แม้ปิด Browser (Android/Desktop)
             </p>
           </div>
         </div>

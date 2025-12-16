@@ -3,6 +3,10 @@ const withPWA = require('next-pwa')({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
+  // Import custom service worker for push notifications
+  additionalManifestEntries: [
+    { url: '/sw-push.js', revision: null }
+  ],
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/.*\.supabase\.co\/.*$/i,

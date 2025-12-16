@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { BottomNav } from "@/components/BottomNav";
+import { InstallButton } from "@/components/InstallButton";
 import {
   Bell,
   LogOut,
@@ -126,6 +127,9 @@ function SettingsContent() {
               Anajak HR v1.0.0
             </p>
           </div>
+
+          {/* Install App Button */}
+          <InstallButton />
 
           {/* Sign Out Button */}
           <Button
