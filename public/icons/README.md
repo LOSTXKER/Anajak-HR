@@ -47,3 +47,6 @@ convert logo.png -resize 512x512 icon-512x512.png
 - ใช้สีที่ตรงกับ theme_color ใน manifest.json (#3b82f6)
 - ไอคอนควรชัดเจนและอ่านง่ายในขนาดเล็ก
 
+
+
+

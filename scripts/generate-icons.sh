@@ -52,3 +52,6 @@ echo "1. Check the generated icons in public/icons/"
 echo "2. If needed, replace them with custom designed icons"
 echo "3. Run 'npm run build' to test PWA build"
 
+
+
+

@@ -53,3 +53,6 @@ console.log('  1. Use online tool: https://realfavicongenerator.net');
 console.log('  2. Or install ImageMagick and run: ./scripts/generate-icons.sh');
 console.log('  3. Or design custom icons in Figma/Photoshop\n');
 
+
+
+
