@@ -6,8 +6,8 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Calendar, ArrowLeft, PartyPopper } from "lucide-react";
-import Link from "next/link";
+import { Calendar, PartyPopper } from "lucide-react";
+import { BottomNav } from "@/components/BottomNav";
 import { format, startOfYear, endOfYear } from "date-fns";
 import { th } from "date-fns/locale";
 
@@ -63,21 +63,11 @@ function HolidaysContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fbfbfd]">
-      {/* Header */}
-      <header className="sticky top-0 z-50 apple-glass border-b border-[#d2d2d7]/30">
-        <div className="max-w-[980px] mx-auto px-6 h-12 flex items-center gap-4">
-          <Link href="/">
-            <button className="p-1.5 hover:bg-[#f5f5f7] rounded-lg transition-colors">
-              <ArrowLeft className="w-5 h-5 text-[#1d1d1f]" />
-            </button>
-          </Link>
-          <h1 className="text-[17px] font-semibold text-[#1d1d1f]">ปฏิทินวันหยุด</h1>
-        </div>
-      </header>
-
+    <div className="min-h-screen bg-[#fbfbfd] pb-20 pt-safe">
       {/* Main Content */}
-      <main className="max-w-[480px] mx-auto px-4 py-6">
+      <main className="max-w-[600px] mx-auto px-4 pt-6 pb-4">
+        {/* Page Title */}
+        <h1 className="text-[32px] font-bold text-[#1d1d1f] mb-6">ปฏิทินวันหยุด</h1>
         {/* Year Selector */}
         <Card className="mb-6">
           <div className="flex items-center justify-between">
@@ -196,6 +186,8 @@ function HolidaysContent() {
           </div>
         )}
       </main>
+
+      <BottomNav />
     </div>
   );
 }

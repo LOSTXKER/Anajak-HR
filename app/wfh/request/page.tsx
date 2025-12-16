@@ -9,7 +9,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { DateInput } from "@/components/ui/DateInput";
-import { ArrowLeft, Calendar, FileText, CheckCircle, AlertCircle, Home } from "lucide-react";
+import { X, Calendar, FileText, CheckCircle, AlertCircle, Home } from "lucide-react";
 import { format } from "date-fns";
 
 function WFHRequestContent() {
@@ -123,30 +123,25 @@ function WFHRequestContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fbfbfd]">
-      {/* Header */}
-      <header className="sticky top-0 z-50 apple-glass border-b border-[#d2d2d7]/30">
-        <div className="max-w-[600px] mx-auto px-6 h-12 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-[#0071e3]">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-[15px]">กลับ</span>
-          </Link>
-          <span className="text-[15px] font-medium text-[#1d1d1f]">ขอ WFH</span>
-          <div className="w-16" />
-        </div>
-      </header>
-
-      <main className="max-w-[600px] mx-auto px-6 py-8">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-[#0071e3]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Home className="w-8 h-8 text-[#0071e3]" />
+    <div className="min-h-screen bg-[#fbfbfd] pt-safe">
+      <main className="max-w-[600px] mx-auto px-4 pt-4 pb-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-[#0071e3]/10 rounded-xl flex items-center justify-center">
+              <Home className="w-6 h-6 text-[#0071e3]" />
+            </div>
+            <div>
+              <h1 className="text-[24px] font-bold text-[#1d1d1f]">ขอ WFH</h1>
+              <p className="text-[14px] text-[#86868b]">Work From Home</p>
+            </div>
           </div>
-          <h1 className="text-[32px] font-semibold text-[#1d1d1f] mb-2">
-            ขอทำงานที่บ้าน
-          </h1>
-          <p className="text-[15px] text-[#86868b]">
-            Work From Home
-          </p>
+          <Link
+            href="/"
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-[#f5f5f7] hover:bg-[#e8e8ed] transition-colors active:scale-95"
+          >
+            <X className="w-5 h-5 text-[#86868b]" />
+          </Link>
         </div>
 
         <form onSubmit={handleSubmit}>

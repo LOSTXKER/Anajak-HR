@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { uploadAttendancePhoto } from "@/lib/utils/upload-photo";
 import { isWithinRadius, formatDistance } from "@/lib/utils/geo";
-import { Camera, MapPin, ArrowLeft, CheckCircle, AlertCircle, Clock, Navigation } from "lucide-react";
+import { Camera, MapPin, X, CheckCircle, AlertCircle, Clock, Navigation } from "lucide-react";
 import { format } from "date-fns";
 
 interface Branch {
@@ -348,20 +348,21 @@ function CheckoutContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fbfbfd]">
-      {/* Header */}
-      <header className="sticky top-0 z-50 apple-glass border-b border-[#d2d2d7]/30">
-        <div className="max-w-[600px] mx-auto px-6 h-12 flex items-center">
-          <Link href="/" className="flex items-center gap-2 text-[#0071e3]">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-[15px]">กลับ</span>
+    <div className="min-h-screen bg-[#fbfbfd] pt-safe">
+      <main className="max-w-[600px] mx-auto px-4 pt-4 pb-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-[28px] font-bold text-[#1d1d1f]">เช็คเอาท์</h1>
+          <Link
+            href="/"
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-[#f5f5f7] hover:bg-[#e8e8ed] transition-colors active:scale-95"
+          >
+            <X className="w-5 h-5 text-[#86868b]" />
           </Link>
         </div>
-      </header>
 
-      <main className="max-w-[600px] mx-auto px-6 py-8">
         {/* Time Display */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-4">
           <p className="text-[56px] font-light text-[#1d1d1f] tracking-tight">
             {currentTime.toLocaleTimeString("th-TH", {
               hour: "2-digit",

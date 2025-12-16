@@ -8,8 +8,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { BottomNav } from "@/components/BottomNav";
 import {
-  ArrowLeft,
   Clock,
   Calendar,
   Plus,
@@ -161,20 +161,18 @@ function OTPageContent() {
   const totalAmount = thisMonthOT.reduce((sum: number, ot: any) => sum + (ot.ot_amount || 0), 0);
 
   return (
-    <div className="min-h-screen bg-[#fbfbfd]">
-      {/* Header */}
-      <header className="sticky top-0 z-50 apple-glass border-b border-[#d2d2d7]/30">
-        <div className="max-w-[600px] mx-auto px-6 h-12 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-[#0071e3]">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-[15px]">กลับ</span>
+    <div className="min-h-screen bg-[#fbfbfd] pb-20 pt-safe">
+      <main className="max-w-[600px] mx-auto px-4 pt-6 pb-4">
+        {/* Page Title */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-[32px] font-bold text-[#1d1d1f]">ระบบ OT</h1>
+          <Link href="/ot/request">
+            <Button size="sm">
+              <Plus className="w-4 h-4" />
+              ขอ OT
+            </Button>
           </Link>
-          <span className="text-[15px] font-medium text-[#1d1d1f]">ระบบ OT</span>
-          <div className="w-16" />
         </div>
-      </header>
-
-      <main className="max-w-[600px] mx-auto px-6 py-6">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
@@ -455,6 +453,8 @@ function OTPageContent() {
           </div>
         </div>
       )}
+
+      <BottomNav />
     </div>
   );
 }

@@ -9,7 +9,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { DateInput } from "@/components/ui/DateInput";
-import { ArrowLeft, Calendar, FileText, CheckCircle, AlertCircle, MapPin, Info } from "lucide-react";
+import { X, Calendar, FileText, CheckCircle, AlertCircle, MapPin, Info } from "lucide-react";
 import { format } from "date-fns";
 
 function FieldWorkRequestContent() {
@@ -136,31 +136,29 @@ function FieldWorkRequestContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fbfbfd]">
-      {/* Header */}
-      <div className="bg-white border-b border-[#e8e8ed] sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-6 py-4">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/"
-              className="p-2 hover:bg-[#f5f5f7] rounded-xl transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5 text-[#1d1d1f]" />
-            </Link>
+    <div className="min-h-screen bg-[#fbfbfd] pt-safe">
+      <main className="max-w-[600px] mx-auto px-4 pt-4 pb-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-[#ff9500]/10 rounded-xl flex items-center justify-center">
+              <MapPin className="w-6 h-6 text-[#ff9500]" />
+            </div>
             <div>
-              <h1 className="text-[21px] font-semibold text-[#1d1d1f]">
-                ขอทำงานนอกสถานที่
-              </h1>
-              <p className="text-[13px] text-[#86868b]">
-                ส่งคำขอล่วงหน้าเมื่อต้องทำงานนอกสำนักงาน
-              </p>
+              <h1 className="text-[24px] font-bold text-[#1d1d1f]">งานนอกสถานที่</h1>
+              <p className="text-[14px] text-[#86868b]">ส่งคำขอล่วงหน้า</p>
             </div>
           </div>
+          <Link
+            href="/"
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-[#f5f5f7] hover:bg-[#e8e8ed] transition-colors active:scale-95"
+          >
+            <X className="w-5 h-5 text-[#86868b]" />
+          </Link>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="max-w-2xl mx-auto px-6 py-8">
+        {/* Content */}
+        <div>
         <Card elevated>
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 bg-[#ff9500]/10 rounded-xl flex items-center justify-center">
@@ -269,7 +267,8 @@ function FieldWorkRequestContent() {
             แต่ต้องได้รับการอนุมัติจากหัวหน้างานล่วงหน้า</span>
           </p>
         </Card>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }
