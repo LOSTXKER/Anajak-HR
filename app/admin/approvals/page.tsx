@@ -186,7 +186,7 @@ function ApprovalsContent() {
       ]);
 
       const allRequests: RequestItem[] = [];
-      
+
       (otRes.data || []).forEach((r: any) => {
         const item = processRequest(r, "ot", "pending");
         if (item) allRequests.push(item);
@@ -266,7 +266,7 @@ function ApprovalsContent() {
 
   useEffect(() => {
     if (viewMode === "pending") {
-      fetchPending();
+    fetchPending();
     } else {
       fetchHistory();
     }
@@ -493,97 +493,97 @@ function ApprovalsContent() {
       ) : viewMode === "pending" ? (
         /* Pending View */
         filteredRequests.length === 0 ? (
-          <Card elevated className="!py-16">
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 bg-[#34c759]/10 rounded-full flex items-center justify-center">
-                <Inbox className="w-8 h-8 text-[#34c759]" />
-              </div>
-              <h3 className="text-lg font-semibold text-[#1d1d1f] mb-1">
-                ไม่มีคำขอรออนุมัติ
-              </h3>
-              <p className="text-sm text-[#86868b]">
-                คุณจัดการคำขอทั้งหมดเรียบร้อยแล้ว 🎉
-              </p>
+        <Card elevated className="!py-16">
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-[#34c759]/10 rounded-full flex items-center justify-center">
+              <Inbox className="w-8 h-8 text-[#34c759]" />
             </div>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {filteredRequests.map((request) => {
-              const config = typeConfig[request.type];
-              const Icon = config.icon;
-              const isProcessing = processingIds.has(`${request.type}_${request.id}`);
+            <h3 className="text-lg font-semibold text-[#1d1d1f] mb-1">
+              ไม่มีคำขอรออนุมัติ
+            </h3>
+            <p className="text-sm text-[#86868b]">
+              คุณจัดการคำขอทั้งหมดเรียบร้อยแล้ว 🎉
+            </p>
+          </div>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {filteredRequests.map((request) => {
+            const config = typeConfig[request.type];
+            const Icon = config.icon;
+            const isProcessing = processingIds.has(`${request.type}_${request.id}`);
 
-              return (
-                <Card 
-                  key={`${request.type}_${request.id}`} 
-                  elevated 
-                  className="!p-0 overflow-hidden hover:shadow-lg transition-shadow"
-                >
-                  <div className="flex items-stretch">
-                    <div className={`w-1.5 ${config.bgColor}`} />
-                    
-                    <div className="flex-1 p-4">
-                      <div className="flex items-start gap-3">
-                        <Avatar name={request.employeeName} size="md" />
+            return (
+              <Card 
+                key={`${request.type}_${request.id}`} 
+                elevated 
+                className="!p-0 overflow-hidden hover:shadow-lg transition-shadow"
+              >
+                <div className="flex items-stretch">
+                  <div className={`w-1.5 ${config.bgColor}`} />
+                  
+                  <div className="flex-1 p-4">
+                    <div className="flex items-start gap-3">
+                      <Avatar name={request.employeeName} size="md" />
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-[15px] font-semibold text-[#1d1d1f] truncate">
+                            {request.employeeName}
+                          </span>
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${config.bgColor} ${config.color}`}>
+                            <Icon className="w-3 h-3" />
+                            {config.label}
+                          </span>
+                        </div>
                         
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <span className="text-[15px] font-semibold text-[#1d1d1f] truncate">
-                              {request.employeeName}
-                            </span>
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${config.bgColor} ${config.color}`}>
-                              <Icon className="w-3 h-3" />
-                              {config.label}
-                            </span>
-                          </div>
-                          
-                          <p className="text-[14px] font-medium text-[#1d1d1f]">
-                            {request.title}
+                        <p className="text-[14px] font-medium text-[#1d1d1f]">
+                          {request.title}
+                        </p>
+                        <p className="text-[13px] text-[#86868b]">
+                          {request.subtitle}
+                        </p>
+                        
+                        {request.reason && (
+                          <p className="text-[12px] text-[#6e6e73] mt-1.5 line-clamp-2 bg-[#f5f5f7] rounded-lg px-2.5 py-1.5">
+                            {request.reason}
                           </p>
-                          <p className="text-[13px] text-[#86868b]">
-                            {request.subtitle}
-                          </p>
-                          
-                          {request.reason && (
-                            <p className="text-[12px] text-[#6e6e73] mt-1.5 line-clamp-2 bg-[#f5f5f7] rounded-lg px-2.5 py-1.5">
-                              {request.reason}
-                            </p>
+                        )}
+
+                        <p className="text-[11px] text-[#86868b] mt-2">
+                          {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true, locale: th })}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col gap-2 ml-2">
+                        <button
+                          onClick={() => handleAction(request, true)}
+                          disabled={isProcessing}
+                          className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#34c759] text-white hover:bg-[#30b350] active:scale-95 transition-all disabled:opacity-50"
+                          title="อนุมัติ"
+                        >
+                          {isProcessing ? (
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Check className="w-5 h-5" />
                           )}
-
-                          <p className="text-[11px] text-[#86868b] mt-2">
-                            {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true, locale: th })}
-                          </p>
-                        </div>
-
-                        <div className="flex flex-col gap-2 ml-2">
-                          <button
-                            onClick={() => handleAction(request, true)}
-                            disabled={isProcessing}
-                            className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#34c759] text-white hover:bg-[#30b350] active:scale-95 transition-all disabled:opacity-50"
-                            title="อนุมัติ"
-                          >
-                            {isProcessing ? (
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <Check className="w-5 h-5" />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => handleAction(request, false)}
-                            disabled={isProcessing}
-                            className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#ff3b30] text-white hover:bg-[#e0352b] active:scale-95 transition-all disabled:opacity-50"
-                            title="ปฏิเสธ"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
-                        </div>
+                        </button>
+                        <button
+                          onClick={() => handleAction(request, false)}
+                          disabled={isProcessing}
+                          className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#ff3b30] text-white hover:bg-[#e0352b] active:scale-95 transition-all disabled:opacity-50"
+                          title="ปฏิเสธ"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
                       </div>
                     </div>
                   </div>
-                </Card>
-              );
-            })}
-          </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
         )
       ) : (
         /* History View */

@@ -165,17 +165,17 @@ function EditAttendanceContent() {
 
       // บันทึก anomaly สำหรับการแก้ไขย้อนหลัง (ไม่ block ถ้าล้มเหลว)
       try {
-        await supabase.from("attendance_anomalies").insert({
-          attendance_id: attendance.id,
-          employee_id: attendance.employee_id,
-          date: format(clockInDate, "yyyy-MM-dd"),
-          anomaly_type: "manual_edit",
-          description: `แก้ไขเวลาโดย ${currentAdmin?.name || "Admin"}: เช็คอิน ${clockIn} น., เช็คเอาท์ ${clockOut || "-"} น.`,
-          status: "resolved",
-          resolution_note: editReason,
-          resolved_by: currentAdmin?.id || null,
-          resolved_at: new Date().toISOString(),
-        });
+      await supabase.from("attendance_anomalies").insert({
+        attendance_id: attendance.id,
+        employee_id: attendance.employee_id,
+        date: format(clockInDate, "yyyy-MM-dd"),
+        anomaly_type: "manual_edit",
+        description: `แก้ไขเวลาโดย ${currentAdmin?.name || "Admin"}: เช็คอิน ${clockIn} น., เช็คเอาท์ ${clockOut || "-"} น.`,
+        status: "resolved",
+        resolution_note: editReason,
+        resolved_by: currentAdmin?.id || null,
+        resolved_at: new Date().toISOString(),
+      });
       } catch (anomalyError) {
         console.warn("Could not create anomaly record:", anomalyError);
       }

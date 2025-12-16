@@ -356,9 +356,9 @@ function AdminDashboardContent() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 text-[#ff9500]" />
-                <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
+              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
                   รอการอนุมัติ
-                </h3>
+              </h3>
               </div>
               <Link
                 href="/admin/approvals"

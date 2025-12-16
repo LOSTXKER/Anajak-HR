@@ -99,7 +99,7 @@ function MonitorContent() {
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [otTimes, setOtTimes] = useState<Record<string, string>>({});
-  
+
   // Anomalies State
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [anomalyFilter, setAnomalyFilter] = useState("pending");
@@ -113,11 +113,11 @@ function MonitorContent() {
     if (viewMode === "realtime") {
       fetchRealtimeData();
       const interval = setInterval(fetchRealtimeData, 30000);
-      const clockInterval = setInterval(() => setCurrentTime(new Date()), 1000);
-      return () => {
-        clearInterval(interval);
-        clearInterval(clockInterval);
-      };
+    const clockInterval = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => {
+      clearInterval(interval);
+      clearInterval(clockInterval);
+    };
     } else {
       fetchAnomalies();
     }
@@ -293,18 +293,18 @@ function MonitorContent() {
         </div>
 
         {viewMode === "realtime" && (
-          <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="text-[28px] font-light text-[#1d1d1f]">
-                {format(currentTime, "HH:mm:ss")}
-              </p>
+              {format(currentTime, "HH:mm:ss")}
+            </p>
               <p className="text-[13px] text-[#86868b]">
-                {format(currentTime, "EEEE d MMMM yyyy", { locale: th })}
-              </p>
-            </div>
+              {format(currentTime, "EEEE d MMMM yyyy", { locale: th })}
+            </p>
+          </div>
             <Button variant="secondary" size="sm" onClick={fetchRealtimeData} disabled={refreshing}>
-              <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-            </Button>
+          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+        </Button>
           </div>
         )}
       </div>
@@ -312,160 +312,160 @@ function MonitorContent() {
       {/* Realtime View */}
       {viewMode === "realtime" && (
         <>
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
-            <Card elevated className="bg-gradient-to-br from-[#0071e3] to-[#005bb5] text-white">
-              <div className="flex items-center gap-3">
-                <Users className="w-8 h-8 opacity-80" />
-                <div>
-                  <p className="text-[32px] font-semibold">{stats.totalEmployees}</p>
-                  <p className="text-[13px] opacity-80">พนักงานทั้งหมด</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card elevated className="bg-gradient-to-br from-[#34c759] to-[#28a745]">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="w-8 h-8 text-white opacity-80" />
-                <div>
-                  <p className="text-[32px] font-semibold text-white">{stats.checkedIn}</p>
-                  <p className="text-[13px] text-white/80">เช็คอินแล้ว</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card elevated className="bg-gradient-to-br from-[#ff9500] to-[#e68600]">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="w-8 h-8 text-white opacity-80" />
-                <div>
-                  <p className="text-[32px] font-semibold text-white">{stats.notCheckedIn}</p>
-                  <p className="text-[13px] text-white/80">ยังไม่เช็คอิน</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card elevated className="bg-gradient-to-br from-[#ff3b30] to-[#d63031]">
-              <div className="flex items-center gap-3">
-                <Clock className="w-8 h-8 text-white opacity-80" />
-                <div>
-                  <p className="text-[32px] font-semibold text-white">{stats.late}</p>
-                  <p className="text-[13px] text-white/80">มาสาย</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card elevated className="bg-gradient-to-br from-[#af52de] to-[#9b59b6]">
-              <div className="flex items-center gap-3">
-                <Timer className="w-8 h-8 text-white opacity-80" />
-                <div>
-                  <p className="text-[32px] font-semibold text-white">{stats.onOT}</p>
-                  <p className="text-[13px] text-white/80">กำลังทำ OT</p>
-                </div>
-              </div>
-            </Card>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
+        <Card elevated className="bg-gradient-to-br from-[#0071e3] to-[#005bb5] text-white">
+          <div className="flex items-center gap-3">
+            <Users className="w-8 h-8 opacity-80" />
+            <div>
+              <p className="text-[32px] font-semibold">{stats.totalEmployees}</p>
+              <p className="text-[13px] opacity-80">พนักงานทั้งหมด</p>
+            </div>
           </div>
+        </Card>
 
-          {/* Pending Requests Alert */}
-          {(stats.pendingOT > 0 || stats.pendingLeave > 0 || stats.pendingWFH > 0) && (
+        <Card elevated className="bg-gradient-to-br from-[#34c759] to-[#28a745]">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-8 h-8 text-white opacity-80" />
+            <div>
+              <p className="text-[32px] font-semibold text-white">{stats.checkedIn}</p>
+              <p className="text-[13px] text-white/80">เช็คอินแล้ว</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card elevated className="bg-gradient-to-br from-[#ff9500] to-[#e68600]">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-8 h-8 text-white opacity-80" />
+            <div>
+              <p className="text-[32px] font-semibold text-white">{stats.notCheckedIn}</p>
+              <p className="text-[13px] text-white/80">ยังไม่เช็คอิน</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card elevated className="bg-gradient-to-br from-[#ff3b30] to-[#d63031]">
+          <div className="flex items-center gap-3">
+            <Clock className="w-8 h-8 text-white opacity-80" />
+            <div>
+              <p className="text-[32px] font-semibold text-white">{stats.late}</p>
+              <p className="text-[13px] text-white/80">มาสาย</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card elevated className="bg-gradient-to-br from-[#af52de] to-[#9b59b6]">
+          <div className="flex items-center gap-3">
+            <Timer className="w-8 h-8 text-white opacity-80" />
+            <div>
+              <p className="text-[32px] font-semibold text-white">{stats.onOT}</p>
+              <p className="text-[13px] text-white/80">กำลังทำ OT</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Pending Requests Alert */}
+      {(stats.pendingOT > 0 || stats.pendingLeave > 0 || stats.pendingWFH > 0) && (
             <Link href="/admin/approvals">
               <Card elevated className="mb-6 border-l-4 border-l-[#ff9500] bg-[#ff9500]/5 hover:shadow-lg transition-shadow cursor-pointer">
-                <div className="flex items-center gap-4">
-                  <AlertTriangle className="w-6 h-6 text-[#ff9500]" />
-                  <div className="flex-1">
-                    <p className="text-[15px] font-semibold text-[#1d1d1f]">คำขอรออนุมัติ</p>
-                    <div className="flex gap-4 mt-1">
+          <div className="flex items-center gap-4">
+            <AlertTriangle className="w-6 h-6 text-[#ff9500]" />
+            <div className="flex-1">
+              <p className="text-[15px] font-semibold text-[#1d1d1f]">คำขอรออนุมัติ</p>
+              <div className="flex gap-4 mt-1">
                       {stats.pendingOT > 0 && <span className="text-[13px] text-[#ff9500]">OT: {stats.pendingOT}</span>}
                       {stats.pendingLeave > 0 && <span className="text-[13px] text-[#af52de]">ลา: {stats.pendingLeave}</span>}
                       {stats.pendingWFH > 0 && <span className="text-[13px] text-[#0071e3]">WFH: {stats.pendingWFH}</span>}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </Link>
-          )}
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Active OT Section */}
-            <Card elevated padding="none">
-              <div className="px-6 py-4 border-b border-[#e8e8ed] flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Play className="w-5 h-5 text-[#ff9500]" />
-                  <h3 className="text-[17px] font-semibold text-[#1d1d1f]">กำลังทำ OT</h3>
-                </div>
-                {activeOTs.length > 0 && <Badge variant="warning">{activeOTs.length} คน</Badge>}
               </div>
+            </div>
+          </div>
+        </Card>
+            </Link>
+      )}
 
-              <div className="p-4">
-                {activeOTs.length === 0 ? (
-                  <div className="text-center py-10 text-[#86868b]">
-                    <Timer className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                    <p>ไม่มีใครกำลังทำ OT</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {activeOTs.map((ot) => (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Active OT Section */}
+        <Card elevated padding="none">
+          <div className="px-6 py-4 border-b border-[#e8e8ed] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Play className="w-5 h-5 text-[#ff9500]" />
+              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">กำลังทำ OT</h3>
+            </div>
+                {activeOTs.length > 0 && <Badge variant="warning">{activeOTs.length} คน</Badge>}
+          </div>
+
+          <div className="p-4">
+            {activeOTs.length === 0 ? (
+              <div className="text-center py-10 text-[#86868b]">
+                <Timer className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p>ไม่มีใครกำลังทำ OT</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {activeOTs.map((ot) => (
                       <div key={ot.id} className="flex items-center justify-between p-4 bg-[#ff9500]/10 rounded-xl">
-                        <div className="flex items-center gap-3">
-                          <Avatar name={ot.employee.name} size="sm" />
-                          <div>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={ot.employee.name} size="sm" />
+                      <div>
                             <p className="text-[15px] font-medium text-[#1d1d1f]">{ot.employee.name}</p>
                             <p className="text-[13px] text-[#86868b]">เริ่ม: {format(new Date(ot.actual_start_time), "HH:mm")} น.</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[24px] font-semibold text-[#ff9500]">{otTimes[ot.id] || "00:00"}</p>
-                          <p className="text-[12px] text-[#86868b]">ชม:นาที</p>
-                        </div>
                       </div>
-                    ))}
+                    </div>
+                    <div className="text-right">
+                          <p className="text-[24px] font-semibold text-[#ff9500]">{otTimes[ot.id] || "00:00"}</p>
+                      <p className="text-[12px] text-[#86868b]">ชม:นาที</p>
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
-            </Card>
+            )}
+          </div>
+        </Card>
 
-            {/* Recent Activity */}
-            <Card elevated padding="none">
-              <div className="px-6 py-4 border-b border-[#e8e8ed] flex items-center gap-2">
-                <Activity className="w-5 h-5 text-[#0071e3]" />
-                <h3 className="text-[17px] font-semibold text-[#1d1d1f]">กิจกรรมล่าสุด</h3>
+        {/* Recent Activity */}
+        <Card elevated padding="none">
+          <div className="px-6 py-4 border-b border-[#e8e8ed] flex items-center gap-2">
+            <Activity className="w-5 h-5 text-[#0071e3]" />
+            <h3 className="text-[17px] font-semibold text-[#1d1d1f]">กิจกรรมล่าสุด</h3>
+          </div>
+
+          <div className="p-4 max-h-[400px] overflow-y-auto">
+            {recentActivity.length === 0 ? (
+              <div className="text-center py-10 text-[#86868b]">
+                <Activity className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p>ยังไม่มีกิจกรรมวันนี้</p>
               </div>
-
-              <div className="p-4 max-h-[400px] overflow-y-auto">
-                {recentActivity.length === 0 ? (
-                  <div className="text-center py-10 text-[#86868b]">
-                    <Activity className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                    <p>ยังไม่มีกิจกรรมวันนี้</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {recentActivity.map((activity) => (
+            ) : (
+              <div className="space-y-3">
+                {recentActivity.map((activity) => (
                       <div key={activity.id} className="flex items-center gap-3 p-3 hover:bg-[#f5f5f7] rounded-xl transition-colors">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                           activity.clock_out_time ? "bg-[#34c759]/10" : activity.is_late ? "bg-[#ff9500]/10" : "bg-[#0071e3]/10"
-                        }`}>
-                          {activity.clock_out_time ? (
-                            <XCircle className="w-5 h-5 text-[#34c759]" />
-                          ) : (
-                            <CheckCircle className={`w-5 h-5 ${activity.is_late ? "text-[#ff9500]" : "text-[#0071e3]"}`} />
-                          )}
-                        </div>
-                        <div className="flex-1">
+                      }`}>
+                      {activity.clock_out_time ? (
+                        <XCircle className="w-5 h-5 text-[#34c759]" />
+                      ) : (
+                        <CheckCircle className={`w-5 h-5 ${activity.is_late ? "text-[#ff9500]" : "text-[#0071e3]"}`} />
+                      )}
+                    </div>
+                    <div className="flex-1">
                           <p className="text-[14px] font-medium text-[#1d1d1f]">{activity.employee?.name}</p>
-                          <p className="text-[13px] text-[#86868b]">
-                            {activity.clock_out_time
-                              ? `เช็คเอาท์ ${format(new Date(activity.clock_out_time), "HH:mm")} น.`
-                              : `เช็คอิน ${format(new Date(activity.clock_in_time), "HH:mm")} น.`
-                            }
+                      <p className="text-[13px] text-[#86868b]">
+                        {activity.clock_out_time
+                          ? `เช็คเอาท์ ${format(new Date(activity.clock_out_time), "HH:mm")} น.`
+                          : `เช็คอิน ${format(new Date(activity.clock_in_time), "HH:mm")} น.`
+                        }
                             {activity.is_late && !activity.clock_out_time && <span className="text-[#ff9500]"> (สาย)</span>}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                      </p>
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
-            </Card>
+            )}
           </div>
+        </Card>
+      </div>
         </>
       )}
 
@@ -523,7 +523,7 @@ function MonitorContent() {
                     <div className="flex items-start gap-4">
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${typeInfo.color}`}>
                         <Icon className="w-6 h-6" />
-                      </div>
+          </div>
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -543,7 +543,7 @@ function MonitorContent() {
                           {anomaly.status === "ignored" && (
                             <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#86868b]/10 text-[#86868b]">
                               ไม่ต้องดำเนินการ
-                            </span>
+              </span>
                           )}
                         </div>
 
@@ -612,8 +612,8 @@ function MonitorContent() {
               rows={3}
               className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all resize-none"
               placeholder="เพิ่มหมายเหตุ (ไม่บังคับ)..."
-            />
-          </div>
+              />
+            </div>
 
           <div className="flex items-center gap-3">
             <Button variant="secondary" onClick={() => setShowModal(false)} fullWidth>
