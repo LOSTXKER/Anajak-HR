@@ -17,6 +17,7 @@ import {
   DollarSign,
   Activity,
   Wrench,
+  Megaphone,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { useState, useEffect } from "react";
@@ -88,7 +89,7 @@ export function Sidebar() {
     {
       title: "หลัก",
       items: [
-        { title: "Dashboard", href: "/admin", icon: LayoutGrid },
+        { title: "ประกาศ", href: "/admin/announcements", icon: Megaphone },
         { title: "Admin Tools", href: "/admin/tools", icon: Wrench },
         { title: "อนุมัติ", href: "/admin/approvals", icon: FileText, badge: pendingCounts.approvals },
         { title: "จัดการคำขอ", href: "/admin/requests", icon: Clock },
