@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { ToastProvider } from "@/components/ui/Toast";
+import { NotificationInitializer } from "@/components/NotificationInitializer";
 
 export const metadata: Metadata = {
   title: "Anajak HR - ระบบบันทึกเข้างาน OT",
@@ -50,7 +51,10 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <AuthProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            <NotificationInitializer />
+            {children}
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>

@@ -29,6 +29,7 @@ import {
   Camera,
   X,
   Trash2,
+  Bell,
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
@@ -344,7 +345,9 @@ export default function MyProfilePage() {
             <span className="text-sm font-medium">กลับ</span>
           </Link>
           <h1 className="text-[17px] font-semibold text-[#1d1d1f]">ประวัติของฉัน</h1>
-          <div className="w-12" /> {/* Spacer */}
+          <Link href="/my-profile/notifications" className="p-2 hover:bg-[#f5f5f7] rounded-lg transition-colors">
+            <Bell className="w-5 h-5 text-[#1d1d1f]" />
+          </Link>
         </div>
       </header>
 
