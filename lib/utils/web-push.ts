@@ -61,7 +61,7 @@ export async function subscribeToPushNotifications(): Promise<PushSubscription |
 
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: convertedVapidKey,
+        applicationServerKey: convertedVapidKey as BufferSource,
       });
 
       console.log('Push notification subscription created:', subscription);
@@ -130,6 +130,14 @@ export async function isPushSubscribed(): Promise<boolean> {
  */
 async function sendSubscriptionToBackend(subscription: PushSubscription): Promise<void> {
   try {
+    // Get employee ID from auth
+    const { supabase } = await import('@/lib/supabase/client');
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
     const response = await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: {
@@ -137,7 +145,7 @@ async function sendSubscriptionToBackend(subscription: PushSubscription): Promis
       },
       body: JSON.stringify({
         subscription: subscription.toJSON(),
-        // Include user info from auth context if needed
+        employeeId: user.id, // Send employee ID
       }),
     });
 
@@ -156,13 +164,21 @@ async function sendSubscriptionToBackend(subscription: PushSubscription): Promis
  */
 async function removeSubscriptionFromBackend(subscription: PushSubscription): Promise<void> {
   try {
+    // Get employee ID from auth
+    const { supabase } = await import('@/lib/supabase/client');
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
     const response = await fetch('/api/push/unsubscribe', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        subscription: subscription.toJSON(),
+        employeeId: user.id, // Send employee ID
       }),
     });
 

@@ -1,41 +1,20 @@
 import { NextRequest } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
-import { cookies } from "next/headers";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { subscription } = body;
+    const { subscription, employeeId } = body;
 
-    if (!subscription) {
-      return Response.json({ error: "Subscription data required" }, { status: 400 });
-    }
-
-    // Get current user from session
-    const cookieStore = cookies();
-    const supabase = supabaseServer(cookieStore);
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Get employee ID
-    const { data: employee } = await supabase
-      .from("employees")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!employee) {
-      return Response.json({ error: "Employee not found" }, { status: 404 });
+    if (!subscription || !employeeId) {
+      return Response.json({ error: "Subscription data and employeeId required" }, { status: 400 });
     }
 
     // Store subscription in database
-    const { error } = await supabase
+    const { error } = await supabaseServer
       .from("push_subscriptions")
       .upsert({
-        employee_id: employee.id,
+        employee_id: employeeId,
         subscription: subscription,
         user_agent: request.headers.get("user-agent") || "unknown",
         updated_at: new Date().toISOString(),
@@ -48,7 +27,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Failed to store subscription" }, { status: 500 });
     }
 
-    console.log(`Push subscription saved for employee ${employee.id}`);
+    console.log(`Push subscription saved for employee ${employeeId}`);
 
     return Response.json({ 
       success: true,

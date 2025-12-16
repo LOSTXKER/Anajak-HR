@@ -9,7 +9,12 @@ import { supabaseServer } from '@/lib/supabase/server';
 // Configure web-push with VAPID keys
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
-const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:admin@anajak-hr.com';
+let vapidSubject = process.env.VAPID_SUBJECT || 'mailto:admin@anajak-hr.com';
+
+// Ensure vapidSubject starts with mailto: if it's an email
+if (vapidSubject && !vapidSubject.startsWith('http') && !vapidSubject.startsWith('mailto:')) {
+  vapidSubject = `mailto:${vapidSubject}`;
+}
 
 if (vapidPublicKey && vapidPrivateKey) {
   webpush.setVapidDetails(
