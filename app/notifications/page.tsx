@@ -24,6 +24,7 @@ import {
   requestNotificationPermission,
   canShowNotifications,
   getNotificationSettingsAsync,
+  getDefaultNotificationSettingsFromDB,
   saveNotificationSettings,
   testNotification,
   scheduleDailyNotifications,
@@ -44,12 +45,21 @@ function NotificationSettingsContent() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [adminDefaults, setAdminDefaults] = useState<{ checkinTime: string; checkoutTime: string } | null>(null);
 
   // Load settings on mount
   useEffect(() => {
     const loadSettings = async () => {
       const loadedSettings = await getNotificationSettingsAsync();
       setSettings(loadedSettings);
+
+      // Load admin defaults for display
+      const dbDefaults = await getDefaultNotificationSettingsFromDB();
+      setAdminDefaults({
+        checkinTime: dbDefaults.checkinTime,
+        checkoutTime: dbDefaults.checkoutTime,
+      });
 
       // Check notification permission
       if ("Notification" in window) {
@@ -61,6 +71,19 @@ function NotificationSettingsContent() {
     
     loadSettings();
   }, []);
+
+  // Reset to admin default settings
+  const handleResetToDefaults = async () => {
+    setResetting(true);
+    try {
+      const dbDefaults = await getDefaultNotificationSettingsFromDB();
+      setSettings(dbDefaults);
+      // Don't save yet, just update UI
+      setSaved(false);
+    } finally {
+      setResetting(false);
+    }
+  };
 
   const handleRequestPermission = async () => {
     const granted = await requestNotificationPermission();
@@ -272,6 +295,30 @@ function NotificationSettingsContent() {
               <Volume2 className="w-5 h-5" />
               ทดสอบการแจ้งเตือน
             </Button>
+          </Card>
+        )}
+
+        {/* Admin Default Times Info */}
+        {adminDefaults && (
+          <Card className="p-4 bg-[#0071e3]/5 border border-[#0071e3]/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[14px] font-medium text-[#1d1d1f]">
+                  ค่าเริ่มต้นจากระบบ
+                </p>
+                <p className="text-[13px] text-[#86868b] mt-1">
+                  เช็คอิน: {adminDefaults.checkinTime} น. | เช็คเอาท์: {adminDefaults.checkoutTime} น.
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleResetToDefaults}
+                loading={resetting}
+              >
+                รีเซ็ต
+              </Button>
+            </div>
           </Card>
         )}
 
