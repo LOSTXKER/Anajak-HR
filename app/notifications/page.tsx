@@ -12,7 +12,6 @@ import {
   Bell,
   BellOff,
   Clock,
-  Calendar,
   CheckCircle,
   AlertCircle,
   Smartphone,
@@ -235,26 +234,6 @@ function NotificationSettingsContent() {
           </div>
         </Card>
 
-        {/* Workdays Only */}
-        <Card className="p-5">
-          <div className="flex items-center justify-between min-h-[60px]">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-[#5856d6]/10 flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-[#5856d6]" />
-              </div>
-              <div>
-                <p className="text-[17px] sm:text-[18px] font-semibold text-[#1d1d1f]">เฉพาะวันทำงาน</p>
-                <p className="text-[14px] text-[#86868b] mt-0.5">ไม่แจ้งเตือนวันเสาร์-อาทิตย์</p>
-              </div>
-            </div>
-            <Toggle
-              checked={settings.workdaysOnly}
-              onChange={(v) => updateSetting("workdaysOnly", v)}
-              disabled={!settings.enabled}
-            />
-          </div>
-        </Card>
-
         {/* Test Notification */}
         {settings.enabled && permissionStatus === "granted" && (
           <Card className="p-5">
@@ -273,9 +252,14 @@ function NotificationSettingsContent() {
 
         {/* Admin Info */}
         <div className="p-4 bg-[#0071e3]/5 rounded-xl border border-[#0071e3]/20">
-          <p className="text-[13px] text-[#0071e3] text-center">
-            ⏰ เวลาแจ้งเตือนถูกกำหนดโดยผู้ดูแลระบบ
-          </p>
+          <div className="text-center space-y-1">
+            <p className="text-[13px] text-[#0071e3]">
+              ⏰ เวลาแจ้งเตือนอิงตามเวลาเข้า-ออกงาน
+            </p>
+            <p className="text-[12px] text-[#86868b]">
+              ระบบจะไม่แจ้งเตือนในวันหยุดโดยอัตโนมัติ
+            </p>
+          </div>
         </div>
 
         {/* iOS PWA Info */}

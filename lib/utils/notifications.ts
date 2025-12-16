@@ -228,6 +228,7 @@ export function saveNotificationSettings(settings: NotificationSettings): void {
 
 /**
  * Get default notification settings from system settings
+ * Uses work_start_time and work_end_time for notification times
  */
 export async function getDefaultNotificationSettingsFromDB(): Promise<NotificationSettings> {
   if (typeof window === 'undefined') {
@@ -238,10 +239,11 @@ export async function getDefaultNotificationSettingsFromDB(): Promise<Notificati
     // Dynamic import to avoid issues
     const { supabase } = await import('@/lib/supabase/client');
     
+    // Get work start/end times from system settings
     const { data } = await supabase
       .from('system_settings')
       .select('*')
-      .in('setting_key', ['default_checkin_reminder_time', 'default_checkout_reminder_time']);
+      .in('setting_key', ['work_start_time', 'work_end_time']);
 
     if (data && data.length > 0) {
       const map: any = {};
@@ -252,10 +254,10 @@ export async function getDefaultNotificationSettingsFromDB(): Promise<Notificati
       return {
         enabled: false,
         checkinReminder: true,
-        checkinTime: map.default_checkin_reminder_time || '08:00',
+        checkinTime: map.work_start_time || '08:30',
         checkoutReminder: true,
-        checkoutTime: map.default_checkout_reminder_time || '17:00',
-        workdaysOnly: true,
+        checkoutTime: map.work_end_time || '17:30',
+        workdaysOnly: true, // Always check holidays from database
       };
     }
   } catch (error) {
@@ -272,10 +274,10 @@ export function getDefaultNotificationSettings(): NotificationSettings {
   return {
     enabled: false,
     checkinReminder: true,
-    checkinTime: '08:00',
+    checkinTime: '08:30',
     checkoutReminder: true,
-    checkoutTime: '17:00',
-    workdaysOnly: true,
+    checkoutTime: '17:30',
+    workdaysOnly: true, // Always check holidays
   };
 }
 
