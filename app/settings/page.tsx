@@ -8,11 +8,12 @@ import { Avatar } from "@/components/ui/Avatar";
 import { BottomNav } from "@/components/BottomNav";
 import {
   Bell,
-  User,
   LogOut,
   ChevronRight,
   Shield,
   Info,
+  Calendar,
+  HelpCircle,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
 
@@ -36,10 +37,10 @@ function SettingsContent() {
       color: "#0071e3",
     },
     {
-      title: "ข้อมูลส่วนตัว",
-      description: "ดูและแก้ไขข้อมูลส่วนตัว",
-      icon: User,
-      href: "/my-profile",
+      title: "ปฏิทินวันหยุด",
+      description: "ดูวันหยุดนักขัตฤกษ์ทั้งหมด",
+      icon: Calendar,
+      href: "/holidays",
       color: "#34c759",
     },
   ];
@@ -52,19 +53,19 @@ function SettingsContent() {
           <h1 className="text-[32px] font-bold text-[#1d1d1f] mb-6">ตั้งค่า</h1>
           {/* Profile Card */}
           <Card elevated className="mb-6">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 p-5">
               <Avatar name={employee?.name || "User"} size="xl" />
               <div className="flex-1">
-                <h2 className="text-[19px] font-semibold text-[#1d1d1f]">
+                <h2 className="text-[20px] font-bold text-[#1d1d1f]">
                   {employee?.name}
                 </h2>
-                <p className="text-[14px] text-[#86868b] mt-0.5">
+                <p className="text-[15px] text-[#86868b] mt-1">
                   {employee?.email}
                 </p>
                 {employee?.role && (
                   <div className="mt-2">
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#0071e3]/10 text-[#0071e3] text-[12px] font-medium rounded-lg">
-                      <Shield className="w-3 h-3" />
+                    <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#0071e3]/10 text-[#0071e3] text-[13px] font-semibold rounded-lg">
+                      <Shield className="w-4 h-4" />
                       {employee.role === "supervisor" ? "หัวหน้างาน" : "พนักงาน"}
                     </span>
                   </div>
@@ -78,48 +79,45 @@ function SettingsContent() {
             {menuItems.map((item) => {
               const Icon = item.icon;
               return (
-                <Card
+                <button
                   key={item.href}
-                  elevated
-                  className="cursor-pointer hover:shadow-lg transition-shadow active:scale-[0.98]"
                   onClick={() => router.push(item.href)}
+                  className="w-full"
                 >
-                  <div className="flex items-center gap-4 p-4">
+                  <Card
+                    elevated
+                    className="cursor-pointer hover:shadow-lg transition-all active:scale-[0.98]"
+                  >
+                    <div className="flex items-center gap-4 p-5 min-h-[80px]">
                     <div
                       className="w-12 h-12 rounded-xl flex items-center justify-center"
                       style={{ backgroundColor: `${item.color}15` }}
                     >
                       <Icon className="w-6 h-6" style={{ color: item.color }} />
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
+                    <div className="flex-1 text-left">
+                      <h3 className="text-[18px] font-semibold text-[#1d1d1f]">
                         {item.title}
                       </h3>
-                      <p className="text-[14px] text-[#86868b] mt-0.5">
+                      <p className="text-[14px] text-[#86868b] mt-1">
                         {item.description}
                       </p>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-[#c7c7cc]" />
+                    <ChevronRight className="w-6 h-6 text-[#c7c7cc]" />
                   </div>
-                </Card>
+                  </Card>
+                </button>
               );
             })}
           </div>
 
           {/* App Info */}
-          <Card className="mb-6">
-            <div className="flex items-center gap-3 p-4">
-              <Info className="w-5 h-5 text-[#86868b]" />
-              <div>
-                <p className="text-[14px] text-[#86868b]">
-                  Anajak HR v1.0.0
-                </p>
-                <p className="text-[12px] text-[#c7c7cc] mt-0.5">
-                  ระบบบันทึกเวลาและจัดการ OT
-                </p>
-              </div>
-            </div>
-          </Card>
+          <div className="flex items-center justify-center gap-2 mb-6 py-4">
+            <Info className="w-4 h-4 text-[#c7c7cc]" />
+            <p className="text-[13px] text-[#c7c7cc]">
+              Anajak HR v1.0.0
+            </p>
+          </div>
 
           {/* Sign Out Button */}
           <Button
