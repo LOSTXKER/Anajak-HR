@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import {
-  ArrowLeft,
   Plus,
   Megaphone,
   Eye,
@@ -17,9 +16,7 @@ import {
   Trash2,
   Calendar,
   Users,
-  Building,
   AlertCircle,
-  CheckCircle,
   Bell,
   BellOff,
 } from "lucide-react";
@@ -161,29 +158,22 @@ function AnnouncementsContent() {
 
   const filteredAnnouncements = announcements;
 
-  return (
-    <div className="min-h-screen bg-[#fbfbfd]">
-      {/* Header */}
-      <header className="sticky top-0 z-50 apple-glass border-b border-[#d2d2d7]/30">
-        <div className="max-w-[980px] mx-auto px-4 h-12 flex items-center justify-between">
-          <Link href="/admin" className="flex items-center gap-2 text-[#0071e3]">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-sm font-medium">กลับ</span>
-          </Link>
-          <h1 className="text-[17px] font-semibold text-[#1d1d1f]">จัดการประกาศ</h1>
-          <Button
-            size="sm"
-            onClick={() => router.push("/admin/announcements/create")}
-          >
-            <Plus className="w-4 h-4" />
-            สร้าง
-          </Button>
+  if (loading) {
+    return (
+      <AdminLayout title="จัดการประกาศ">
+        <div className="flex justify-center py-12">
+          <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
         </div>
-      </header>
+      </AdminLayout>
+    );
+  }
 
-      <main className="max-w-[980px] mx-auto px-4 py-6">
+  return (
+    <AdminLayout title="จัดการประกาศ">
+      {/* Actions Bar */}
+      <div className="flex items-center justify-between mb-6">
         {/* Filters */}
-        <div className="flex gap-2 mb-6 overflow-x-auto">
+        <div className="flex gap-2">
           {[
             { id: "all", label: "ทั้งหมด" },
             { id: "published", label: "เผยแพร่แล้ว" },
@@ -203,19 +193,22 @@ function AnnouncementsContent() {
           ))}
         </div>
 
-        {/* Announcements List */}
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
+        {/* Create Button */}
+        <Button onClick={() => router.push("/admin/announcements/create")}>
+          <Plus className="w-5 h-5" />
+          สร้างประกาศ
+        </Button>
+      </div>
+
+      {/* Announcements List */}
+      {filteredAnnouncements.length === 0 ? (
+        <Card className="p-12">
+          <div className="text-center">
+            <Megaphone className="w-12 h-12 text-[#86868b] mx-auto mb-4" />
+            <p className="text-[#86868b]">ยังไม่มีประกาศ</p>
           </div>
-        ) : filteredAnnouncements.length === 0 ? (
-          <Card className="p-12">
-            <div className="text-center">
-              <Megaphone className="w-12 h-12 text-[#86868b] mx-auto mb-4" />
-              <p className="text-[#86868b]">ยังไม่มีประกาศ</p>
-            </div>
-          </Card>
-        ) : (
+        </Card>
+      ) : (
           <div className="space-y-4">
             {filteredAnnouncements.map((announcement) => (
               <Card key={announcement.id} elevated className="overflow-hidden">
@@ -344,8 +337,7 @@ function AnnouncementsContent() {
             ))}
           </div>
         )}
-      </main>
-    </div>
+    </AdminLayout>
   );
 }
 

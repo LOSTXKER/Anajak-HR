@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -11,7 +11,6 @@ import { NativeSelect } from "@/components/ui/NativeSelect";
 import { Textarea } from "@/components/ui/Textarea";
 import { Toggle } from "@/components/ui/Toggle";
 import {
-  ArrowLeft,
   Save,
   Send,
   Megaphone,
@@ -116,20 +115,8 @@ function CreateAnnouncementContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fbfbfd]">
-      {/* Header */}
-      <header className="sticky top-0 z-50 apple-glass border-b border-[#d2d2d7]/30">
-        <div className="max-w-[680px] mx-auto px-4 h-12 flex items-center justify-between">
-          <Link href="/admin/announcements" className="flex items-center gap-2 text-[#0071e3]">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-sm font-medium">กลับ</span>
-          </Link>
-          <h1 className="text-[17px] font-semibold text-[#1d1d1f]">สร้างประกาศ</h1>
-          <div className="w-12" />
-        </div>
-      </header>
-
-      <main className="max-w-[680px] mx-auto px-4 py-6">
+    <AdminLayout title="สร้างประกาศ" description="สร้างประกาศแจ้งพนักงาน">
+      <div className="max-w-[680px] mx-auto">
         <Card className="p-6 space-y-6">
           {/* Icon Header */}
           <div className="flex items-center gap-3 pb-4 border-b border-[#e8e8ed]">
@@ -262,8 +249,8 @@ function CreateAnnouncementContent() {
             </Button>
           </div>
         </Card>
-      </main>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }
 
