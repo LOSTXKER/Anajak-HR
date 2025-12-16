@@ -137,17 +137,10 @@ function AnnouncementsContent() {
   const unreadCount = announcements.filter((a) => !a.is_read).length;
 
   return (
-    <div className="min-h-screen bg-[#fbfbfd] pb-20">
-      {/* Header */}
-      <header className="bg-white border-b border-[#e8e8ed]">
-        <div className="max-w-[600px] mx-auto px-6 pt-safe">
-          <div className="py-6">
-            <h1 className="text-[28px] font-bold text-[#1d1d1f]">ประกาศ</h1>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-[680px] mx-auto px-4 sm:px-6 py-4 sm:py-6">
+    <div className="min-h-screen bg-[#fbfbfd] pb-20 pt-safe">
+      <main className="max-w-[600px] mx-auto px-4 sm:px-6 pt-6 pb-4">
+        {/* Page Title */}
+        <h1 className="text-[32px] font-bold text-[#1d1d1f] mb-6">ประกาศ</h1>
         {/* Filter & Unread Count */}
         <div className="flex items-center justify-between mb-4 sm:mb-6">
           <div className="flex gap-2 w-full sm:w-auto">

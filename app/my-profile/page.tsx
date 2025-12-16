@@ -336,21 +336,16 @@ export default function MyProfilePage() {
   const totalPending = pendingRequests.ot + pendingRequests.leave + pendingRequests.wfh + pendingRequests.late;
 
   return (
-    <div className="min-h-screen bg-[#fbfbfd] pb-20">
-      {/* Header */}
-      <header className="bg-white border-b border-[#e8e8ed]">
-        <div className="max-w-[600px] mx-auto px-6 pt-safe">
-          <div className="py-6 flex items-center justify-between">
-            <h1 className="text-[28px] font-bold text-[#1d1d1f]">ประวัติของฉัน</h1>
-            <Link href="/my-profile/notifications" className="p-2 hover:bg-[#f5f5f7] rounded-xl transition-colors">
-              <Bell className="w-6 h-6 text-[#1d1d1f]" />
-            </Link>
-          </div>
-        </div>
-      </header>
-
+    <div className="min-h-screen bg-[#fbfbfd] pb-20 pt-safe">
       {/* Main Content */}
-      <main className="max-w-[680px] mx-auto px-4 py-6">
+      <main className="max-w-[600px] mx-auto px-4 pt-6 pb-4">
+        {/* Page Title */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-[32px] font-bold text-[#1d1d1f]">ประวัติของฉัน</h1>
+          <Link href="/my-profile/notifications" className="p-2 hover:bg-[#f5f5f7] rounded-xl transition-colors active:scale-95">
+            <Bell className="w-6 h-6 text-[#1d1d1f]" />
+          </Link>
+        </div>
         {/* Profile Header */}
         <Card elevated className="mb-6">
           <div className="flex items-center gap-4">

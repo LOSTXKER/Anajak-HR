@@ -46,17 +46,10 @@ function SettingsContent() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-[#fbfbfd] pb-20">
-        {/* Header */}
-        <header className="bg-white border-b border-[#e8e8ed]">
-          <div className="max-w-[600px] mx-auto px-6 pt-safe">
-            <div className="py-6">
-              <h1 className="text-[28px] font-bold text-[#1d1d1f]">ตั้งค่า</h1>
-            </div>
-          </div>
-        </header>
-
-        <main className="max-w-[600px] mx-auto px-4 py-6">
+      <div className="min-h-screen bg-[#fbfbfd] pb-20 pt-safe">
+        <main className="max-w-[600px] mx-auto px-4 pt-6 pb-4">
+          {/* Page Title */}
+          <h1 className="text-[32px] font-bold text-[#1d1d1f] mb-6">ตั้งค่า</h1>
           {/* Profile Card */}
           <Card elevated className="mb-6">
             <div className="flex items-center gap-4">
