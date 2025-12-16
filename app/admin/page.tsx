@@ -21,6 +21,7 @@ import {
   Home,
   ChevronRight,
   AlertCircle,
+  Megaphone,
 } from "lucide-react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
@@ -71,6 +72,7 @@ function AdminDashboardContent() {
     pendingOT: 0,
     pendingLeave: 0,
     pendingWFH: 0,
+    totalAnnouncements: 0,
   });
   const [todayAttendance, setTodayAttendance] = useState<any[]>([]);
   const [pendingRequests, setPendingRequests] = useState<{
@@ -156,6 +158,12 @@ function AdminDashboardContent() {
       // วันหยุด/สุดสัปดาห์ หรือ ก่อนเวลาเข้างาน → ไม่นับขาดงาน
       const absent = (isNonWorkingDay || isBeforeWorkStart) ? 0 : (totalEmployees || 0) - present;
 
+      // ดึงจำนวนประกาศทั้งหมด
+      const { count: announcementsCount } = await supabase
+        .from("announcements")
+        .select("*", { count: "exact", head: true })
+        .is("deleted_at", null);
+
       setStats({
         totalEmployees: totalEmployees || 0,
         present,
@@ -163,6 +171,7 @@ function AdminDashboardContent() {
         pendingOT: otRequests?.length || 0,
         pendingLeave: leaveRequests?.length || 0,
         pendingWFH: wfhRequests?.length || 0,
+        totalAnnouncements: announcementsCount || 0,
       });
 
       setTodayAttendance(attendance || []);
@@ -261,6 +270,13 @@ function AdminDashboardContent() {
           value={stats.absent}
           icon={UserX}
           color="bg-[#ff3b30]"
+        />
+        <StatCard
+          title="ประกาศทั้งหมด"
+          value={stats.totalAnnouncements}
+          icon={Megaphone}
+          color="bg-[#0071e3]"
+          href="/admin/announcements"
         />
         <StatCard
           title="รอ OT"

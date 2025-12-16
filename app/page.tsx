@@ -22,6 +22,7 @@ import {
   AlertCircle,
   Play,
   AlertTriangle,
+  Megaphone,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { supabase } from "@/lib/supabase/client";
@@ -40,6 +41,7 @@ export default function HomePage() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [showAllHolidays, setShowAllHolidays] = useState(false);
+  const [unreadAnnouncementCount, setUnreadAnnouncementCount] = useState(0);
 
   // Use the new dashboard hook for all data fetching
   const {
@@ -85,6 +87,52 @@ export default function HomePage() {
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [employee, refetchAll]);
+
+  // Fetch unread announcement count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      if (!employee?.id) return;
+
+      try {
+        // Get all published announcements for this user
+        const { data: announcements, error: announcementsError } = await supabase
+          .from("announcements")
+          .select("id")
+          .eq("published", true)
+          .is("deleted_at", null)
+          .lte("published_at", new Date().toISOString())
+          .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
+
+        if (announcementsError) throw announcementsError;
+
+        if (!announcements || announcements.length === 0) {
+          setUnreadAnnouncementCount(0);
+          return;
+        }
+
+        // Get read announcements
+        const { data: reads, error: readsError } = await supabase
+          .from("announcement_reads")
+          .select("announcement_id")
+          .eq("employee_id", employee.id);
+
+        if (readsError) throw readsError;
+
+        const readIds = new Set(reads?.map((r: any) => r.announcement_id) || []);
+        const unreadCount = announcements.filter((a: any) => !readIds.has(a.id)).length;
+
+        setUnreadAnnouncementCount(unreadCount);
+      } catch (error) {
+        console.error("Error fetching unread announcement count:", error);
+      }
+    };
+
+    fetchUnreadCount();
+    
+    // Refresh count every minute
+    const interval = setInterval(fetchUnreadCount, 60000);
+    return () => clearInterval(interval);
+  }, [employee?.id]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -677,6 +725,7 @@ export default function HomePage() {
           <h3 className="text-[15px] font-semibold text-[#1d1d1f] mb-4 px-1">เมนูด่วน</h3>
           <div className="grid grid-cols-4 gap-2">
             {[
+              { href: "/announcements", icon: Megaphone, title: "ประกาศ", color: "#0071e3", badge: unreadAnnouncementCount },
               { href: "/ot", icon: Timer, title: "OT", color: "#ff9500" },
               { href: "/leave/request", icon: Calendar, title: "ลางาน", color: "#af52de" },
               { href: "/wfh/request", icon: Home, title: "WFH", color: "#007aff" },
@@ -684,7 +733,12 @@ export default function HomePage() {
               { href: "/late-request", icon: AlertCircle, title: "ขอสาย", color: "#ff3b30" },
             ].map((action, i) => (
               <Link key={i} href={action.href}>
-                <div className="flex flex-col items-center p-3 rounded-xl hover:bg-[#f5f5f7] transition-colors cursor-pointer">
+                <div className="flex flex-col items-center p-3 rounded-xl hover:bg-[#f5f5f7] transition-colors cursor-pointer relative">
+                  {action.badge && action.badge > 0 && (
+                    <div className="absolute top-1 right-1 w-5 h-5 bg-[#ff3b30] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                      {action.badge > 9 ? "9+" : action.badge}
+                    </div>
+                  )}
                   <div
                     className="w-11 h-11 rounded-xl flex items-center justify-center mb-2"
                     style={{ backgroundColor: `${action.color}15` }}
