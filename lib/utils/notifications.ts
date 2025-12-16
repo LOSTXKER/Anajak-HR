@@ -90,13 +90,6 @@ export function showCheckinReminder(): void {
     body: 'อย่าลืมเช็คอินเวลาเข้างานนะครับ',
     tag: 'checkin-reminder',
     requireInteraction: true,
-    actions: [
-      { action: 'checkin', title: 'เช็คอินเลย' },
-      { action: 'dismiss', title: 'ไว้ทีหลัง' },
-    ],
-    data: {
-      url: '/checkin',
-    },
   });
 }
 
@@ -108,13 +101,6 @@ export function showCheckoutReminder(): void {
     body: 'อย่าลืมเช็คเอาท์ก่อนกลับบ้านนะครับ',
     tag: 'checkout-reminder',
     requireInteraction: true,
-    actions: [
-      { action: 'checkout', title: 'เช็คเอาท์เลย' },
-      { action: 'dismiss', title: 'ไว้ทีหลัง' },
-    ],
-    data: {
-      url: '/checkout',
-    },
   });
 }
 
