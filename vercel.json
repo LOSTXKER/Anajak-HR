@@ -2,14 +2,11 @@
   "crons": [
     {
       "path": "/api/holiday-notifications",
-      "schedule": "0 2 * * *",
-      "description": "Holiday notifications (09:00 GMT+7)"
+      "schedule": "0 2 * * *"
     },
     {
       "path": "/api/auto-checkout",
-      "schedule": "0 22 * * *",
-      "description": "Auto checkout (05:00 GMT+7)"
+      "schedule": "0 22 * * *"
     }
   ]
 }
-
