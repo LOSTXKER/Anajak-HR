@@ -55,6 +55,7 @@ function EditAttendanceContent() {
   const [clockOut, setClockOut] = useState("");
   const [editReason, setEditReason] = useState("");
   const [workStartTime, setWorkStartTime] = useState("09:00");
+  const [lateThreshold, setLateThreshold] = useState(15);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
@@ -67,12 +68,19 @@ function EditAttendanceContent() {
   const fetchSettings = async () => {
     const { data } = await supabase
       .from("system_settings")
-      .select("setting_value")
-      .eq("setting_key", "work_start_time")
-      .maybeSingle();
+      .select("setting_key, setting_value")
+      .in("setting_key", ["work_start_time", "late_threshold_minutes"]);
 
-    if (data?.setting_value) {
-      setWorkStartTime(data.setting_value);
+    const settingsMap: Record<string, string> = {};
+    data?.forEach((item: any) => {
+      settingsMap[item.setting_key] = item.setting_value;
+    });
+
+    if (settingsMap.work_start_time) {
+      setWorkStartTime(settingsMap.work_start_time);
+    }
+    if (settingsMap.late_threshold_minutes) {
+      setLateThreshold(parseInt(settingsMap.late_threshold_minutes) || 15);
     }
   };
 
@@ -140,8 +148,10 @@ function EditAttendanceContent() {
       const clockInTotalMinutes = inHours * 60 + inMinutes;
       const workStartTotalMinutes = workStartHour * 60 + workStartMinute;
 
-      const isLate = clockInTotalMinutes > workStartTotalMinutes;
-      const lateMinutes = isLate ? clockInTotalMinutes - workStartTotalMinutes : 0;
+      const minutesAfterStart = clockInTotalMinutes - workStartTotalMinutes;
+      const isLate = minutesAfterStart > lateThreshold;
+      // บันทึกเฉพาะนาทีที่สายเกิน threshold (หัก threshold ออก)
+      const lateMinutes = isLate ? Math.max(0, minutesAfterStart - lateThreshold) : 0;
 
       const { error: updateError } = await supabase
         .from("attendance_logs")

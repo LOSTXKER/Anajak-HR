@@ -265,7 +265,8 @@ function CheckinContent() {
       // สายต่อเมื่อเกิน threshold ที่กำหนด
       const minutesLate = currentMinutes - workStartMinutes;
       const isLate = minutesLate > lateThresholdMinutes;
-      const lateMinutes = isLate ? minutesLate : 0;
+      // บันทึกเฉพาะนาทีที่สายเกิน threshold (หัก threshold ออก)
+      const lateMinutes = isLate ? Math.max(0, minutesLate - lateThresholdMinutes) : 0;
 
       const { error: insertError } = await supabase
         .from("attendance_logs")
