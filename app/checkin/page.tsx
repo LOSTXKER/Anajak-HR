@@ -12,6 +12,7 @@ import { uploadAttendancePhoto } from "@/lib/utils/upload-photo";
 import { isWithinRadius, formatDistance } from "@/lib/utils/geo";
 import { Camera, MapPin, ArrowLeft, CheckCircle, AlertCircle, Navigation, Calendar, Timer } from "lucide-react";
 import { format, parseISO, isSameDay, startOfDay } from "date-fns";
+import { getDayType } from "@/lib/services/holiday.service";
 
 interface Branch {
   id: string;
@@ -47,9 +48,9 @@ function CheckinContent() {
   // ช่วงเวลาที่อนุญาต
   const [allowedTime, setAllowedTime] = useState({ checkinStart: "06:00", checkinEnd: "12:00" });
 
-  // Holiday check
-  const [isHoliday, setIsHoliday] = useState(false);
-  const [holidayName, setHolidayName] = useState("");
+  // Rest day check (holiday or weekend)
+  const [isRestDay, setIsRestDay] = useState(false);
+  const [restDayName, setRestDayName] = useState("");
   const [hasApprovedOT, setHasApprovedOT] = useState(false);
 
   useEffect(() => {
@@ -83,8 +84,8 @@ function CheckinContent() {
     if (!employee?.branch_id) return;
     const today = format(new Date(), "yyyy-MM-dd");
 
-    // ดึงข้อมูลสาขา, settings, holidays, และ OT พร้อมกัน
-    const [branchRes, settingsRes, holidaysRes, otRes] = await Promise.all([
+    // ดึงข้อมูลสาขา, settings, และ OT พร้อมกัน
+    const [branchRes, settingsRes, dayTypeRes, otRes] = await Promise.all([
       supabase
         .from("branches")
         .select("id, name, gps_lat, gps_lng, radius_meters")
@@ -94,10 +95,8 @@ function CheckinContent() {
         .from("system_settings")
         .select("setting_key, setting_value")
         .in("setting_key", ["checkin_time_start", "checkin_time_end"]),
-      supabase
-        .from("holidays")
-        .select("*")
-        .eq("date", today),
+      // ใช้ getDayType แทน เพื่อตรวจสอบทั้ง holiday และ weekend
+      getDayType(today, employee.branch_id),
       supabase
         .from("ot_requests")
         .select("id")
@@ -121,10 +120,13 @@ function CheckinContent() {
       });
     }
 
-    // Check if today is a holiday
-    if (holidaysRes.data && holidaysRes.data.length > 0) {
-      setIsHoliday(true);
-      setHolidayName(holidaysRes.data[0].name);
+    // Check if today is a rest day (holiday or weekend)
+    if (dayTypeRes.type === "holiday") {
+      setIsRestDay(true);
+      setRestDayName(dayTypeRes.holidayName || "วันหยุดนักขัตฤกษ์");
+    } else if (dayTypeRes.type === "weekend") {
+      setIsRestDay(true);
+      setRestDayName("วันหยุดสุดสัปดาห์");
     }
 
     // Check if there's approved OT for today
@@ -309,8 +311,8 @@ function CheckinContent() {
     }
   };
 
-  // Holiday block - if it's a holiday and no approved OT, show blocked message
-  if (isHoliday && !hasApprovedOT) {
+  // Rest day block - if it's a holiday/weekend and no approved OT, show blocked message
+  if (isRestDay && !hasApprovedOT) {
     return (
       <div className="min-h-screen bg-[#fbfbfd] flex items-center justify-center p-6">
         <div className="text-center max-w-sm">
@@ -321,7 +323,7 @@ function CheckinContent() {
             วันหยุด
           </h2>
           <p className="text-[17px] text-[#86868b] mb-2">
-            {holidayName}
+            {restDayName}
           </p>
           <p className="text-[15px] text-[#86868b] mb-8">
             ต้องขอ OT ก่อนถึงจะเช็คอินได้

@@ -61,6 +61,9 @@ export default function HomePage() {
     monthlyOT,
     leaveBalance,
     todayHoliday,
+    isRestDay, // รวม holiday และ weekend
+    isTodayWeekend,
+    todayDayInfo,
     upcomingHolidays,
     workSettings,
     isLoading: dataLoading,
@@ -320,8 +323,8 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* Today's Status Card - Hide on holidays when actively doing OT */}
-        {!(todayHoliday && activeOT) && (
+        {/* Today's Status Card - Hide on rest days when actively doing OT */}
+        {!(isRestDay && activeOT) && (
           <div className={`rounded-2xl p-5 mb-4 ${todayAttendance
             ? isOvertime
               ? "bg-gradient-to-br from-[#ff9500] to-[#ff6b00]"
@@ -406,28 +409,32 @@ export default function HomePage() {
               </div>
             ) : (
               <div>
-                {/* On holiday with pending OT - show different message */}
-                {todayHoliday && pendingOT.length > 0 ? (
+                {/* On rest day (holiday/weekend) with pending OT - show different message */}
+                {isRestDay && pendingOT.length > 0 ? (
                   <>
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
                         <Timer className="w-6 h-6 text-white/70" />
                       </div>
                       <div>
-                        <p className="text-[22px] font-bold text-white">วันหยุด - มี OT รอเริ่ม</p>
+                        <p className="text-[22px] font-bold text-white">
+                          {todayHoliday ? "วันหยุดนักขัตฤกษ์" : "วันหยุดสุดสัปดาห์"} - มี OT รอเริ่ม
+                        </p>
                         <p className="text-[14px] text-white/60">กดเริ่ม OT ด้านล่างได้เลย</p>
                       </div>
                     </div>
                   </>
-                ) : todayHoliday ? (
+                ) : isRestDay ? (
                   <>
-                    {/* Holiday without OT - must request OT first */}
+                    {/* Rest day without OT - must request OT first */}
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
                         <Calendar className="w-6 h-6 text-white/70" />
                       </div>
                       <div>
-                        <p className="text-[22px] font-bold text-white">วันหยุด</p>
+                        <p className="text-[22px] font-bold text-white">
+                          {todayHoliday ? todayHoliday.name : "วันหยุดสุดสัปดาห์"}
+                        </p>
                         <p className="text-[14px] text-white/60">ต้องขอ OT ก่อนถึงจะเข้างานได้</p>
                       </div>
                     </div>

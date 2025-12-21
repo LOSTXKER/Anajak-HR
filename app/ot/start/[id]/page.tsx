@@ -177,11 +177,30 @@ function OTStartContent({ id }: { id: string }) {
     }
   };
 
-  // Check if it's the correct day
+  // Check if OT is expired (past date or past end time)
+  const isOTExpired = () => {
+    if (!otRequest) return true;
+    const today = format(new Date(), "yyyy-MM-dd");
+    const now = new Date();
+    
+    // OT จากวันที่ผ่านไปแล้ว = หมดอายุ
+    if (otRequest.request_date < today) return true;
+    
+    // ถ้าเป็นวันนี้ ต้องเช็คว่าเลย end time หรือยัง
+    if (otRequest.request_date === today) {
+      const endTime = new Date(otRequest.approved_end_time || otRequest.requested_end_time);
+      // ถ้าเลย end time ไปแล้ว = หมดอายุ
+      if (now > endTime) return true;
+    }
+    
+    return false;
+  };
+  
+  // Check if it's the correct day (for future OT)
   const isCorrectDay = () => {
     if (!otRequest) return false;
     const today = format(new Date(), "yyyy-MM-dd");
-    return otRequest.request_date <= today; // Can start on the day or after (for past dates)
+    return otRequest.request_date === today; // ต้องเป็นวันนี้เท่านั้น
   };
 
   // Check if can start OT
@@ -189,10 +208,14 @@ function OTStartContent({ id }: { id: string }) {
     if (!otRequest || otRequest.status !== "approved") return false;
     if (otRequest.actual_start_time) return false;
 
-    // Check if it's the correct day first
+    // Check if OT is expired
+    if (isOTExpired()) return false;
+
+    // Check if it's the correct day
     if (!isCorrectDay()) return false;
 
     // Use settings to determine if check-in is required
+    // สำหรับวันหยุด (holiday/weekend) ไม่ต้อง check-in ก่อน
     if (dayInfo && !dayInfo.requireCheckin) return true;
 
     // If OT type is holiday, can start without check-in (fallback)
@@ -232,7 +255,25 @@ function OTStartContent({ id }: { id: string }) {
   };
 
   const getRequirementMessage = () => {
-    // Check date first
+    // Check if OT is expired first
+    if (isOTExpired()) {
+      const today = format(new Date(), "yyyy-MM-dd");
+      if (otRequest?.request_date && otRequest.request_date < today) {
+        return {
+          type: "expired",
+          message: `OT หมดอายุแล้ว (วันที่ ${format(new Date(otRequest.request_date), "d MMMM yyyy", { locale: th })})`,
+          canProceed: false,
+        };
+      } else {
+        return {
+          type: "expired",
+          message: "OT หมดอายุแล้ว (เลยเวลาสิ้นสุดที่อนุมัติ)",
+          canProceed: false,
+        };
+      }
+    }
+    
+    // Check date
     if (!isCorrectDay()) {
       return {
         type: "wrong_date",

@@ -9,7 +9,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useTodayAttendance, useWorkStats } from "./use-attendance";
 import { useActiveOT, usePendingOT, useOTHistory } from "./use-ot";
-import { useTodayHoliday, useUpcomingHolidays } from "./use-holidays";
+import { useTodayHoliday, useUpcomingHolidays, useTodayDayType } from "./use-holidays";
 import { useWorkSettings } from "./use-settings";
 import { formatOTDuration } from "@/lib/services/ot.service";
 import { supabase } from "@/lib/supabase/client";
@@ -28,7 +28,11 @@ export function useDashboard() {
     const { activeOT, isLoading: loadingActiveOT, refetch: refetchActiveOT } = useActiveOT(employee?.id);
     const { pendingOT, isLoading: loadingPendingOT, refetch: refetchPendingOT } = usePendingOT(employee?.id);
     const { holiday: todayHoliday, isLoading: loadingTodayHoliday } = useTodayHoliday();
+    const { dayInfo: todayDayInfo, isWeekend: isTodayWeekend, isLoading: loadingDayType } = useTodayDayType(employee?.branch_id ?? undefined);
     const { holidays: upcomingHolidays, isLoading: loadingUpcoming } = useUpcomingHolidays(30, 3);
+    
+    // ถ้าเป็น weekend หรือ holiday ถือว่าเป็น "วันหยุด" ทั้งหมด
+    const isRestDay = !!todayHoliday || isTodayWeekend;
 
     // Monthly OT summary state
     const [monthlyOT, setMonthlyOT] = useState({ hours: 0, amount: 0 });
@@ -136,7 +140,7 @@ export function useDashboard() {
     };
 
     // Combined loading state
-    const isLoading = loadingSettings || loadingAttendance || loadingActiveOT || loadingPendingOT || loadingTodayHoliday || loadingUpcoming || loadingMonthlyOT || loadingLeaveBalance;
+    const isLoading = loadingSettings || loadingAttendance || loadingActiveOT || loadingPendingOT || loadingTodayHoliday || loadingDayType || loadingUpcoming || loadingMonthlyOT || loadingLeaveBalance;
 
     return {
         // Auth
@@ -161,8 +165,11 @@ export function useDashboard() {
         // Leave
         leaveBalance,
 
-        // Holiday
+        // Holiday / Rest Day
         todayHoliday,
+        isRestDay, // true ถ้าเป็นวันหยุดหรือ weekend
+        isTodayWeekend,
+        todayDayInfo,
         upcomingHolidays,
 
         // Settings
@@ -191,6 +198,7 @@ export {
     useActiveOT,
     usePendingOT,
     useTodayHoliday,
+    useTodayDayType,
     useUpcomingHolidays,
     useWorkSettings,
 };
