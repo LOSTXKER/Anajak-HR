@@ -41,8 +41,8 @@ function OTRequestContent() {
 
   const [formData, setFormData] = useState({
     date: format(new Date(), "yyyy-MM-dd"),
-    startTime: "18:00",
-    endTime: "21:00",
+    startTime: "",
+    endTime: "",
     reason: "",
   });
 

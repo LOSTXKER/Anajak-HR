@@ -50,8 +50,8 @@ function LeaveRequestContent() {
 
   const [formData, setFormData] = useState({
     leaveType: "sick",
-    startDate: format(new Date(), "yyyy-MM-dd"),
-    endDate: format(new Date(), "yyyy-MM-dd"),
+    startDate: "",
+    endDate: "",
     isHalfDay: false,
     reason: "",
     attachmentFile: null as File | null,

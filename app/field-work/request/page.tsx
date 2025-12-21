@@ -27,7 +27,7 @@ function FieldWorkRequestContent() {
   }, [employee, router]);
 
   const [formData, setFormData] = useState({
-    date: format(new Date(), "yyyy-MM-dd"),
+    date: "",
     isHalfDay: false,
     location: "",
     reason: "",

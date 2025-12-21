@@ -55,25 +55,25 @@ function CreateRequestContent() {
     requestType: "" as RequestType | "",
     employeeId: "",
     // OT
-    otDate: format(new Date(), "yyyy-MM-dd"),
-    otStartTime: "18:00",
-    otEndTime: "21:00",
+    otDate: "",
+    otStartTime: "",
+    otEndTime: "",
     otIsCompleted: true, // สร้างแบบทำเสร็จแล้ว (default true สำหรับการสร้างย้อนหลัง)
     otType: "workday" as "workday" | "weekend" | "holiday",
     otRate: 1.5,
     // Leave
     leaveType: "sick",
-    leaveStartDate: format(new Date(), "yyyy-MM-dd"),
-    leaveEndDate: format(new Date(), "yyyy-MM-dd"),
+    leaveStartDate: "",
+    leaveEndDate: "",
     leaveIsHalfDay: false,
     // WFH
-    wfhDate: format(new Date(), "yyyy-MM-dd"),
+    wfhDate: "",
     wfhIsHalfDay: false,
     // Late
-    lateDate: format(new Date(), "yyyy-MM-dd"),
+    lateDate: "",
     lateMinutes: 0,
     // Field Work
-    fieldWorkDate: format(new Date(), "yyyy-MM-dd"),
+    fieldWorkDate: "",
     fieldWorkIsHalfDay: false,
     fieldWorkLocation: "",
     // Common
