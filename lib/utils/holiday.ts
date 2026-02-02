@@ -1,8 +1,26 @@
+/**
+ * Holiday Utilities
+ * =============================================
+ * This file re-exports functions from holiday.service.ts
+ * for backward compatibility.
+ * 
+ * @deprecated Use lib/services/holiday.service.ts directly instead.
+ */
+
 import { supabase } from "@/lib/supabase/client";
+import { parseLocalDate } from "./date";
+
+// Re-export some functions from service (that are not defined locally)
+export {
+  getTodayHoliday,
+  getUpcomingHolidays,
+  isWorkingDay,
+} from "@/lib/services/holiday.service";
 
 /**
  * Get working days from settings
  * @returns Array of working day numbers (1=Monday, ..., 7=Sunday)
+ * @deprecated Use getWorkingDays from lib/services/holiday.service.ts instead
  */
 export async function getWorkingDays(): Promise<number[]> {
   try {
@@ -33,7 +51,8 @@ export async function getWorkingDays(): Promise<number[]> {
  */
 export async function isWeekend(date: string): Promise<boolean> {
   const workingDays = await getWorkingDays();
-  const dateObj = new Date(date);
+  // Use parseLocalDate to avoid UTC parsing issues
+  const dateObj = parseLocalDate(date);
   // JavaScript: 0=Sunday, 1=Monday, ..., 6=Saturday
   // Our system: 1=Monday, ..., 7=Sunday
   const dayOfWeek = dateObj.getDay();

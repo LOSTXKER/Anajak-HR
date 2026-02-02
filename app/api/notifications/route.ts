@@ -8,8 +8,21 @@ import {
 } from "@/lib/line/messaging";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
+import {
+  requireAdmin,
+  handleAuthError,
+  AuthResult,
+} from "@/lib/auth/api-middleware";
 
 export async function POST(request: NextRequest) {
+  // Verify admin authorization - only admins can trigger notifications
+  let auth: AuthResult;
+  try {
+    auth = await requireAdmin(request);
+  } catch (error) {
+    return handleAuthError(error);
+  }
+
   try {
     const body = await request.json();
     const { type, data } = body;

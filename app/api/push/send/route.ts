@@ -1,8 +1,20 @@
 import { NextRequest } from "next/server";
 import { sendPushToEmployee, PushNotificationPayload } from "@/lib/push/send";
-import { supabaseServer } from "@/lib/supabase/server";
+import {
+  requireAdmin,
+  handleAuthError,
+  AuthResult,
+} from "@/lib/auth/api-middleware";
 
 export async function POST(request: NextRequest) {
+  // Verify admin authorization - only admins can send push to any employee
+  let auth: AuthResult;
+  try {
+    auth = await requireAdmin(request);
+  } catch (error) {
+    return handleAuthError(error);
+  }
+
   try {
     const body = await request.json();
     const { employeeId, title, body: messageBody, data, icon, badge, tag, requireInteraction } = body;
@@ -13,10 +25,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    // Note: Using service role - no auth check needed for server-side API
-    // In production, you should verify the request is from admin
-    // (e.g., check API key, session token, etc.)
 
     // Send push notification
     const payload: PushNotificationPayload = {

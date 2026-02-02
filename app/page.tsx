@@ -4,45 +4,32 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Clock,
-  UserCheck,
-  ChartBar,
-  Calendar,
   ArrowRight,
-  CheckCircle2,
   Fingerprint,
   MapPin,
   Shield,
-  FileText,
-  Home,
-  LogOut,
-  ChevronDown,
-  Settings,
   Timer,
-  AlertCircle,
-  Play,
-  AlertTriangle,
-  Megaphone,
 } from "lucide-react";
-import { useAuth } from "@/lib/auth/auth-context";
-import { supabase } from "@/lib/supabase/client";
-import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { BottomNav } from "@/components/BottomNav";
-import { format, differenceInCalendarDays, parseISO, startOfDay, isSameDay } from "date-fns";
+import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { useDashboard } from "@/lib/hooks";
+import { useDashboard, useUnreadAnnouncements } from "@/lib/hooks";
+import {
+  TodayStatusCard,
+  OTTimerCard,
+  PendingOTCard,
+  UpcomingHolidaysCard,
+  MonthlySummaryCards,
+  QuickActionsGrid,
+} from "@/components/dashboard";
 
 
 export default function HomePage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [showAllHolidays, setShowAllHolidays] = useState(false);
-  const [unreadAnnouncementCount, setUnreadAnnouncementCount] = useState(0);
 
   // Use the new dashboard hook for all data fetching
   const {
@@ -61,14 +48,15 @@ export default function HomePage() {
     monthlyOT,
     leaveBalance,
     todayHoliday,
-    isRestDay, // รวม holiday และ weekend
-    isTodayWeekend,
-    todayDayInfo,
+    isRestDay,
     upcomingHolidays,
-    workSettings,
-    isLoading: dataLoading,
     refetchAll,
   } = useDashboard();
+
+  // Use the unread announcements hook
+  const { unreadCount: unreadAnnouncementCount } = useUnreadAnnouncements({
+    employeeId: employee?.id,
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -91,63 +79,6 @@ export default function HomePage() {
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [employee, refetchAll]);
-
-  // Fetch unread announcement count
-  useEffect(() => {
-    const fetchUnreadCount = async () => {
-      if (!employee?.id) return;
-
-      try {
-        // Get all published announcements for this user
-        const { data: announcements, error: announcementsError } = await supabase
-          .from("announcements")
-          .select("id")
-          .eq("published", true)
-          .is("deleted_at", null)
-          .lte("published_at", new Date().toISOString())
-          .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
-
-        if (announcementsError) throw announcementsError;
-
-        if (!announcements || announcements.length === 0) {
-          setUnreadAnnouncementCount(0);
-          return;
-        }
-
-        // Get read announcements
-        const { data: reads, error: readsError } = await supabase
-          .from("announcement_reads")
-          .select("announcement_id")
-          .eq("employee_id", employee.id);
-
-        if (readsError) throw readsError;
-
-        const readIds = new Set(reads?.map((r: any) => r.announcement_id) || []);
-        const unreadCount = announcements.filter((a: any) => !readIds.has(a.id)).length;
-
-        setUnreadAnnouncementCount(unreadCount);
-      } catch (error) {
-        console.error("Error fetching unread announcement count:", error);
-      }
-    };
-
-    fetchUnreadCount();
-    
-    // Refresh count every minute
-    const interval = setInterval(fetchUnreadCount, 60000);
-    return () => clearInterval(interval);
-  }, [employee?.id]);
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowUserMenu(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -323,220 +254,24 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* Today's Status Card - Hide on rest days when actively doing OT */}
-        {!(isRestDay && activeOT) && (
-          <div className={`rounded-2xl p-5 mb-4 ${todayAttendance
-            ? isOvertime
-              ? "bg-gradient-to-br from-[#ff9500] to-[#ff6b00]"
-              : "bg-gradient-to-br from-[#34c759] to-[#248a3d]"
-            : "bg-gradient-to-br from-[#1d1d1f] to-[#3d3d3d]"
-            }`}>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[13px] text-white/70 font-medium">สถานะวันนี้</span>
-              <div className={`w-2.5 h-2.5 rounded-full ${todayAttendance ? "bg-white" : "bg-[#ff9500]"} animate-pulse`} />
-            </div>
-
-            {todayAttendance ? (
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                      <UserCheck className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-[15px] font-medium text-white/80 flex items-center gap-1.5">
-                        {todayAttendance.clock_out_time ? "เสร็จสิ้น" : isOvertime ? (
-                          <>
-                            <AlertTriangle className="w-4 h-4" />
-                            ทำงานเกินเวลา
-                          </>
-                        ) : "กำลังทำงาน"}
-                      </p>
-                      <p className="text-[13px] text-white/60">
-                        เข้า {todayAttendance.clock_in_time ? format(new Date(todayAttendance.clock_in_time), "HH:mm") : "-"} น.
-                        {todayAttendance.clock_out_time && ` - ออก ${format(new Date(todayAttendance.clock_out_time), "HH:mm")} น.`}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Work Timer */}
-                <div className="text-center mb-4">
-                  <p className="text-[42px] font-bold text-white tracking-tight font-mono">
-                    {workDuration}
-                  </p>
-                  <p className="text-[13px] text-white/60">
-                    {todayAttendance.clock_out_time ? "ชั่วโมงทำงานวันนี้" : "เวลาทำงาน"}
-                  </p>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="mb-4">
-                  <div className="flex justify-between text-[12px] text-white/70 mb-1.5">
-                    <span>ความคืบหน้า</span>
-                    <span>{Math.round(workProgress)}%</span>
-                  </div>
-                  <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-white rounded-full transition-all duration-500"
-                      style={{ width: `${workProgress}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Time Remaining / Overtime Alert */}
-                {!todayAttendance.clock_out_time && timeRemaining && (
-                  <div className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl mb-3 ${isOvertime ? "bg-white/20" : "bg-white/10"
-                    }`}>
-                    {isOvertime ? (
-                      <AlertCircle className="w-4 h-4 text-white" />
-                    ) : (
-                      <Clock className="w-4 h-4 text-white/70" />
-                    )}
-                    <span className="text-[14px] text-white font-medium">
-                      {timeRemaining}
-                    </span>
-                  </div>
-                )}
-
-                {!todayAttendance.clock_out_time && (
-                  <Link href="/checkout">
-                    <button className="w-full py-3 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-xl transition-all">
-                      เช็คเอาท์
-                    </button>
-                  </Link>
-                )}
-              </div>
-            ) : (
-              <div>
-                {/* On rest day (holiday/weekend) with pending OT - show different message */}
-                {isRestDay && pendingOT.length > 0 ? (
-                  <>
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
-                        <Timer className="w-6 h-6 text-white/70" />
-                      </div>
-                      <div>
-                        <p className="text-[22px] font-bold text-white">
-                          {todayHoliday ? "วันหยุดนักขัตฤกษ์" : "วันหยุดสุดสัปดาห์"} - มี OT รอเริ่ม
-                        </p>
-                        <p className="text-[14px] text-white/60">กดเริ่ม OT ด้านล่างได้เลย</p>
-                      </div>
-                    </div>
-                  </>
-                ) : isRestDay ? (
-                  <>
-                    {/* Rest day without OT - must request OT first */}
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
-                        <Calendar className="w-6 h-6 text-white/70" />
-                      </div>
-                      <div>
-                        <p className="text-[22px] font-bold text-white">
-                          {todayHoliday ? todayHoliday.name : "วันหยุดสุดสัปดาห์"}
-                        </p>
-                        <p className="text-[14px] text-white/60">ต้องขอ OT ก่อนถึงจะเข้างานได้</p>
-                      </div>
-                    </div>
-                    <Link href="/ot/request">
-                      <button className="w-full py-3.5 bg-[#ff9500] hover:bg-[#ff8000] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
-                        <Timer className="w-5 h-5" />
-                        ขอทำ OT
-                      </button>
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    {/* Normal day - can check in */}
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
-                        <Clock className="w-6 h-6 text-white/70" />
-                      </div>
-                      <div>
-                        <p className="text-[22px] font-bold text-white">ยังไม่ได้เช็คอิน</p>
-                        <p className="text-[14px] text-white/60">กดปุ่มด้านล่างเพื่อเริ่มงาน</p>
-                      </div>
-                    </div>
-                    <Link href="/checkin">
-                      <button className="w-full py-3.5 bg-[#0071e3] hover:bg-[#0077ed] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
-                        <UserCheck className="w-5 h-5" />
-                        เช็คอินเลย
-                      </button>
-                    </Link>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+        {/* Today's Status Card */}
+        <TodayStatusCard
+          todayAttendance={todayAttendance}
+          workDuration={workDuration}
+          workProgress={workProgress}
+          isOvertime={isOvertime}
+          timeRemaining={timeRemaining}
+          isRestDay={isRestDay}
+          todayHoliday={todayHoliday}
+          pendingOT={pendingOT}
+          activeOT={activeOT}
+        />
 
         {/* OT Timer Card */}
-        {activeOT && (
-          <div className="rounded-2xl p-5 mb-4 bg-gradient-to-br from-[#ff9500] to-[#ff6b00]">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Timer className="w-4 h-4 text-white/80" />
-                <span className="text-[13px] text-white/80 font-medium">กำลังทำ OT</span>
-              </div>
-              <Badge className="bg-white/20 text-white border-0">
-                {activeOT.ot_rate || 1.5}x
-              </Badge>
-            </div>
-
-            <div className="text-center mb-4">
-              <p className="text-[42px] font-bold text-white tracking-tight font-mono">
-                {otDuration}
-              </p>
-              <p className="text-[13px] text-white/60">
-                เริ่ม {activeOT.actual_start_time ? format(new Date(activeOT.actual_start_time), "HH:mm") : "-"} น.
-              </p>
-            </div>
-
-            <Link href={`/ot/end/${activeOT.id}`}>
-              <button className="w-full py-3 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
-                จบ OT
-              </button>
-            </Link>
-          </div>
-        )}
+        <OTTimerCard activeOT={activeOT} otDuration={otDuration} />
 
         {/* Pending OT Ready to Start */}
-        {pendingOT.length > 0 && !activeOT && (
-          <div className="rounded-2xl p-5 mb-4 bg-[#f0fdf4] border border-[#bbf7d0]">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Timer className="w-4 h-4 text-[#22c55e]" />
-                <span className="text-[13px] text-[#15803d] font-medium">OT พร้อมเริ่มวันนี้</span>
-              </div>
-              <Badge className="bg-[#dcfce7] text-[#15803d] border-[#bbf7d0]">
-                {pendingOT.length} รายการ
-              </Badge>
-            </div>
-
-            <div className="space-y-3">
-              {pendingOT.map((ot: any) => (
-                <div key={ot.id} className="bg-white rounded-xl p-4 border border-[#e5e7eb]">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <p className="text-[15px] font-semibold text-[#1d1d1f]">
-                        {format(new Date(ot.requested_start_time), "HH:mm")} - {format(new Date(ot.requested_end_time), "HH:mm")} น.
-                      </p>
-                      <p className="text-[13px] text-[#6e6e73] line-clamp-1">
-                        {ot.reason}
-                      </p>
-                    </div>
-                  </div>
-                  <Link href={`/ot/start/${ot.id}`}>
-                    <button className="w-full py-2.5 bg-[#22c55e] hover:bg-[#16a34a] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
-                      <Play className="w-4 h-4" />
-                      เริ่ม OT
-                    </button>
-                  </Link>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <PendingOTCard pendingOT={pendingOT} activeOT={activeOT} />
 
         {/* Today Holiday Banner */}
         {todayHoliday && (
@@ -552,132 +287,17 @@ export default function HomePage() {
         )}
 
         {/* Upcoming Holidays Card */}
-        {/* Filter out today's holiday from upcoming list */}
-        {upcomingHolidays.filter((h: any) => !isSameDay(parseISO(h.date), new Date())).length > 0 && (
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#e8e8ed] mb-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-[#0071e3]" />
-                <h3 className="text-[16px] font-semibold text-[#1d1d1f]">วันหยุดถัดไป</h3>
-              </div>
-              <button
-                onClick={() => setShowAllHolidays(!showAllHolidays)}
-                className="text-[13px] text-[#0071e3] hover:underline"
-              >
-                {showAllHolidays ? "ซ่อน" : "ดูทั้งหมด"}
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {upcomingHolidays.filter((h: any) => !isSameDay(parseISO(h.date), new Date())).map((holiday: any) => {
-                const holidayDate = parseISO(holiday.date);
-                const today = startOfDay(new Date());
-                const daysUntil = differenceInCalendarDays(holidayDate, today);
-
-                return (
-                  <div key={holiday.id} className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-xl">
-                    <div className="w-12 h-12 bg-[#af52de]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <span className="text-[20px]">🗓️</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[15px] font-medium text-[#1d1d1f] truncate">
-                        {holiday.name}
-                      </p>
-                      <p className="text-[13px] text-[#86868b]">
-                        {format(holidayDate, "d MMMM yyyy", { locale: th })}
-                        {daysUntil > 0 && (
-                          <span className="text-[#af52de]"> • อีก {daysUntil} วัน</span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {showAllHolidays && (
-              <Link href="/holidays">
-                <button className="w-full mt-3 py-2.5 text-[14px] text-[#0071e3] font-medium hover:bg-[#0071e3]/10 rounded-xl transition-colors">
-                  ดูปฏิทินวันหยุดทั้งหมด
-                </button>
-              </Link>
-            )}
-          </div>
-        )}
+        <UpcomingHolidaysCard upcomingHolidays={upcomingHolidays} />
 
         {/* Monthly Summary Cards */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          {/* OT Summary Card */}
-          <Link href="/my-profile?tab=ot">
-            <div className="bg-white border border-[#e8e8ed] rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-[#ff9500]/30 transition-all">
-              <div className="flex items-center gap-2 mb-2">
-                <Timer className="w-4 h-4 text-[#ff9500]" />
-                <span className="text-[12px] font-medium text-[#86868b]">OT เดือนนี้</span>
-              </div>
-              <p className="text-2xl font-bold text-[#1d1d1f]">{monthlyOT.hours.toFixed(1)} <span className="text-sm font-normal text-[#86868b]">ชม.</span></p>
-              <p className="text-[13px] text-[#ff9500] font-medium mt-1">฿{monthlyOT.amount.toLocaleString()}</p>
-            </div>
-          </Link>
-
-          {/* Leave Quota Card */}
-          <Link href="/my-profile?tab=leave">
-            <div className="bg-white border border-[#e8e8ed] rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-[#34c759]/30 transition-all">
-              <div className="flex items-center gap-2 mb-2">
-                <Calendar className="w-4 h-4 text-[#34c759]" />
-                <span className="text-[12px] font-medium text-[#86868b]">วันลาคงเหลือ</span>
-              </div>
-              {leaveBalance ? (
-                <>
-                  <p className="text-2xl font-bold text-[#1d1d1f]">{leaveBalance.annual_remaining} <span className="text-sm font-normal text-[#86868b]">พักร้อน</span></p>
-                  <p className="text-[13px] text-[#34c759] font-medium mt-1">
-                    ป่วย {leaveBalance.sick_remaining} • กิจ {leaveBalance.personal_remaining}
-                  </p>
-                </>
-              ) : employee ? (
-                <>
-                  <p className="text-2xl font-bold text-[#1d1d1f]">{(employee as any).annual_leave_quota || 10} <span className="text-sm font-normal text-[#86868b]">พักร้อน</span></p>
-                  <p className="text-[13px] text-[#34c759] font-medium mt-1">
-                    ป่วย {(employee as any).sick_leave_quota || 30} • กิจ {(employee as any).personal_leave_quota || 3}
-                  </p>
-                </>
-              ) : (
-                <p className="text-lg font-medium text-[#86868b]">-</p>
-              )}
-            </div>
-          </Link>
-        </div>
+        <MonthlySummaryCards
+          monthlyOT={monthlyOT}
+          leaveBalance={leaveBalance}
+          employee={employee}
+        />
 
         {/* Quick Actions Grid */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#e8e8ed] mb-4">
-          <h3 className="text-[15px] font-semibold text-[#1d1d1f] mb-4 px-1">เมนูด่วน</h3>
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { href: "/announcements", icon: Megaphone, title: "ประกาศ", color: "#0071e3", badge: unreadAnnouncementCount },
-              { href: "/ot", icon: Timer, title: "OT", color: "#ff9500" },
-              { href: "/leave/request", icon: Calendar, title: "ลางาน", color: "#af52de" },
-              { href: "/wfh/request", icon: Home, title: "WFH", color: "#007aff" },
-              { href: "/field-work/request", icon: MapPin, title: "งานนอกที่", color: "#34c759" },
-              { href: "/late-request", icon: AlertCircle, title: "ขอสาย", color: "#ff3b30" },
-            ].map((action, i) => (
-              <Link key={i} href={action.href}>
-                <div className="flex flex-col items-center p-3 rounded-xl hover:bg-[#f5f5f7] transition-colors cursor-pointer relative">
-                  {action.badge && action.badge > 0 && (
-                    <div className="absolute top-1 right-1 w-5 h-5 bg-[#ff3b30] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                      {action.badge > 9 ? "9+" : action.badge}
-                    </div>
-                  )}
-                  <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center mb-2"
-                    style={{ backgroundColor: `${action.color}15` }}
-                  >
-                    <action.icon className="w-5 h-5" style={{ color: action.color }} />
-                  </div>
-                  <span className="text-[12px] font-medium text-[#1d1d1f]">{action.title}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
+        <QuickActionsGrid unreadAnnouncementCount={unreadAnnouncementCount} />
 
         {/* My Profile Link */}
         <Link href="/my-profile">

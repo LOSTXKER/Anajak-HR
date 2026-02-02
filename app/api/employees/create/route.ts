@@ -1,7 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import {
+  requireAdmin,
+  handleAuthError,
+  AuthResult,
+} from "@/lib/auth/api-middleware";
 
 export async function POST(request: NextRequest) {
+  // Verify admin authorization
+  let auth: AuthResult;
+  try {
+    auth = await requireAdmin(request);
+  } catch (error) {
+    return handleAuthError(error);
+  }
+
   try {
     const body = await request.json();
     const { name, email, phone, password, role, branch_id, base_salary, commission, is_system_account } = body;

@@ -89,7 +89,7 @@ export async function getAttendanceForRange(
 }
 
 /**
- * Check in an employee
+ * Check in an employee (using atomic RPC to prevent race conditions)
  * @param employeeId - Employee ID
  * @param location - GPS location (optional)
  * @param photoUrl - Photo URL (optional)
@@ -103,12 +103,6 @@ export async function checkIn(
     const nowTime = new Date().toISOString();
 
     try {
-        // Check if already checked in
-        const existing = await getTodayAttendance(employeeId);
-        if (existing) {
-            return { success: false, error: "Already checked in today" };
-        }
-
         // Check if late
         const settings = await getSystemSettings();
         const workStartTime = settings.workStartTime;
@@ -119,23 +113,25 @@ export async function checkIn(
         const lateMinutes = Math.max(0, differenceInMinutes(now, workStart) - lateThreshold);
         const isLate = lateMinutes > 0;
 
-        const { data, error } = await supabase
-            .from("attendance_logs")
-            .insert({
-                employee_id: employeeId,
-                work_date: today,
-                clock_in_time: nowTime,
-                clock_in_location: location,
-                clock_in_photo_url: photoUrl,
-                is_late: isLate,
-                late_minutes: isLate ? lateMinutes : 0,
-            })
-            .select()
-            .single();
+        // Use atomic RPC to prevent race conditions
+        const { data: result, error } = await supabase.rpc("atomic_checkin", {
+            p_employee_id: employeeId,
+            p_work_date: today,
+            p_clock_in_time: nowTime,
+            p_clock_in_location: location || null,
+            p_clock_in_photo_url: photoUrl || null,
+            p_is_late: isLate,
+            p_late_minutes: isLate ? lateMinutes : 0,
+        });
 
         if (error) throw error;
 
-        return { success: true, data: data as AttendanceLog, isLate };
+        // Parse the result from the RPC
+        if (!result.success) {
+            return { success: false, error: result.error };
+        }
+
+        return { success: true, data: result.data as AttendanceLog, isLate };
     } catch (error) {
         console.error("Error checking in:", error);
         return { success: false, error: "Failed to check in" };
@@ -143,7 +139,7 @@ export async function checkIn(
 }
 
 /**
- * Check out an employee
+ * Check out an employee (using atomic RPC to prevent race conditions)
  * @param employeeId - Employee ID
  * @param location - GPS location (optional)
  * @param photoUrl - Photo URL (optional)
@@ -153,32 +149,27 @@ export async function checkOut(
     location?: Location | null,
     photoUrl?: string | null
 ): Promise<{ success: boolean; data?: AttendanceLog; error?: string }> {
+    const today = format(new Date(), "yyyy-MM-dd");
     const nowTime = new Date().toISOString();
 
     try {
-        // Get today's attendance
-        const existing = await getTodayAttendance(employeeId);
-        if (!existing) {
-            return { success: false, error: "No check-in record found" };
-        }
-        if (existing.clock_out_time) {
-            return { success: false, error: "Already checked out today" };
-        }
-
-        const { data, error } = await supabase
-            .from("attendance_logs")
-            .update({
-                clock_out_time: nowTime,
-                clock_out_location: location,
-                clock_out_photo_url: photoUrl,
-            })
-            .eq("id", existing.id)
-            .select()
-            .single();
+        // Use atomic RPC to prevent race conditions
+        const { data: result, error } = await supabase.rpc("atomic_checkout", {
+            p_employee_id: employeeId,
+            p_work_date: today,
+            p_clock_out_time: nowTime,
+            p_clock_out_location: location || null,
+            p_clock_out_photo_url: photoUrl || null,
+        });
 
         if (error) throw error;
 
-        return { success: true, data: data as AttendanceLog };
+        // Parse the result from the RPC
+        if (!result.success) {
+            return { success: false, error: result.error };
+        }
+
+        return { success: true, data: result.data as AttendanceLog };
     } catch (error) {
         console.error("Error checking out:", error);
         return { success: false, error: "Failed to check out" };

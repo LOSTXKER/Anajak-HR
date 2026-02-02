@@ -1,9 +1,22 @@
 import { NextRequest } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
+import {
+  requireAdmin,
+  handleAuthError,
+  AuthResult,
+} from "@/lib/auth/api-middleware";
 
 const LINE_MESSAGING_API = "https://api.line.me/v2/bot/message/push";
 
 export async function POST(request: NextRequest) {
+  // Verify admin authorization - only admins can test LINE messaging
+  let auth: AuthResult;
+  try {
+    auth = await requireAdmin(request);
+  } catch (error) {
+    return handleAuthError(error);
+  }
+
   try {
     const body = await request.json();
     const { token, to, message } = body;

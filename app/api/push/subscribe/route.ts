@@ -1,13 +1,34 @@
 import { NextRequest } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
+import {
+  requireAuth,
+  verifyOwnership,
+  handleAuthError,
+  AuthResult,
+} from "@/lib/auth/api-middleware";
 
 export async function POST(request: NextRequest) {
+  // Verify authentication
+  let auth: AuthResult;
+  try {
+    auth = await requireAuth(request);
+  } catch (error) {
+    return handleAuthError(error);
+  }
+
   try {
     const body = await request.json();
     const { subscription, employeeId } = body;
 
     if (!subscription || !employeeId) {
       return Response.json({ error: "Subscription data and employeeId required" }, { status: 400 });
+    }
+
+    // Verify user can only subscribe their own device
+    try {
+      verifyOwnership(auth, employeeId);
+    } catch (error) {
+      return handleAuthError(error);
     }
 
     // Store subscription in database

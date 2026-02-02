@@ -7,6 +7,7 @@
 
 import { supabase } from "@/lib/supabase/client";
 import { getSystemSettings } from "./settings.service";
+import { parseLocalDate, formatLocalDate } from "@/lib/utils/date";
 import type { Holiday, DayType, DayInfo, OTRateInfo } from "@/lib/types";
 
 // Cache for working days
@@ -36,7 +37,8 @@ export async function getWorkingDays(): Promise<number[]> {
  */
 export async function isWeekend(date: string): Promise<boolean> {
     const workingDays = await getWorkingDays();
-    const dateObj = new Date(date);
+    // Use parseLocalDate to avoid UTC parsing issues
+    const dateObj = parseLocalDate(date);
     // JavaScript: 0=Sunday, 1=Monday, ..., 6=Saturday
     // Our system: 1=Monday, ..., 7=Sunday
     const dayOfWeek = dateObj.getDay();
@@ -180,7 +182,7 @@ export async function getHolidaysInRange(
  * @param branchId - Optional branch ID
  */
 export async function getTodayHoliday(branchId?: string): Promise<Holiday | null> {
-    const today = new Date().toISOString().split("T")[0];
+    const today = formatLocalDate(new Date());
     return isHoliday(today, branchId);
 }
 
@@ -199,8 +201,8 @@ export async function getUpcomingHolidays(
     const endDate = new Date(today);
     endDate.setDate(endDate.getDate() + days);
 
-    const startStr = today.toISOString().split("T")[0];
-    const endStr = endDate.toISOString().split("T")[0];
+    const startStr = formatLocalDate(today);
+    const endStr = formatLocalDate(endDate);
 
     try {
         let query = supabase

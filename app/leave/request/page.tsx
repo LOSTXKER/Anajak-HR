@@ -116,11 +116,19 @@ function LeaveRequestContent() {
   };
 
   const calculateDays = (startDate: string, endDate: string, isHalfDay: boolean) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    return isHalfDay ? 0.5 : diffDays;
+    if (isHalfDay) return 0.5;
+    
+    // Parse dates as local timezone to avoid UTC parsing issues
+    // "YYYY-MM-DD" parsed with new Date() can cause timezone issues
+    const start = new Date(startDate + "T00:00:00");
+    const end = new Date(endDate + "T00:00:00");
+    
+    // Calculate difference in days (inclusive of both start and end)
+    const diffTime = end.getTime() - start.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    
+    // Ensure we return at least 1 day
+    return Math.max(1, diffDays);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -158,8 +166,11 @@ function LeaveRequestContent() {
     e.preventDefault();
     if (!employee) return;
 
-    // Validate dates
-    if (new Date(formData.endDate) < new Date(formData.startDate)) {
+    // Validate dates - use local timezone parsing
+    const startDate = new Date(formData.startDate + "T00:00:00");
+    const endDate = new Date(formData.endDate + "T00:00:00");
+    
+    if (endDate < startDate) {
       setError("วันสิ้นสุดต้องมากกว่าหรือเท่ากับวันเริ่มต้น");
       return;
     }
@@ -167,7 +178,7 @@ function LeaveRequestContent() {
     // ตรวจสอบว่าไม่ใช่วันในอดีต
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    if (new Date(formData.startDate) < today) {
+    if (startDate < today) {
       setError("ไม่สามารถขอลาย้อนหลังได้");
       return;
     }

@@ -125,7 +125,7 @@ export async function requestOT(
 }
 
 /**
- * Start an OT session
+ * Start an OT session (using atomic RPC to prevent race conditions)
  * @param otId - OT request ID
  * @param photoUrl - Before photo URL
  * @param location - GPS location (optional)
@@ -139,18 +139,10 @@ export async function startOT(
     const nowTime = now.toISOString();
 
     try {
-        // Get OT request
+        // Get OT request first for rate calculation
         const otRequest = await getOTRequest(otId);
         if (!otRequest) {
             return { success: false, error: "OT request not found" };
-        }
-
-        if (otRequest.status !== "approved") {
-            return { success: false, error: "OT request is not approved" };
-        }
-
-        if (otRequest.actual_start_time) {
-            return { success: false, error: "OT already started" };
         }
 
         // Get OT rate info
@@ -167,22 +159,24 @@ export async function startOT(
             );
         }
 
-        // Update OT request
-        const { data, error } = await supabase
-            .from("ot_requests")
-            .update({
-                actual_start_time: nowTime,
-                before_photo_url: photoUrl,
-                ot_type: rateInfo.type,
-                ot_rate: rateInfo.rate,
-            })
-            .eq("id", otId)
-            .select()
-            .single();
+        // Use atomic RPC to prevent race conditions
+        const { data: result, error } = await supabase.rpc("atomic_start_ot", {
+            p_ot_id: otId,
+            p_actual_start_time: nowTime,
+            p_before_photo_url: photoUrl,
+            p_ot_type: rateInfo.type,
+            p_ot_rate: rateInfo.rate,
+            p_start_location: location || null,
+        });
 
         if (error) throw error;
 
-        return { success: true, data: data as OTRequest };
+        // Parse the result from the RPC
+        if (!result.success) {
+            return { success: false, error: result.error };
+        }
+
+        return { success: true, data: result.data as OTRequest };
     } catch (error) {
         console.error("Error starting OT:", error);
         return { success: false, error: "Failed to start OT" };
@@ -190,7 +184,7 @@ export async function startOT(
 }
 
 /**
- * End an OT session
+ * End an OT session (using atomic RPC to prevent race conditions)
  * @param otId - OT request ID
  * @param photoUrl - After photo URL
  * @param location - GPS location (optional)
@@ -203,7 +197,7 @@ export async function endOT(
     const nowTime = new Date().toISOString();
 
     try {
-        // Get OT request
+        // Get OT request for calculations
         const otRequest = await getOTRequest(otId);
         if (!otRequest) {
             return { success: false, error: "OT request not found" };
@@ -211,10 +205,6 @@ export async function endOT(
 
         if (!otRequest.actual_start_time) {
             return { success: false, error: "OT has not started" };
-        }
-
-        if (otRequest.actual_end_time) {
-            return { success: false, error: "OT already ended" };
         }
 
         // Calculate OT hours
@@ -231,27 +221,30 @@ export async function endOT(
             .single();
 
         const settings = await getSystemSettings();
-        const hourlyRate = (employee?.base_salary || 0) / (settings.daysPerMonth * settings.hoursPerDay);
+        // Prevent division by zero
+        const divisor = settings.daysPerMonth * settings.hoursPerDay;
+        const hourlyRate = divisor > 0 ? (employee?.base_salary || 0) / divisor : 0;
         const otRate = otRequest.ot_rate || 1.5;
         const otAmount = otHours * hourlyRate * otRate;
 
-        // Update OT request
-        const { data, error } = await supabase
-            .from("ot_requests")
-            .update({
-                actual_end_time: nowTime,
-                after_photo_url: photoUrl,
-                actual_ot_hours: Math.round(otHours * 100) / 100, // Round to 2 decimals
-                ot_amount: Math.round(otAmount * 100) / 100,
-                status: "completed",
-            })
-            .eq("id", otId)
-            .select()
-            .single();
+        // Use atomic RPC to prevent race conditions
+        const { data: result, error } = await supabase.rpc("atomic_end_ot", {
+            p_ot_id: otId,
+            p_actual_end_time: nowTime,
+            p_after_photo_url: photoUrl,
+            p_actual_ot_hours: Math.round(otHours * 100) / 100,
+            p_ot_amount: Math.round(otAmount * 100) / 100,
+            p_end_location: location || null,
+        });
 
         if (error) throw error;
 
-        return { success: true, data: data as OTRequest };
+        // Parse the result from the RPC
+        if (!result.success) {
+            return { success: false, error: result.error };
+        }
+
+        return { success: true, data: result.data as OTRequest };
     } catch (error) {
         console.error("Error ending OT:", error);
         return { success: false, error: "Failed to end OT" };

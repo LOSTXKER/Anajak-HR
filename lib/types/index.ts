@@ -4,6 +4,9 @@
  * All shared types/interfaces should be defined here
  */
 
+// Result type for service operations
+export * from "./result";
+
 // =============================================
 // DATABASE ENTITIES
 // =============================================

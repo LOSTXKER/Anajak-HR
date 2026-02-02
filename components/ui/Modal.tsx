@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useRef, useCallback, useId } from "react";
 import { X, AlertTriangle, Info, CheckCircle, HelpCircle } from "lucide-react";
 import { Button } from "./Button";
 
@@ -10,6 +10,8 @@ interface ModalProps {
   title?: string;
   children: ReactNode;
   size?: "sm" | "md" | "lg";
+  /** Accessible description for screen readers */
+  ariaDescription?: string;
 }
 
 export function Modal({
@@ -18,17 +20,76 @@ export function Modal({
   title,
   children,
   size = "md",
+  ariaDescription,
 }: ModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
+  const titleId = useId();
+  const descId = useId();
+
+  // Handle escape key
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    },
+    [onClose]
+  );
+
+  // Focus trap
+  const handleTabKey = useCallback((e: KeyboardEvent) => {
+    if (e.key !== "Tab" || !modalRef.current) return;
+
+    const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    if (e.shiftKey && document.activeElement === firstElement) {
+      e.preventDefault();
+      lastElement?.focus();
+    } else if (!e.shiftKey && document.activeElement === lastElement) {
+      e.preventDefault();
+      firstElement?.focus();
+    }
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
+      // Save current focus
+      previousActiveElement.current = document.activeElement as HTMLElement;
+      
+      // Lock body scroll
       document.body.style.overflow = "hidden";
+      
+      // Add keyboard listeners
+      document.addEventListener("keydown", handleKeyDown);
+      document.addEventListener("keydown", handleTabKey);
+      
+      // Focus first focusable element in modal
+      requestAnimationFrame(() => {
+        const focusableElement = modalRef.current?.querySelector<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        focusableElement?.focus();
+      });
     } else {
       document.body.style.overflow = "";
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", handleTabKey);
+      
+      // Restore focus
+      previousActiveElement.current?.focus();
     }
+
     return () => {
       document.body.style.overflow = "";
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", handleTabKey);
     };
-  }, [isOpen]);
+  }, [isOpen, handleKeyDown, handleTabKey]);
 
   if (!isOpen) return null;
 
@@ -39,15 +100,24 @@ export function Modal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="presentation"
+    >
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
+        aria-hidden="true"
       />
 
       {/* Modal Content */}
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        aria-describedby={ariaDescription ? descId : undefined}
         className={`
           relative w-full ${sizes[size]}
           bg-white rounded-2xl
@@ -55,15 +125,28 @@ export function Modal({
           animate-scale-in
         `}
       >
+        {/* Screen reader description */}
+        {ariaDescription && (
+          <div id={descId} className="sr-only">
+            {ariaDescription}
+          </div>
+        )}
+
         {/* Header */}
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-[#e8e8ed]">
-            <h3 className="text-[17px] font-semibold text-[#1d1d1f]">{title}</h3>
+            <h3
+              id={titleId}
+              className="text-[17px] font-semibold text-[#1d1d1f]"
+            >
+              {title}
+            </h3>
             <button
               onClick={onClose}
+              aria-label="ปิด"
               className="p-1.5 text-[#86868b] hover:text-[#1d1d1f] hover:bg-[#f5f5f7] rounded-lg transition-colors"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
         )}
@@ -99,13 +182,40 @@ export function ConfirmDialog({
   cancelText = "ยกเลิก",
   loading = false,
 }: ConfirmDialogProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const messageId = useId();
+
+  // Handle escape key and focus trap
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !loading) {
+        onClose();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    
+    // Focus cancel button by default
+    requestAnimationFrame(() => {
+      const cancelBtn = dialogRef.current?.querySelector<HTMLButtonElement>(
+        'button[data-cancel]'
+      );
+      cancelBtn?.focus();
+    });
+
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, loading, onClose]);
+
   if (!isOpen) return null;
 
   const icons = {
-    danger: <AlertTriangle className="w-12 h-12 text-[#ff3b30]" />,
-    warning: <AlertTriangle className="w-12 h-12 text-[#ff9500]" />,
-    info: <Info className="w-12 h-12 text-[#0071e3]" />,
-    success: <CheckCircle className="w-12 h-12 text-[#34c759]" />,
+    danger: <AlertTriangle className="w-12 h-12 text-[#ff3b30]" aria-hidden="true" />,
+    warning: <AlertTriangle className="w-12 h-12 text-[#ff9500]" aria-hidden="true" />,
+    info: <Info className="w-12 h-12 text-[#0071e3]" aria-hidden="true" />,
+    success: <CheckCircle className="w-12 h-12 text-[#34c759]" aria-hidden="true" />,
   };
 
   const iconBg = {
@@ -118,22 +228,56 @@ export function ConfirmDialog({
   const confirmVariant = type === "danger" ? "danger" : "primary";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="presentation"
+    >
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={loading ? undefined : onClose}
+        aria-hidden="true"
+      />
 
-      <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.16)] animate-scale-in">
+      <div
+        ref={dialogRef}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={messageId}
+        className="relative w-full max-w-sm bg-white rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.16)] animate-scale-in"
+      >
         <div className="p-6 text-center">
-          <div className={`w-20 h-20 ${iconBg[type]} rounded-full flex items-center justify-center mx-auto mb-4`}>
+          <div
+            className={`w-20 h-20 ${iconBg[type]} rounded-full flex items-center justify-center mx-auto mb-4`}
+          >
             {icons[type]}
           </div>
-          <h3 className="text-[19px] font-semibold text-[#1d1d1f] mb-2">{title}</h3>
-          <p className="text-[15px] text-[#86868b] mb-6">{message}</p>
+          <h3
+            id={titleId}
+            className="text-[19px] font-semibold text-[#1d1d1f] mb-2"
+          >
+            {title}
+          </h3>
+          <p id={messageId} className="text-[15px] text-[#86868b] mb-6">
+            {message}
+          </p>
 
           <div className="flex gap-3">
-            <Button variant="secondary" onClick={onClose} fullWidth disabled={loading}>
+            <Button
+              variant="secondary"
+              onClick={onClose}
+              fullWidth
+              disabled={loading}
+              data-cancel
+            >
               {cancelText}
             </Button>
-            <Button variant={confirmVariant} onClick={onConfirm} fullWidth loading={loading}>
+            <Button
+              variant={confirmVariant}
+              onClick={onConfirm}
+              fullWidth
+              loading={loading}
+            >
               {confirmText}
             </Button>
           </div>

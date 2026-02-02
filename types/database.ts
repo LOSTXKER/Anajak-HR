@@ -268,12 +268,381 @@ export interface Database {
           created_at?: string
         }
       }
+      leave_requests: {
+        Row: {
+          id: string
+          employee_id: string
+          leave_type: 'annual' | 'sick' | 'personal' | 'maternity' | 'military' | 'other'
+          start_date: string
+          end_date: string
+          is_half_day: boolean
+          reason: string
+          attachment_url: string | null
+          status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+          approved_by: string | null
+          approved_at: string | null
+          cancelled_by: string | null
+          cancelled_at: string | null
+          cancel_reason: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          employee_id: string
+          leave_type: 'annual' | 'sick' | 'personal' | 'maternity' | 'military' | 'other'
+          start_date: string
+          end_date: string
+          is_half_day?: boolean
+          reason: string
+          attachment_url?: string | null
+          status?: 'pending' | 'approved' | 'rejected' | 'cancelled'
+          approved_by?: string | null
+          approved_at?: string | null
+          cancelled_by?: string | null
+          cancelled_at?: string | null
+          cancel_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          employee_id?: string
+          leave_type?: 'annual' | 'sick' | 'personal' | 'maternity' | 'military' | 'other'
+          start_date?: string
+          end_date?: string
+          is_half_day?: boolean
+          reason?: string
+          attachment_url?: string | null
+          status?: 'pending' | 'approved' | 'rejected' | 'cancelled'
+          approved_by?: string | null
+          approved_at?: string | null
+          cancelled_by?: string | null
+          cancelled_at?: string | null
+          cancel_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      wfh_requests: {
+        Row: {
+          id: string
+          employee_id: string
+          request_date: string
+          reason: string
+          status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+          approved_by: string | null
+          approved_at: string | null
+          cancelled_by: string | null
+          cancelled_at: string | null
+          cancel_reason: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          employee_id: string
+          request_date: string
+          reason: string
+          status?: 'pending' | 'approved' | 'rejected' | 'cancelled'
+          approved_by?: string | null
+          approved_at?: string | null
+          cancelled_by?: string | null
+          cancelled_at?: string | null
+          cancel_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          employee_id?: string
+          request_date?: string
+          reason?: string
+          status?: 'pending' | 'approved' | 'rejected' | 'cancelled'
+          approved_by?: string | null
+          approved_at?: string | null
+          cancelled_by?: string | null
+          cancelled_at?: string | null
+          cancel_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      late_requests: {
+        Row: {
+          id: string
+          employee_id: string
+          request_date: string
+          reason: string
+          status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+          approved_by: string | null
+          approved_at: string | null
+          cancelled_by: string | null
+          cancelled_at: string | null
+          cancel_reason: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          employee_id: string
+          request_date: string
+          reason: string
+          status?: 'pending' | 'approved' | 'rejected' | 'cancelled'
+          approved_by?: string | null
+          approved_at?: string | null
+          cancelled_by?: string | null
+          cancelled_at?: string | null
+          cancel_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          employee_id?: string
+          request_date?: string
+          reason?: string
+          status?: 'pending' | 'approved' | 'rejected' | 'cancelled'
+          approved_by?: string | null
+          approved_at?: string | null
+          cancelled_by?: string | null
+          cancelled_at?: string | null
+          cancel_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      field_work_requests: {
+        Row: {
+          id: string
+          employee_id: string
+          request_date: string
+          location: string
+          reason: string
+          status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+          approved_by: string | null
+          approved_at: string | null
+          cancelled_by: string | null
+          cancelled_at: string | null
+          cancel_reason: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          employee_id: string
+          request_date: string
+          location: string
+          reason: string
+          status?: 'pending' | 'approved' | 'rejected' | 'cancelled'
+          approved_by?: string | null
+          approved_at?: string | null
+          cancelled_by?: string | null
+          cancelled_at?: string | null
+          cancel_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          employee_id?: string
+          request_date?: string
+          location?: string
+          reason?: string
+          status?: 'pending' | 'approved' | 'rejected' | 'cancelled'
+          approved_by?: string | null
+          approved_at?: string | null
+          cancelled_by?: string | null
+          cancelled_at?: string | null
+          cancel_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      system_settings: {
+        Row: {
+          id: string
+          setting_key: string
+          setting_value: string | null
+          description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          setting_key: string
+          setting_value?: string | null
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          setting_key?: string
+          setting_value?: string | null
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      announcements: {
+        Row: {
+          id: string
+          title: string
+          message: string
+          priority: 'low' | 'normal' | 'high' | 'urgent'
+          category: 'general' | 'hr' | 'payroll' | 'holiday' | 'urgent'
+          target_type: 'all' | 'branch' | 'department' | 'employee'
+          target_branch_id: string | null
+          target_employee_ids: string[] | null
+          published: boolean
+          published_at: string | null
+          expires_at: string | null
+          send_notification: boolean
+          notification_sent_at: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          title: string
+          message: string
+          priority?: 'low' | 'normal' | 'high' | 'urgent'
+          category?: 'general' | 'hr' | 'payroll' | 'holiday' | 'urgent'
+          target_type?: 'all' | 'branch' | 'department' | 'employee'
+          target_branch_id?: string | null
+          target_employee_ids?: string[] | null
+          published?: boolean
+          published_at?: string | null
+          expires_at?: string | null
+          send_notification?: boolean
+          notification_sent_at?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          title?: string
+          message?: string
+          priority?: 'low' | 'normal' | 'high' | 'urgent'
+          category?: 'general' | 'hr' | 'payroll' | 'holiday' | 'urgent'
+          target_type?: 'all' | 'branch' | 'department' | 'employee'
+          target_branch_id?: string | null
+          target_employee_ids?: string[] | null
+          published?: boolean
+          published_at?: string | null
+          expires_at?: string | null
+          send_notification?: boolean
+          notification_sent_at?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+      }
+      announcement_reads: {
+        Row: {
+          id: string
+          announcement_id: string
+          employee_id: string
+          read_at: string
+        }
+        Insert: {
+          id?: string
+          announcement_id: string
+          employee_id: string
+          read_at?: string
+        }
+        Update: {
+          id?: string
+          announcement_id?: string
+          employee_id?: string
+          read_at?: string
+        }
+      }
+      push_subscriptions: {
+        Row: {
+          id: string
+          employee_id: string
+          subscription: Json
+          user_agent: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          employee_id: string
+          subscription: Json
+          user_agent?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          employee_id?: string
+          subscription?: Json
+          user_agent?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      atomic_checkin: {
+        Args: {
+          p_employee_id: string
+          p_work_date: string
+          p_clock_in_time: string
+          p_clock_in_location?: Json
+          p_clock_in_photo_url?: string
+          p_is_late?: boolean
+          p_late_minutes?: number
+        }
+        Returns: Json
+      }
+      atomic_checkout: {
+        Args: {
+          p_employee_id: string
+          p_work_date: string
+          p_clock_out_time: string
+          p_clock_out_location?: Json
+          p_clock_out_photo_url?: string
+        }
+        Returns: Json
+      }
+      atomic_start_ot: {
+        Args: {
+          p_ot_id: string
+          p_actual_start_time: string
+          p_before_photo_url: string
+          p_ot_type?: string
+          p_ot_rate?: number
+          p_start_location?: Json
+        }
+        Returns: Json
+      }
+      atomic_end_ot: {
+        Args: {
+          p_ot_id: string
+          p_actual_end_time: string
+          p_after_photo_url: string
+          p_actual_ot_hours: number
+          p_ot_amount: number
+          p_end_location?: Json
+        }
+        Returns: Json
+      }
+      get_my_role: {
+        Args: Record<string, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

@@ -39,3 +39,16 @@ export {
 
 // Dashboard Hook (combined)
 export { useDashboard } from "./use-dashboard";
+
+// Admin Hooks
+export { useAdminRedirect } from "./use-admin-redirect";
+export { usePendingCounts } from "./use-pending-counts";
+
+// Camera Hooks
+export { useCameraCapture } from "./use-camera-capture";
+
+// Announcement Hooks
+export { useUnreadAnnouncements } from "./use-unread-announcements";
+
+// Admin Hooks
+export { useAdminRequests } from "./use-admin-requests";
