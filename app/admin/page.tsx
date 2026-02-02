@@ -99,11 +99,13 @@ function AdminDashboardContent() {
       const isHoliday = (holidayData?.length || 0) > 0;
       const isNonWorkingDay = isWeekend || isHoliday;
 
-      // นับเฉพาะพนักงานที่ไม่ใช่ admin
+      // นับเฉพาะพนักงานที่ไม่ใช่ admin และยังไม่ถูกลบ
       const { count: totalEmployees } = await supabase
         .from("employees")
         .select("*", { count: "exact", head: true })
-        .neq("role", "admin");
+        .neq("role", "admin")
+        .eq("account_status", "approved")
+        .is("deleted_at", null);
 
       // ดึงข้อมูลการเข้างานวันนี้ (ระบุ foreign key ชัดเจน)
       const { data: attendanceRaw, error: attendanceError } = await supabase

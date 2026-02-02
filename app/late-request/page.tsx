@@ -105,6 +105,25 @@ function LateRequestContent() {
 
       if (createError) throw new Error(createError);
 
+      // Send LINE notification for new late request
+      try {
+        await fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "late_request",
+            data: {
+              employeeName: employee!.name,
+              date: selectedDate,
+              lateMinutes: attendance?.late_minutes || 0,
+              reason: reason.trim(),
+            },
+          }),
+        });
+      } catch (notifError) {
+        console.error("Error sending notification:", notifError);
+      }
+
       setSuccess(true);
       setSelectedDate("");
       setReason("");

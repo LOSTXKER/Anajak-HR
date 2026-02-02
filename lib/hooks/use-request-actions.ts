@@ -46,12 +46,25 @@ export function useRequestActions(
   const { employees, onSuccess } = options;
   const [processing, setProcessing] = useState(false);
 
+  // Send LINE notification helper
+  const sendNotification = async (type: string, data: Record<string, unknown>) => {
+    try {
+      await fetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, data }),
+      });
+    } catch (error) {
+      console.error("Error sending notification:", error);
+    }
+  };
+
   // Handle approve
   const handleApprove = useCallback(
     async (request: RequestItem, adminId: string): Promise<boolean> => {
       setProcessing(true);
       try {
-        const updateData: any = {
+        const updateData: Record<string, unknown> = {
           status: "approved",
           approved_by: adminId,
           approved_at: new Date().toISOString(),
@@ -73,6 +86,54 @@ export function useRequestActions(
 
         if (error) throw error;
 
+        // Send LINE notification
+        const employee = employees.find((e) => e.id === request.employeeId);
+        const employeeName = employee?.name || request.employeeName || "ไม่ระบุ";
+
+        switch (request.type) {
+          case "ot":
+            sendNotification("ot_approval", {
+              employeeName,
+              date: request.rawData.request_date,
+              startTime: request.rawData.requested_start_time,
+              endTime: request.rawData.requested_end_time,
+              approved: true,
+            });
+            break;
+          case "leave":
+            sendNotification("leave_approval", {
+              employeeName,
+              leaveType: request.rawData.leave_type,
+              startDate: request.rawData.start_date,
+              endDate: request.rawData.end_date,
+              approved: true,
+            });
+            break;
+          case "wfh":
+            sendNotification("wfh_approval", {
+              employeeName,
+              date: request.rawData.date,
+              approved: true,
+            });
+            break;
+          case "late":
+            sendNotification("late_approval", {
+              employeeName,
+              date: request.rawData.request_date,
+              lateMinutes: request.rawData.actual_late_minutes,
+              approved: true,
+            });
+            break;
+          case "field_work":
+            sendNotification("field_work_approval", {
+              employeeName,
+              date: request.rawData.date,
+              location: request.rawData.location,
+              approved: true,
+            });
+            break;
+        }
+
         if (onSuccess) await onSuccess();
         return true;
       } catch (error) {
@@ -82,7 +143,7 @@ export function useRequestActions(
         setProcessing(false);
       }
     },
-    [onSuccess]
+    [employees, onSuccess]
   );
 
   // Handle reject
@@ -101,6 +162,54 @@ export function useRequestActions(
 
         if (error) throw error;
 
+        // Send LINE notification
+        const employee = employees.find((e) => e.id === request.employeeId);
+        const employeeName = employee?.name || request.employeeName || "ไม่ระบุ";
+
+        switch (request.type) {
+          case "ot":
+            sendNotification("ot_approval", {
+              employeeName,
+              date: request.rawData.request_date,
+              startTime: request.rawData.requested_start_time,
+              endTime: request.rawData.requested_end_time,
+              approved: false,
+            });
+            break;
+          case "leave":
+            sendNotification("leave_approval", {
+              employeeName,
+              leaveType: request.rawData.leave_type,
+              startDate: request.rawData.start_date,
+              endDate: request.rawData.end_date,
+              approved: false,
+            });
+            break;
+          case "wfh":
+            sendNotification("wfh_approval", {
+              employeeName,
+              date: request.rawData.date,
+              approved: false,
+            });
+            break;
+          case "late":
+            sendNotification("late_approval", {
+              employeeName,
+              date: request.rawData.request_date,
+              lateMinutes: request.rawData.actual_late_minutes,
+              approved: false,
+            });
+            break;
+          case "field_work":
+            sendNotification("field_work_approval", {
+              employeeName,
+              date: request.rawData.date,
+              location: request.rawData.location,
+              approved: false,
+            });
+            break;
+        }
+
         if (onSuccess) await onSuccess();
         return true;
       } catch (error) {
@@ -110,7 +219,7 @@ export function useRequestActions(
         setProcessing(false);
       }
     },
-    [onSuccess]
+    [employees, onSuccess]
   );
 
   // Handle cancel

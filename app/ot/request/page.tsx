@@ -125,6 +125,26 @@ function OTRequestContent() {
 
       if (insertError) throw insertError;
 
+      // Send LINE notification for new OT request
+      try {
+        await fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "new_ot_request",
+            data: {
+              employeeName: employee.name,
+              date: formData.date,
+              startTime: formData.startTime,
+              endTime: formData.endTime,
+              reason: formData.reason,
+            },
+          }),
+        });
+      } catch (notifError) {
+        console.error("Error sending notification:", notifError);
+      }
+
       setIsAutoApproved(isAutoApprove);
       setSuccess(true);
       setTimeout(() => router.push("/"), 2000);

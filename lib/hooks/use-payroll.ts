@@ -82,6 +82,7 @@ export function usePayroll() {
         "id, name, email, role, branch_id, base_salary, commission, is_system_account"
       )
       .eq("account_status", "approved")
+      .is("deleted_at", null)
       .neq("role", "admin")
       .order("name");
 

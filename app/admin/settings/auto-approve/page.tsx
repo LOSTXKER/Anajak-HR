@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { SettingsLayout } from "@/components/admin/SettingsLayout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
@@ -15,8 +15,10 @@ import {
   AlertTriangle, 
   MapPin,
   CheckCircle2,
-  Info
+  Info,
+  ArrowLeft,
 } from "lucide-react";
+import Link from "next/link";
 
 interface AutoApproveSettings {
   auto_approve_ot: boolean;
@@ -140,16 +142,16 @@ function AutoApproveContent() {
 
   if (loading) {
     return (
-      <AdminLayout title="อนุมัติอัตโนมัติ">
+      <SettingsLayout title="อนุมัติอัตโนมัติ">
         <div className="flex items-center justify-center py-20">
           <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
         </div>
-      </AdminLayout>
+      </SettingsLayout>
     );
   }
 
   return (
-    <AdminLayout title="อนุมัติอัตโนมัติ">
+    <SettingsLayout title="อนุมัติอัตโนมัติ" description="เปิด/ปิดการอนุมัติอัตโนมัติสำหรับคำขอต่างๆ">
       {/* Info Card */}
       <Card className="mb-6 !bg-[#0071e3]/5 border-[#0071e3]/20">
         <div className="flex items-start gap-3">
@@ -249,7 +251,7 @@ function AutoApproveContent() {
           </div>
         </Card>
       )}
-    </AdminLayout>
+    </SettingsLayout>
   );
 }
 

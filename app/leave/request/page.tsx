@@ -232,6 +232,26 @@ function LeaveRequestContent() {
 
       if (insertError) throw insertError;
 
+      // Send LINE notification for new leave request
+      try {
+        await fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "new_leave_request",
+            data: {
+              employeeName: employee.name,
+              leaveType: formData.leaveType,
+              startDate: formData.startDate,
+              endDate: formData.endDate,
+              reason: formData.reason,
+            },
+          }),
+        });
+      } catch (notifError) {
+        console.error("Error sending notification:", notifError);
+      }
+
       setIsAutoApproved(isAutoApprove);
       setSuccess(true);
       setTimeout(() => router.push("/"), 2000);

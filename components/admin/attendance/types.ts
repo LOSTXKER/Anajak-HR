@@ -9,6 +9,7 @@ export interface Employee {
   email: string;
   branch_id: string | null;
   role: string;
+  created_at?: string;
 }
 
 export interface Branch {

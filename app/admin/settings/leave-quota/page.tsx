@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { SettingsLayout } from "@/components/admin/SettingsLayout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
-import { Calendar, Save, Info, ArrowRight, Users } from "lucide-react";
+import { Calendar, Save, Info, ArrowRight, ArrowLeft, Users } from "lucide-react";
 import Link from "next/link";
 
 function LeaveQuotaSettingsContent() {
@@ -81,16 +81,16 @@ function LeaveQuotaSettingsContent() {
 
   if (loading) {
     return (
-      <AdminLayout title="ตั้งค่าโควต้าวันลา">
+      <SettingsLayout title="โควต้าวันลา">
         <div className="flex items-center justify-center py-20">
           <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
         </div>
-      </AdminLayout>
+      </SettingsLayout>
     );
   }
 
   return (
-    <AdminLayout title="ตั้งค่าโควต้าวันลา" description="กำหนดค่าเริ่มต้นสำหรับพนักงานใหม่">
+    <SettingsLayout title="โควต้าวันลา" description="กำหนดค่าเริ่มต้นสำหรับพนักงานใหม่">
       {/* Info Banner */}
       <Card elevated className="mb-6 bg-[#0071e3]/5 border border-[#0071e3]/20">
         <div className="flex items-start gap-3">
@@ -233,7 +233,7 @@ function LeaveQuotaSettingsContent() {
           </div>
         </Card>
       </div>
-    </AdminLayout>
+    </SettingsLayout>
   );
 }
 

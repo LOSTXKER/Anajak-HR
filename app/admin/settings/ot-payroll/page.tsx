@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { SettingsLayout } from "@/components/admin/SettingsLayout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
@@ -186,23 +186,17 @@ function OTPayrollSettingsContent() {
 
   if (loading) {
     return (
-      <AdminLayout title="ตั้งค่า OT & เงินเดือน">
+      <SettingsLayout title="OT & เงินเดือน">
         <div className="flex items-center justify-center py-20">
           <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
         </div>
-      </AdminLayout>
+      </SettingsLayout>
     );
   }
 
   return (
-    <AdminLayout title="ตั้งค่า OT & เงินเดือน" description="กำหนดอัตรา OT และการคำนวณเงินเดือน">
-      {/* Back Button */}
-      <Link href="/admin/settings" className="inline-flex items-center gap-2 text-[#0071e3] hover:underline mb-6">
-        <ArrowLeft className="w-4 h-4" />
-        กลับไปหน้าตั้งค่า
-      </Link>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <SettingsLayout title="OT & เงินเดือน" description="กำหนดอัตรา OT และการคำนวณเงินเดือน">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Left Column */}
         <div className="space-y-6">
           {/* Payroll Settings */}
@@ -538,7 +532,7 @@ function OTPayrollSettingsContent() {
           </Button>
         </div>
       </div>
-    </AdminLayout>
+    </SettingsLayout>
   );
 }
 

@@ -30,6 +30,8 @@ export interface Database {
           is_system_account: boolean | null
           created_at: string
           updated_at: string
+          deleted_at: string | null
+          deleted_by: string | null
         }
         Insert: {
           id?: string
@@ -51,6 +53,8 @@ export interface Database {
           is_system_account?: boolean | null
           created_at?: string
           updated_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
         }
         Update: {
           id?: string
@@ -72,6 +76,8 @@ export interface Database {
           is_system_account?: boolean | null
           created_at?: string
           updated_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
         }
       }
       branches: {

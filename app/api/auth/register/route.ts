@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { sendLineMessage } from "@/lib/line/messaging";
 
 export async function POST(request: NextRequest) {
   try {
@@ -96,6 +97,22 @@ export async function POST(request: NextRequest) {
         { error: "ไม่สามารถสร้างข้อมูลพนักงานได้" },
         { status: 400 }
       );
+    }
+
+    // Send LINE notification to admin about new registration
+    if (requireApproval) {
+      try {
+        const message = `👤 พนักงานใหม่ลงทะเบียน
+
+📧 อีเมล: ${email}
+👤 ชื่อ: ${name}
+📱 โทร: ${phone}
+
+กรุณาตรวจสอบและอนุมัติบัญชีในระบบ`;
+        await sendLineMessage(message);
+      } catch (notifError) {
+        console.error("Error sending registration notification:", notifError);
+      }
     }
 
     return NextResponse.json(

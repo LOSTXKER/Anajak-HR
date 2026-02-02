@@ -16,6 +16,10 @@ export interface Employee {
   account_status: string;
   branch_id: string | null;
   branch?: { name: string } | null;
+  is_system_account?: boolean;
+  created_at?: string;
+  deleted_at?: string | null;
+  deleted_by?: string | null;
 }
 
 export interface LeaveBalance {
@@ -32,6 +36,7 @@ export interface EmployeeStats {
   approved: number;
   pending: number;
   admins: number;
+  deleted?: number;
 }
 
 export interface EditFormData {

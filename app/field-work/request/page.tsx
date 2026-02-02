@@ -80,6 +80,25 @@ function FieldWorkRequestContent() {
 
       if (createError) throw new Error(createError);
 
+      // Send LINE notification for new field work request
+      try {
+        await fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "field_work_request",
+            data: {
+              employeeName: employee.name,
+              date: formData.date,
+              location: formData.location.trim(),
+              reason: formData.reason.trim(),
+            },
+          }),
+        });
+      } catch (notifError) {
+        console.error("Error sending notification:", notifError);
+      }
+
       setSuccess(true);
       setTimeout(() => router.push("/"), 2000);
     } catch (err) {

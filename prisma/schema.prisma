@@ -148,6 +148,8 @@ model employees {
   annual_leave_quota                                               Int?                   @default(10)
   sick_leave_quota                                                 Int?                   @default(30)
   personal_leave_quota                                             Int?                   @default(3)
+  deleted_at                                                       DateTime?              @db.Timestamptz(6)
+  deleted_by                                                       String?                @db.Uuid
   announcement_reads                                               announcement_reads[]
   announcements                                                    announcements[]
   attendance_anomalies_attendance_anomalies_employee_idToemployees attendance_anomalies[] @relation("attendance_anomalies_employee_idToemployees")
@@ -155,7 +157,9 @@ model employees {
   attendance_logs_attendance_logs_edited_byToemployees             attendance_logs[]      @relation("attendance_logs_edited_byToemployees")
   attendance_logs_attendance_logs_employee_idToemployees           attendance_logs[]      @relation("attendance_logs_employee_idToemployees")
   employees                                                        employees?             @relation("employeesToemployees", fields: [approved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  deleted_by_employee                                              employees?             @relation("employees_deleted_by", fields: [deleted_by], references: [id], onDelete: SetNull, onUpdate: NoAction)
   other_employees                                                  employees[]            @relation("employeesToemployees")
+  deleted_employees                                                employees[]            @relation("employees_deleted_by")
   branches                                                         branches?              @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   field_work_requests_field_work_requests_approved_byToemployees   field_work_requests[]  @relation("field_work_requests_approved_byToemployees")
   field_work_requests_field_work_requests_cancelled_byToemployees  field_work_requests[]  @relation("field_work_requests_cancelled_byToemployees")
@@ -179,6 +183,7 @@ model employees {
   @@index([branch_id], map: "idx_employees_branch")
   @@index([line_user_id], map: "idx_employees_line_user_id")
   @@index([role], map: "idx_employees_role")
+  @@index([deleted_at], map: "idx_employees_deleted_at")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.

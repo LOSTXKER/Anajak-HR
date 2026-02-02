@@ -59,8 +59,9 @@ export function useAttendanceAdmin() {
       const [empRes, branchRes] = await Promise.all([
         supabase
           .from("employees")
-          .select("id, name, email, branch_id, role")
+          .select("id, name, email, branch_id, role, created_at")
           .eq("account_status", "approved")
+          .is("deleted_at", null)
           .neq("role", "admin")
           .order("name"),
         supabase.from("branches").select("id, name").order("name"),
@@ -365,6 +366,15 @@ function buildSingleDayRows(
   const rows: AttendanceRow[] = [];
 
   employees.forEach((emp) => {
+    // Skip dates before employee joined (don't show as absent)
+    const empCreatedAt = emp.created_at ? new Date(emp.created_at) : null;
+    if (empCreatedAt) {
+      const selectedDateStart = new Date(dateStr + "T00:00:00");
+      if (selectedDateStart < empCreatedAt) {
+        return; // Employee hadn't joined yet - skip this row
+      }
+    }
+
     const att = attData.find((a: any) => a.employee_id === emp.id);
     const empOt = otData.filter((o: any) => o.employee_id === emp.id);
     const empLeave = leaveData.find(

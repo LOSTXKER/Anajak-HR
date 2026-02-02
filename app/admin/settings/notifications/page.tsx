@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { SettingsLayout } from "@/components/admin/SettingsLayout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
@@ -187,22 +187,16 @@ function NotificationSettingsContent() {
 
   if (loading) {
     return (
-      <AdminLayout title="ตั้งค่าการแจ้งเตือน">
+      <SettingsLayout title="การแจ้งเตือน">
         <div className="flex items-center justify-center py-20">
           <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
         </div>
-      </AdminLayout>
+      </SettingsLayout>
     );
   }
 
   return (
-    <AdminLayout title="ตั้งค่าการแจ้งเตือน" description="จัดการการแจ้งเตือนและ Auto-checkout">
-      {/* Back Button */}
-      <Link href="/admin/settings" className="inline-flex items-center gap-2 text-[#0071e3] hover:underline mb-6">
-        <ArrowLeft className="w-4 h-4" />
-        กลับไปหน้าตั้งค่า
-      </Link>
-
+    <SettingsLayout title="การแจ้งเตือน" description="จัดการการแจ้งเตือนและ Auto-checkout">
       {/* Info Banner */}
       <div className="mb-6 p-5 bg-gradient-to-br from-[#34c759]/10 to-[#34c759]/5 rounded-2xl border-2 border-[#34c759]/30">
         <div className="flex items-start gap-4">
@@ -601,7 +595,7 @@ function NotificationSettingsContent() {
           </div>
         </div>
       </div>
-    </AdminLayout>
+    </SettingsLayout>
   );
 }
 

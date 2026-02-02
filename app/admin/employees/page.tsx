@@ -7,7 +7,8 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { RefreshCw } from "lucide-react";
+import { useAuth } from "@/lib/auth/auth-context";
+import { RefreshCw, Trash2 } from "lucide-react";
 
 import { useEmployees } from "@/lib/hooks/use-employees";
 import {
@@ -21,6 +22,7 @@ import {
 
 function EmployeesContent() {
   const toast = useToast();
+  const { employee: currentUser } = useAuth();
   const searchParams = useSearchParams();
   const initialFilter = searchParams.get("filter") || "all";
 
@@ -34,13 +36,17 @@ function EmployeesContent() {
     searchTerm,
     filterRole,
     filterStatus,
+    showDeleted,
     filteredEmployees,
     setSearchTerm,
     setFilterRole,
     setFilterStatus,
+    setShowDeleted,
     fetchData,
     handleApproval,
     handleSave,
+    handleDelete,
+    handleRestore,
   } = useEmployees({ initialFilterStatus: initialFilter });
 
   // Modal state
@@ -59,6 +65,7 @@ function EmployeesContent() {
     emp: Employee | null;
     action: "approve" | "reject" | null;
   }>({ emp: null, action: null });
+  const [deleteModal, setDeleteModal] = useState<Employee | null>(null);
 
   // Handlers
   const handleEdit = (emp: Employee) => {
@@ -109,6 +116,27 @@ function EmployeesContent() {
     }
   };
 
+  const handleDeleteClick = async () => {
+    if (!deleteModal || !currentUser) return;
+
+    const result = await handleDelete(deleteModal.id, currentUser.id, employees);
+    if (result.success) {
+      toast.success("ลบพนักงานสำเร็จ", `${deleteModal.name} ถูกลบออกจากระบบแล้ว (ข้อมูลประวัติยังคงอยู่)`);
+      setDeleteModal(null);
+    } else {
+      toast.error("เกิดข้อผิดพลาด", result.error || "ไม่สามารถลบพนักงานได้");
+    }
+  };
+
+  const handleRestoreClick = async (emp: Employee) => {
+    const result = await handleRestore(emp.id);
+    if (result.success) {
+      toast.success("กู้คืนสำเร็จ", `${emp.name} ถูกกู้คืนเข้าสู่ระบบแล้ว`);
+    } else {
+      toast.error("เกิดข้อผิดพลาด", result.error || "ไม่สามารถกู้คืนได้");
+    }
+  };
+
   return (
     <AdminLayout
       title="จัดการพนักงาน"
@@ -134,6 +162,8 @@ function EmployeesContent() {
         stats={stats}
         filterStatus={filterStatus}
         onViewPending={() => setFilterStatus("pending")}
+        showDeleted={showDeleted}
+        onToggleDeleted={() => setShowDeleted(!showDeleted)}
       />
 
       {/* Filters */}
@@ -152,9 +182,12 @@ function EmployeesContent() {
         employees={filteredEmployees}
         balances={balances}
         loading={loading}
+        showDeleted={showDeleted}
         onEdit={handleEdit}
         onApprove={(emp) => setApprovalModal({ emp, action: "approve" })}
         onReject={(emp) => setApprovalModal({ emp, action: "reject" })}
+        onDelete={(emp) => setDeleteModal(emp)}
+        onRestore={handleRestoreClick}
       />
 
       {/* Modals */}
@@ -183,6 +216,24 @@ function EmployeesContent() {
         onClose={() => setEditModal(null)}
         onFormChange={setEditForm}
         onSave={handleSaveClick}
+      />
+
+      {/* Delete Modal */}
+      <ConfirmDialog
+        isOpen={deleteModal !== null}
+        onClose={() => setDeleteModal(null)}
+        onConfirm={handleDeleteClick}
+        title="ลบพนักงาน"
+        message={
+          `ต้องการลบ "${deleteModal?.name}" ออกจากระบบหรือไม่?\n\n` +
+          `หมายเหตุ:\n` +
+          `• ข้อมูลประวัติทั้งหมด (เงินเดือน, OT, วันลา) จะยังคงอยู่\n` +
+          `• สามารถกู้คืนได้ในภายหลัง\n` +
+          `• พนักงานจะไม่สามารถเข้าสู่ระบบได้`
+        }
+        type="danger"
+        confirmText="ลบพนักงาน"
+        loading={saving}
       />
     </AdminLayout>
   );

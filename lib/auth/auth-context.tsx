@@ -99,6 +99,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         return;
       }
+
+      // Check if employee account has been deleted
+      if (data?.deleted_at) {
+        console.warn("Employee account has been deleted:", userId);
+        // Sign out deleted employees
+        await supabase.auth.signOut();
+        setUser(null);
+        setEmployee(null);
+        return;
+      }
+
       setEmployee(data);
     } catch (error: any) {
       console.error("Error fetching employee:", error?.message || error);

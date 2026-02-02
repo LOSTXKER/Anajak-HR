@@ -12,6 +12,8 @@ import {
   XCircle,
   Eye,
   ChevronRight,
+  Trash2,
+  RotateCcw,
 } from "lucide-react";
 import { Employee, LeaveBalance } from "./types";
 
@@ -19,9 +21,12 @@ interface EmployeeTableProps {
   employees: Employee[];
   balances: Record<string, LeaveBalance>;
   loading: boolean;
+  showDeleted?: boolean;
   onEdit: (employee: Employee) => void;
   onApprove: (employee: Employee) => void;
   onReject: (employee: Employee) => void;
+  onDelete?: (employee: Employee) => void;
+  onRestore?: (employee: Employee) => void;
 }
 
 function getRoleBadge(role: string) {
@@ -35,7 +40,10 @@ function getRoleBadge(role: string) {
   }
 }
 
-function getStatusBadge(status: string) {
+function getStatusBadge(status: string, isDeleted: boolean = false) {
+  if (isDeleted) {
+    return <Badge variant="default">🗑️ ถูกลบ</Badge>;
+  }
   switch (status) {
     case "approved":
       return <Badge variant="success">อนุมัติแล้ว</Badge>;
@@ -52,9 +60,12 @@ export function EmployeeTable({
   employees,
   balances,
   loading,
+  showDeleted = false,
   onEdit,
   onApprove,
   onReject,
+  onDelete,
+  onRestore,
 }: EmployeeTableProps) {
   if (loading) {
     return (
@@ -97,7 +108,7 @@ export function EmployeeTable({
               return (
                 <tr
                   key={emp.id}
-                  className="hover:bg-[#f5f5f7]/50 cursor-pointer group"
+                  className={`hover:bg-[#f5f5f7]/50 cursor-pointer group ${emp.deleted_at ? "opacity-60" : ""}`}
                 >
                   <td className="px-6 py-4">
                     <Link
@@ -127,7 +138,7 @@ export function EmployeeTable({
                   </td>
                   <td className="px-3 py-4">{getRoleBadge(emp.role)}</td>
                   <td className="px-3 py-4">
-                    {getStatusBadge(emp.account_status)}
+                    {getStatusBadge(emp.account_status, !!emp.deleted_at)}
                   </td>
                   <td className="px-3 py-4">
                     <div className="text-center">
@@ -170,39 +181,65 @@ export function EmployeeTable({
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {emp.account_status === "pending" &&
-                        emp.role !== "admin" && (
-                          <>
+                      {/* Show restore button for deleted employees */}
+                      {showDeleted && emp.deleted_at && onRestore && (
+                        <button
+                          onClick={() => onRestore(emp)}
+                          className="p-2 text-[#34c759] hover:bg-[#34c759]/10 rounded-lg transition-colors"
+                          title="กู้คืน"
+                        >
+                          <RotateCcw className="w-5 h-5" />
+                        </button>
+                      )}
+                      
+                      {/* Normal action buttons for non-deleted employees */}
+                      {!showDeleted && !emp.deleted_at && (
+                        <>
+                          {emp.account_status === "pending" &&
+                            emp.role !== "admin" && (
+                              <>
+                                <button
+                                  onClick={() => onApprove(emp)}
+                                  className="p-2 text-[#34c759] hover:bg-[#34c759]/10 rounded-lg transition-colors"
+                                  title="อนุมัติ"
+                                >
+                                  <CheckCircle className="w-5 h-5" />
+                                </button>
+                                <button
+                                  onClick={() => onReject(emp)}
+                                  className="p-2 text-[#ff3b30] hover:bg-[#ff3b30]/10 rounded-lg transition-colors"
+                                  title="ปฏิเสธ"
+                                >
+                                  <XCircle className="w-5 h-5" />
+                                </button>
+                              </>
+                            )}
+                          <Link
+                            href={`/admin/employees/${emp.id}`}
+                            className="p-2 text-[#34c759] hover:bg-[#34c759]/10 rounded-lg transition-colors"
+                            title="ดูรายละเอียด"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Link>
+                          <button
+                            onClick={() => onEdit(emp)}
+                            className="p-2 text-[#0071e3] hover:bg-[#0071e3]/10 rounded-lg transition-colors"
+                            title="แก้ไข"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          {/* Delete button - not for system accounts or admins */}
+                          {onDelete && !emp.is_system_account && emp.role !== "admin" && (
                             <button
-                              onClick={() => onApprove(emp)}
-                              className="p-2 text-[#34c759] hover:bg-[#34c759]/10 rounded-lg transition-colors"
-                              title="อนุมัติ"
-                            >
-                              <CheckCircle className="w-5 h-5" />
-                            </button>
-                            <button
-                              onClick={() => onReject(emp)}
+                              onClick={() => onDelete(emp)}
                               className="p-2 text-[#ff3b30] hover:bg-[#ff3b30]/10 rounded-lg transition-colors"
-                              title="ปฏิเสธ"
+                              title="ลบ"
                             >
-                              <XCircle className="w-5 h-5" />
+                              <Trash2 className="w-4 h-4" />
                             </button>
-                          </>
-                        )}
-                      <Link
-                        href={`/admin/employees/${emp.id}`}
-                        className="p-2 text-[#34c759] hover:bg-[#34c759]/10 rounded-lg transition-colors"
-                        title="ดูรายละเอียด"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Link>
-                      <button
-                        onClick={() => onEdit(emp)}
-                        className="p-2 text-[#0071e3] hover:bg-[#0071e3]/10 rounded-lg transition-colors"
-                        title="แก้ไข"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
+                          )}
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

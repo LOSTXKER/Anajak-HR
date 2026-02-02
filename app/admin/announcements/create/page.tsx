@@ -86,11 +86,32 @@ function CreateAnnouncementContent() {
       if (error) throw error;
 
       // Send notifications if published and enabled
-      if (publish && formData.send_notification && canShowNotifications()) {
-        showNotification(`📢 ${formData.title}`, {
-          body: formData.message,
-          tag: `announcement-${data.id}`,
-        });
+      if (publish && formData.send_notification) {
+        // PWA notification
+        if (canShowNotifications()) {
+          showNotification(`📢 ${formData.title}`, {
+            body: formData.message,
+            tag: `announcement-${data.id}`,
+          });
+        }
+
+        // LINE notification
+        try {
+          await fetch("/api/notifications", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "announcement",
+              data: {
+                title: formData.title,
+                content: formData.message,
+                isPinned: false,
+              },
+            }),
+          });
+        } catch (notifError) {
+          console.error("Error sending LINE notification:", notifError);
+        }
 
         // Update notification sent timestamp
         await supabase

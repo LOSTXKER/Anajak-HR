@@ -82,6 +82,24 @@ function WFHRequestContent() {
 
       if (insertError) throw insertError;
 
+      // Send LINE notification for new WFH request
+      try {
+        await fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "new_wfh_request",
+            data: {
+              employeeName: employee.name,
+              date: formData.date,
+              reason: formData.reason,
+            },
+          }),
+        });
+      } catch (notifError) {
+        console.error("Error sending notification:", notifError);
+      }
+
       setSuccess(true);
       setTimeout(() => router.push("/"), 2000);
     } catch (err: any) {

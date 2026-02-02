@@ -29,12 +29,14 @@ interface UseEmployeesReturn {
   searchTerm: string;
   filterRole: string;
   filterStatus: string;
+  showDeleted: boolean;
   filteredEmployees: Employee[];
 
   // Setters
   setSearchTerm: (term: string) => void;
   setFilterRole: (role: string) => void;
   setFilterStatus: (status: string) => void;
+  setShowDeleted: (show: boolean) => void;
 
   // Actions
   fetchData: () => Promise<void>;
@@ -46,6 +48,14 @@ interface UseEmployeesReturn {
     empId: string,
     formData: EditFormData,
     employeesList: Employee[]
+  ) => Promise<{ success: boolean; error?: string }>;
+  handleDelete: (
+    empId: string,
+    deletedById: string,
+    employeesList: Employee[]
+  ) => Promise<{ success: boolean; error?: string }>;
+  handleRestore: (
+    empId: string
   ) => Promise<{ success: boolean; error?: string }>;
 }
 
@@ -64,6 +74,7 @@ export function useEmployees(
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>(initialFilterStatus);
+  const [showDeleted, setShowDeleted] = useState(false);
 
   // Fetch data
   const fetchData = useCallback(async () => {
@@ -198,9 +209,106 @@ export function useEmployees(
     [fetchData]
   );
 
+  // Handle delete employee (soft delete)
+  const handleDelete = useCallback(
+    async (
+      empId: string,
+      deletedById: string,
+      employeesList: Employee[]
+    ): Promise<{ success: boolean; error?: string }> => {
+      const emp = employeesList.find((e) => e.id === empId);
+      if (!emp) return { success: false, error: "Employee not found" };
+
+      // Cannot delete system accounts
+      if (emp.is_system_account) {
+        return {
+          success: false,
+          error: "ไม่สามารถลบบัญชีระบบได้",
+        };
+      }
+
+      // Cannot delete yourself
+      if (empId === deletedById) {
+        return {
+          success: false,
+          error: "ไม่สามารถลบบัญชีตัวเองได้",
+        };
+      }
+
+      // Check if trying to delete the last admin
+      if (emp.role === "admin") {
+        const activeAdminCount = employeesList.filter(
+          (e) => e.role === "admin" && !e.deleted_at
+        ).length;
+        if (activeAdminCount <= 1) {
+          return {
+            success: false,
+            error: "ไม่สามารถลบได้ นี่คือ Admin คนสุดท้ายในระบบ",
+          };
+        }
+      }
+
+      setSaving(true);
+      try {
+        const { error } = await supabase
+          .from("employees")
+          .update({
+            deleted_at: new Date().toISOString(),
+            deleted_by: deletedById,
+          })
+          .eq("id", empId);
+
+        if (error) throw error;
+
+        await fetchData();
+        return { success: true };
+      } catch (error: any) {
+        return { success: false, error: error?.message };
+      } finally {
+        setSaving(false);
+      }
+    },
+    [fetchData]
+  );
+
+  // Handle restore employee
+  const handleRestore = useCallback(
+    async (empId: string): Promise<{ success: boolean; error?: string }> => {
+      setSaving(true);
+      try {
+        const { error } = await supabase
+          .from("employees")
+          .update({
+            deleted_at: null,
+            deleted_by: null,
+          })
+          .eq("id", empId);
+
+        if (error) throw error;
+
+        await fetchData();
+        return { success: true };
+      } catch (error: any) {
+        return { success: false, error: error?.message };
+      } finally {
+        setSaving(false);
+      }
+    },
+    [fetchData]
+  );
+
   // Filter employees
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
+      // Filter deleted employees based on toggle
+      if (!showDeleted && emp.deleted_at) {
+        return false;
+      }
+      if (showDeleted && !emp.deleted_at) {
+        // When showing deleted, only show deleted employees
+        return false;
+      }
+
       const matchSearch =
         emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         emp.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -209,11 +317,12 @@ export function useEmployees(
         filterStatus === "all" || emp.account_status === filterStatus;
       return matchSearch && matchRole && matchStatus;
     });
-  }, [employees, searchTerm, filterRole, filterStatus]);
+  }, [employees, searchTerm, filterRole, filterStatus, showDeleted]);
 
-  // Stats
+  // Stats (exclude deleted employees)
   const stats = useMemo<EmployeeStats>(() => {
-    const nonAdminEmployees = employees.filter((e) => e.role !== "admin");
+    const activeEmployees = employees.filter((e) => !e.deleted_at);
+    const nonAdminEmployees = activeEmployees.filter((e) => e.role !== "admin");
     const total = nonAdminEmployees.length;
     const approved = nonAdminEmployees.filter(
       (e) => e.account_status === "approved"
@@ -221,8 +330,9 @@ export function useEmployees(
     const pending = nonAdminEmployees.filter(
       (e) => e.account_status === "pending"
     ).length;
-    const admins = employees.filter((e) => e.role === "admin").length;
-    return { total, approved, pending, admins };
+    const admins = activeEmployees.filter((e) => e.role === "admin").length;
+    const deleted = employees.filter((e) => e.deleted_at).length;
+    return { total, approved, pending, admins, deleted };
   }, [employees]);
 
   // Initial fetch
@@ -242,16 +352,20 @@ export function useEmployees(
     searchTerm,
     filterRole,
     filterStatus,
+    showDeleted,
     filteredEmployees,
 
     // Setters
     setSearchTerm,
     setFilterRole,
     setFilterStatus,
+    setShowDeleted,
 
     // Actions
     fetchData,
     handleApproval,
     handleSave,
+    handleDelete,
+    handleRestore,
   };
 }

@@ -38,9 +38,16 @@ export default function LoginPage() {
       if (data.user) {
         const { data: employee } = await supabase
           .from("employees")
-          .select("role, account_status")
+          .select("role, account_status, deleted_at")
           .eq("id", data.user.id)
           .maybeSingle();
+
+        // Check if account has been deleted
+        if (employee?.deleted_at) {
+          await supabase.auth.signOut();
+          setError("บัญชีของคุณถูกลบออกจากระบบ กรุณาติดต่อผู้ดูแลระบบ");
+          return;
+        }
 
         // Check account status
         if (employee?.account_status === "pending") {
