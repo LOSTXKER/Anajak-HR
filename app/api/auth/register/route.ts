@@ -22,20 +22,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // เช็คว่าต้องอนุมัติบัญชีหรือไม่
+    // เช็คว่าต้องอนุมัติบัญชีหรือไม่ และเช็คการตั้งค่าแจ้งเตือน
     let requireApproval = true; // Default to true
+    let enableNotifications = false;
+    let enableEmployeeRegistrationNotifications = false;
     try {
-      const { data: settingData } = await supabaseAdmin
+      const { data: settingsData } = await supabaseAdmin
         .from("system_settings")
-        .select("setting_value")
-        .eq("setting_key", "require_account_approval")
-        .maybeSingle();
+        .select("setting_key, setting_value")
+        .in("setting_key", [
+          "require_account_approval",
+          "enable_notifications",
+          "enable_employee_registration_notifications",
+        ]);
 
-      if (settingData) {
-        requireApproval = settingData.setting_value !== "false";
+      if (settingsData) {
+        const settingsMap: Record<string, string> = {};
+        settingsData.forEach((s: { setting_key: string; setting_value: string }) => {
+          settingsMap[s.setting_key] = s.setting_value;
+        });
+        
+        requireApproval = settingsMap.require_account_approval !== "false";
+        enableNotifications = settingsMap.enable_notifications === "true";
+        enableEmployeeRegistrationNotifications = settingsMap.enable_employee_registration_notifications === "true";
       }
     } catch (e) {
-      console.log("Could not fetch approval setting, defaulting to true");
+      console.log("Could not fetch settings, using defaults");
     }
 
     // 1. สร้าง user ใน Auth (ใช้ Admin Client)
@@ -100,7 +112,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Send LINE notification to admin about new registration
-    if (requireApproval) {
+    // Only send if notifications are enabled AND employee registration notifications are enabled
+    if (requireApproval && enableNotifications && enableEmployeeRegistrationNotifications) {
       try {
         const message = `👤 พนักงานใหม่ลงทะเบียน
 

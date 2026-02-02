@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
         "auto_checkout_enabled",
         "auto_checkout_time",
         "auto_checkout_skip_if_ot", // เพิ่ม setting สำหรับข้าม OT
+        "notify_admin_on_auto_checkout", // แจ้งเตือน Admin เมื่อ auto checkout
       ]);
 
     const settingsMap: Record<string, string> = {};
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest) {
     // ใช้เวลาจาก setting (default: 22:00 = 10 PM)
     let autoCheckoutTimeStr = settingsMap.auto_checkout_time || "22:00";
     const skipIfOT = settingsMap.auto_checkout_skip_if_ot !== "false"; // default true
+    const notifyAdminOnAutoCheckout = settingsMap.notify_admin_on_auto_checkout !== "false"; // default true
     
     // ตรวจสอบรูปแบบเวลา - ถ้าไม่ใช่ 24-hour format ให้แปลง
     // HTML time input ควรให้ค่าเป็น HH:mm (24-hour) อยู่แล้ว
@@ -211,8 +213,8 @@ export async function GET(request: NextRequest) {
       `[Auto Checkout] Completed. Processed: ${processed}, Skipped (OT): ${skippedOT}, Errors: ${errors.length}`
     );
 
-    // Send anomaly notification to admin if there were auto checkouts
-    if (processed > 0) {
+    // Send anomaly notification to admin if there were auto checkouts (check setting first)
+    if (processed > 0 && notifyAdminOnAutoCheckout) {
       try {
         const message = `⚠️ แจ้งเตือน Attendance ผิดปกติ
 

@@ -24,10 +24,19 @@ export async function POST(request: NextRequest) {
       .select("setting_key, setting_value")
       .in("setting_key", [
         "enable_notifications",
+        // OT settings
         "ot_notify_on_request",
         "ot_notify_on_approval",
         "ot_notify_on_start",
         "ot_notify_on_end",
+        // New settings for other notification types
+        "enable_leave_notifications",
+        "enable_wfh_notifications",
+        "enable_late_notifications",
+        "enable_fieldwork_notifications",
+        "enable_announcement_notifications",
+        "enable_employee_registration_notifications",
+        "enable_anomaly_notifications",
       ]);
 
     const settingsMap: Record<string, string> = {};
@@ -116,16 +125,17 @@ OT เสร็จสิ้น`;
 
       // ==================== Leave Notifications ====================
       case "new_leave_request":
-        const leaveTypeLabels: Record<string, string> = {
-          sick: "ลาป่วย", personal: "ลากิจ", annual: "ลาพักร้อน",
-          maternity: "ลาคลอด", military: "ลากรณีทหาร", other: "อื่นๆ",
-        };
-        const leaveLabel = leaveTypeLabels[data.leaveType] || data.leaveType;
-        const startDateStr = data.startDate ? format(new Date(data.startDate), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
-        const endDateStr = data.endDate ? format(new Date(data.endDate), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
-        const dateRange = startDateStr === endDateStr ? startDateStr : `${startDateStr} - ${endDateStr}`;
-        
-        message = `📋 คำขอลางานใหม่
+        if (settingsMap.enable_leave_notifications === "true") {
+          const leaveTypeLabels: Record<string, string> = {
+            sick: "ลาป่วย", personal: "ลากิจ", annual: "ลาพักร้อน",
+            maternity: "ลาคลอด", military: "ลากรณีทหาร", other: "อื่นๆ",
+          };
+          const leaveLabel = leaveTypeLabels[data.leaveType] || data.leaveType;
+          const startDateStr = data.startDate ? format(new Date(data.startDate), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
+          const endDateStr = data.endDate ? format(new Date(data.endDate), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
+          const dateRange = startDateStr === endDateStr ? startDateStr : `${startDateStr} - ${endDateStr}`;
+          
+          message = `📋 คำขอลางานใหม่
 
 👤 พนักงาน: ${data.employeeName || "ไม่ระบุ"}
 📝 ประเภท: ${leaveLabel}
@@ -133,24 +143,28 @@ OT เสร็จสิ้น`;
 💬 เหตุผล: ${data.reason || "ไม่ระบุ"}
 
 กรุณาตรวจสอบและอนุมัติ`;
-        success = await sendLineMessage(message);
+          success = await sendLineMessage(message);
+        }
         break;
 
       case "leave_approval":
-        message = await formatLeaveApprovalMessage(
-          data.employeeName,
-          data.leaveType,
-          format(new Date(data.startDate), "d MMMM yyyy", { locale: th }),
-          format(new Date(data.endDate), "d MMMM yyyy", { locale: th }),
-          data.approved
-        );
-        success = await sendLineMessage(message);
+        if (settingsMap.enable_leave_notifications === "true") {
+          message = await formatLeaveApprovalMessage(
+            data.employeeName,
+            data.leaveType,
+            format(new Date(data.startDate), "d MMMM yyyy", { locale: th }),
+            format(new Date(data.endDate), "d MMMM yyyy", { locale: th }),
+            data.approved
+          );
+          success = await sendLineMessage(message);
+        }
         break;
 
       // ==================== WFH Notifications ====================
       case "new_wfh_request":
-        const wfhDateStr = data.date ? format(new Date(data.date), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
-        message = `📋 คำขอ WFH ใหม่
+        if (settingsMap.enable_wfh_notifications === "true") {
+          const wfhDateStr = data.date ? format(new Date(data.date), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
+          message = `📋 คำขอ WFH ใหม่
 
 👤 พนักงาน: ${data.employeeName || "ไม่ระบุ"}
 🏠 Work From Home
@@ -158,22 +172,26 @@ OT เสร็จสิ้น`;
 💬 เหตุผล: ${data.reason || "ไม่ระบุ"}
 
 กรุณาตรวจสอบและอนุมัติ`;
-        success = await sendLineMessage(message);
+          success = await sendLineMessage(message);
+        }
         break;
 
       case "wfh_approval":
-        message = await formatWFHApprovalMessage(
-          data.employeeName,
-          format(new Date(data.date), "d MMMM yyyy", { locale: th }),
-          data.approved
-        );
-        success = await sendLineMessage(message);
+        if (settingsMap.enable_wfh_notifications === "true") {
+          message = await formatWFHApprovalMessage(
+            data.employeeName,
+            format(new Date(data.date), "d MMMM yyyy", { locale: th }),
+            data.approved
+          );
+          success = await sendLineMessage(message);
+        }
         break;
 
       // ==================== Late Request Notifications ====================
       case "late_request":
-        const lateDateStr = data.date ? format(new Date(data.date), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
-        message = `📋 คำขออนุมัติมาสายใหม่
+        if (settingsMap.enable_late_notifications === "true") {
+          const lateDateStr = data.date ? format(new Date(data.date), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
+          message = `📋 คำขออนุมัติมาสายใหม่
 
 👤 พนักงาน: ${data.employeeName || "ไม่ระบุ"}
 📅 วันที่: ${lateDateStr}
@@ -181,13 +199,15 @@ OT เสร็จสิ้น`;
 💬 เหตุผล: ${data.reason || "ไม่ระบุ"}
 
 กรุณาตรวจสอบและอนุมัติ`;
-        success = await sendLineMessage(message);
+          success = await sendLineMessage(message);
+        }
         break;
 
       case "late_approval":
-        const lateDateStr2 = data.date ? format(new Date(data.date), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
-        const lateStatus = data.approved ? "✅ อนุมัติแล้ว" : "❌ ปฏิเสธ";
-        message = `🔔 แจ้งเตือนคำขอมาสาย
+        if (settingsMap.enable_late_notifications === "true") {
+          const lateDateStr2 = data.date ? format(new Date(data.date), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
+          const lateStatus = data.approved ? "✅ อนุมัติแล้ว" : "❌ ปฏิเสธ";
+          message = `🔔 แจ้งเตือนคำขอมาสาย
 
 👤 พนักงาน: ${data.employeeName || "ไม่ระบุ"}
 📅 วันที่: ${lateDateStr2}
@@ -195,13 +215,15 @@ OT เสร็จสิ้น`;
 📋 สถานะ: ${lateStatus}
 
 ${data.approved ? "คำขอมาสายได้รับการอนุมัติ" : "กรุณาติดต่อหัวหน้างานเพื่อสอบถามเหตุผล"}`;
-        success = await sendLineMessage(message);
+          success = await sendLineMessage(message);
+        }
         break;
 
       // ==================== Field Work Notifications ====================
       case "field_work_request":
-        const fwDateStr = data.date ? format(new Date(data.date), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
-        message = `📋 คำของานนอกสถานที่ใหม่
+        if (settingsMap.enable_fieldwork_notifications === "true") {
+          const fwDateStr = data.date ? format(new Date(data.date), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
+          message = `📋 คำของานนอกสถานที่ใหม่
 
 👤 พนักงาน: ${data.employeeName || "ไม่ระบุ"}
 📍 งานนอกสถานที่
@@ -210,13 +232,15 @@ ${data.approved ? "คำขอมาสายได้รับการอน�
 💬 เหตุผล: ${data.reason || "ไม่ระบุ"}
 
 กรุณาตรวจสอบและอนุมัติ`;
-        success = await sendLineMessage(message);
+          success = await sendLineMessage(message);
+        }
         break;
 
       case "field_work_approval":
-        const fwDateStr2 = data.date ? format(new Date(data.date), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
-        const fwStatus = data.approved ? "✅ อนุมัติแล้ว" : "❌ ปฏิเสธ";
-        message = `🔔 แจ้งเตือนคำของานนอกสถานที่
+        if (settingsMap.enable_fieldwork_notifications === "true") {
+          const fwDateStr2 = data.date ? format(new Date(data.date), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
+          const fwStatus = data.approved ? "✅ อนุมัติแล้ว" : "❌ ปฏิเสธ";
+          message = `🔔 แจ้งเตือนคำของานนอกสถานที่
 
 👤 พนักงาน: ${data.employeeName || "ไม่ระบุ"}
 📅 วันที่: ${fwDateStr2}
@@ -224,47 +248,53 @@ ${data.approved ? "คำขอมาสายได้รับการอน�
 📋 สถานะ: ${fwStatus}
 
 ${data.approved ? "คำขอได้รับการอนุมัติ สามารถทำงานนอกสถานที่ได้" : "กรุณาติดต่อหัวหน้างานเพื่อสอบถามเหตุผล"}`;
-        success = await sendLineMessage(message);
+          success = await sendLineMessage(message);
+        }
         break;
 
       // ==================== Announcement Notifications ====================
       case "announcement":
-        message = `📢 ประกาศใหม่
+        if (settingsMap.enable_announcement_notifications === "true") {
+          message = `📢 ประกาศใหม่
 
 📌 ${data.title || "ไม่มีหัวข้อ"}
 
 ${data.content || ""}
 
 ${data.isPinned ? "📍 ปักหมุดประกาศนี้" : ""}`;
-        success = await sendLineMessage(message);
+          success = await sendLineMessage(message);
+        }
         break;
 
       // ==================== Employee Registration ====================
       case "new_employee":
-        message = `👤 พนักงานใหม่ลงทะเบียน
+        if (settingsMap.enable_employee_registration_notifications === "true") {
+          message = `👤 พนักงานใหม่ลงทะเบียน
 
 📧 อีเมล: ${data.email || "ไม่ระบุ"}
 👤 ชื่อ: ${data.name || "ไม่ระบุ"}
 🏢 สาขา: ${data.branch || "ไม่ระบุ"}
 
 กรุณาตรวจสอบและอนุมัติบัญชีในระบบ`;
-        success = await sendLineMessage(message);
+          success = await sendLineMessage(message);
+        }
         break;
 
       // ==================== Anomaly Notifications ====================
       case "anomaly":
-        const anomalyLabels: Record<string, string> = {
-          auto_checkout: "ลืมเช็คเอาท์ (Auto checkout)",
-          early_checkout: "เช็คเอาท์ก่อนเวลา",
-          late_checkin: "มาสาย",
-          missing_checkout: "ไม่มีการเช็คเอาท์",
-          location_mismatch: "ตำแหน่ง GPS ไม่ตรง",
-          other: "อื่นๆ",
-        };
-        const anomalyLabel = anomalyLabels[data.anomalyType] || data.anomalyType;
-        const anomalyDateStr = data.date ? format(new Date(data.date), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
-        
-        message = `⚠️ แจ้งเตือน Attendance ผิดปกติ
+        if (settingsMap.enable_anomaly_notifications === "true") {
+          const anomalyLabels: Record<string, string> = {
+            auto_checkout: "ลืมเช็คเอาท์ (Auto checkout)",
+            early_checkout: "เช็คเอาท์ก่อนเวลา",
+            late_checkin: "มาสาย",
+            missing_checkout: "ไม่มีการเช็คเอาท์",
+            location_mismatch: "ตำแหน่ง GPS ไม่ตรง",
+            other: "อื่นๆ",
+          };
+          const anomalyLabel = anomalyLabels[data.anomalyType] || data.anomalyType;
+          const anomalyDateStr = data.date ? format(new Date(data.date), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
+          
+          message = `⚠️ แจ้งเตือน Attendance ผิดปกติ
 
 👤 พนักงาน: ${data.employeeName || "ไม่ระบุ"}
 📅 วันที่: ${anomalyDateStr}
@@ -272,19 +302,22 @@ ${data.isPinned ? "📍 ปักหมุดประกาศนี้" : ""}`
 📝 รายละเอียด: ${data.description || "ไม่มีรายละเอียด"}
 
 กรุณาตรวจสอบในระบบ`;
-        success = await sendLineMessage(message);
+          success = await sendLineMessage(message);
+        }
         break;
 
       // ==================== Early Checkout ====================
       case "early_checkout":
-        message = await formatEarlyCheckoutMessage(
-          data.employeeName,
-          data.time,
-          data.totalHours,
-          data.expectedTime,
-          data.location
-        );
-        success = await sendLineMessage(message);
+        if (settingsMap.enable_anomaly_notifications === "true") {
+          message = await formatEarlyCheckoutMessage(
+            data.employeeName,
+            data.time,
+            data.totalHours,
+            data.expectedTime,
+            data.location
+          );
+          success = await sendLineMessage(message);
+        }
         break;
 
       default:
