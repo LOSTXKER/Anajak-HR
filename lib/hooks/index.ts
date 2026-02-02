@@ -50,5 +50,26 @@ export { useCameraCapture } from "./use-camera-capture";
 // Announcement Hooks
 export { useUnreadAnnouncements } from "./use-unread-announcements";
 
-// Admin Hooks
+// Admin Request Hooks
 export { useAdminRequests } from "./use-admin-requests";
+export { useRequestFetching } from "./use-request-fetching";
+export { useRequestActions } from "./use-request-actions";
+export { useRequestFilters } from "./use-request-filters";
+
+// Admin Employee Hooks
+export { useEmployees } from "./use-employees";
+
+// Admin Approval Hooks
+export { useApprovals } from "./use-approvals";
+
+// Admin Employee Detail Hook
+export { useEmployeeDetail } from "./use-employee-detail";
+
+// Admin Report Data Hook
+export { useReportData } from "./use-report-data";
+
+// Admin Attendance Hook
+export { useAttendanceAdmin } from "./use-attendance-admin";
+
+// Admin Payroll Hook
+export { usePayroll } from "./use-payroll";

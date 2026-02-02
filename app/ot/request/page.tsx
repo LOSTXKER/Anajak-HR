@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
+import { checkAutoApprove, applyAutoApproveFields, AUTO_APPROVE_SETTINGS } from "@/lib/utils/auto-approve";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -101,40 +102,24 @@ function OTRequestContent() {
       }
 
       // Check auto approve setting
-      const { data: autoApproveSetting } = await supabase
-        .from("system_settings")
-        .select("setting_value")
-        .eq("setting_key", "auto_approve_ot")
-        .single();
+      const isAutoApprove = await checkAutoApprove(AUTO_APPROVE_SETTINGS.OT);
 
-      const isAutoApprove = autoApproveSetting?.setting_value === "true";
-
-      const insertData: any = {
+      // Build base insert data
+      const baseData: Record<string, unknown> = {
         employee_id: employee.id,
         request_date: formData.date,
         requested_start_time: startDateTime.toISOString(),
         requested_end_time: endDateTime.toISOString(),
         reason: formData.reason,
-        status: isAutoApprove ? "approved" : "pending",
       };
 
-      // If auto approve, set approved times
+      // If auto approve, also set approved times
       if (isAutoApprove) {
-        insertData.approved_start_time = startDateTime.toISOString();
-        insertData.approved_end_time = endDateTime.toISOString();
-        insertData.approved_at = new Date().toISOString();
-        
-        // Get system user ID
-        const { data: systemUser } = await supabase
-          .from("employees")
-          .select("id")
-          .eq("email", "system@anajak.com")
-          .single();
-        
-        if (systemUser) {
-          insertData.approved_by = systemUser.id;
-        }
+        baseData.approved_start_time = startDateTime.toISOString();
+        baseData.approved_end_time = endDateTime.toISOString();
       }
+
+      const insertData = await applyAutoApproveFields(baseData, isAutoApprove);
 
       const { error: insertError } = await supabase.from("ot_requests").insert(insertData);
 

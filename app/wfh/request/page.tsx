@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
+import { checkAutoApprove, applyAutoApproveFields, AUTO_APPROVE_SETTINGS } from "@/lib/utils/auto-approve";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -65,31 +66,17 @@ function WFHRequestContent() {
       }
 
       // Check auto approve setting
-      const { data: autoApproveSetting } = await supabase
-        .from("system_settings")
-        .select("setting_value")
-        .eq("setting_key", "auto_approve_wfh")
-        .single();
+      const isAutoApprove = await checkAutoApprove(AUTO_APPROVE_SETTINGS.WFH);
 
-      const isAutoApprove = autoApproveSetting?.setting_value === "true";
-
-      const insertData: any = {
+      // Build insert data with auto-approve fields
+      const baseData = {
         employee_id: employee.id,
         date: formData.date,
         is_half_day: formData.isHalfDay,
         reason: formData.reason,
-        status: isAutoApprove ? "approved" : "pending",
       };
 
-      if (isAutoApprove) {
-        insertData.approved_at = new Date().toISOString();
-        const { data: systemUser } = await supabase
-          .from("employees")
-          .select("id")
-          .eq("email", "system@anajak.com")
-          .single();
-        if (systemUser) insertData.approved_by = systemUser.id;
-      }
+      const insertData = await applyAutoApproveFields(baseData, isAutoApprove);
 
       const { error: insertError } = await supabase.from("wfh_requests").insert(insertData);
 

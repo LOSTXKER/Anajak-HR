@@ -2,20 +2,24 @@
 
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Plus, Clock, Calendar, Home, AlertTriangle, MapPin } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
-import { Toggle } from "@/components/ui/Toggle";
 import {
   RequestType,
   CreateFormData,
   Employee,
   OTRateInfo,
   typeConfig,
-  leaveTypeLabels,
 } from "./types";
+import {
+  OTFormFields,
+  LeaveFormFields,
+  WFHFormFields,
+  LateFormFields,
+  FieldWorkFormFields,
+} from "./forms";
 
 interface CreateRequestModalProps {
   isOpen: boolean;
@@ -123,6 +127,32 @@ export function CreateRequestModal({
   // Form Screen
   const typeInfo = typeConfig[selectedType];
 
+  // Render form fields based on type
+  const renderFormFields = () => {
+    switch (selectedType) {
+      case "ot":
+        return (
+          <OTFormFields
+            formData={formData}
+            detectedOTInfo={detectedOTInfo}
+            onUpdate={updateFormData}
+          />
+        );
+      case "leave":
+        return <LeaveFormFields formData={formData} onUpdate={updateFormData} />;
+      case "wfh":
+        return <WFHFormFields formData={formData} onUpdate={updateFormData} />;
+      case "late":
+        return <LateFormFields formData={formData} onUpdate={updateFormData} />;
+      case "field_work":
+        return (
+          <FieldWorkFormFields formData={formData} onUpdate={updateFormData} />
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -149,201 +179,8 @@ export function CreateRequestModal({
           </select>
         </div>
 
-        {/* OT Form */}
-        {selectedType === "ot" && (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                วันที่ OT
-              </label>
-              <Input
-                type="date"
-                value={formData.otDate}
-                onChange={(e) => updateFormData("otDate", e.target.value)}
-              />
-              {detectedOTInfo && (
-                <p className="text-xs text-[#ff9500] mt-1">
-                  ตรวจพบ: {detectedOTInfo.typeName} (อัตรา {detectedOTInfo.rate}x)
-                </p>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                  เวลาเริ่ม
-                </label>
-                <Input
-                  type="time"
-                  value={formData.otStartTime}
-                  onChange={(e) => updateFormData("otStartTime", e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                  เวลาสิ้นสุด
-                </label>
-                <Input
-                  type="time"
-                  value={formData.otEndTime}
-                  onChange={(e) => updateFormData("otEndTime", e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-              <div>
-                <p className="text-sm font-medium text-[#1d1d1f]">
-                  บันทึกเป็น OT เสร็จสิ้น
-                </p>
-                <p className="text-xs text-[#86868b]">คำนวณยอดเงินอัตโนมัติ</p>
-              </div>
-              <Toggle
-                checked={formData.otIsCompleted}
-                onChange={(checked) => updateFormData("otIsCompleted", checked)}
-              />
-            </div>
-          </>
-        )}
-
-        {/* Leave Form */}
-        {selectedType === "leave" && (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                ประเภทการลา
-              </label>
-              <select
-                value={formData.leaveType}
-                onChange={(e) => updateFormData("leaveType", e.target.value)}
-                className="w-full px-4 py-2.5 bg-[#f5f5f7] border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0071e3]"
-              >
-                {Object.entries(leaveTypeLabels).map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                  วันที่เริ่ม
-                </label>
-                <Input
-                  type="date"
-                  value={formData.leaveStartDate}
-                  onChange={(e) => updateFormData("leaveStartDate", e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                  วันที่สิ้นสุด
-                </label>
-                <Input
-                  type="date"
-                  value={formData.leaveEndDate}
-                  onChange={(e) => updateFormData("leaveEndDate", e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-              <span className="text-sm font-medium text-[#1d1d1f]">ครึ่งวัน</span>
-              <Toggle
-                checked={formData.leaveIsHalfDay}
-                onChange={(checked) => updateFormData("leaveIsHalfDay", checked)}
-              />
-            </div>
-          </>
-        )}
-
-        {/* WFH Form */}
-        {selectedType === "wfh" && (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                วันที่
-              </label>
-              <Input
-                type="date"
-                value={formData.wfhDate}
-                onChange={(e) => updateFormData("wfhDate", e.target.value)}
-              />
-            </div>
-            <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-              <span className="text-sm font-medium text-[#1d1d1f]">ครึ่งวัน</span>
-              <Toggle
-                checked={formData.wfhIsHalfDay}
-                onChange={(checked) => updateFormData("wfhIsHalfDay", checked)}
-              />
-            </div>
-          </>
-        )}
-
-        {/* Late Form */}
-        {selectedType === "late" && (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                วันที่
-              </label>
-              <Input
-                type="date"
-                value={formData.lateDate}
-                onChange={(e) => updateFormData("lateDate", e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                จำนวนนาทีที่สาย
-              </label>
-              <Input
-                type="number"
-                min={0}
-                value={formData.lateMinutes}
-                onChange={(e) =>
-                  updateFormData("lateMinutes", parseInt(e.target.value) || 0)
-                }
-              />
-            </div>
-          </>
-        )}
-
-        {/* Field Work Form */}
-        {selectedType === "field_work" && (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                วันที่
-              </label>
-              <Input
-                type="date"
-                value={formData.fieldWorkDate}
-                onChange={(e) => updateFormData("fieldWorkDate", e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                สถานที่ <span className="text-[#ff3b30]">*</span>
-              </label>
-              <Input
-                type="text"
-                value={formData.fieldWorkLocation}
-                onChange={(e) =>
-                  updateFormData("fieldWorkLocation", e.target.value)
-                }
-                placeholder="ระบุสถานที่ปฏิบัติงาน"
-              />
-            </div>
-            <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-              <span className="text-sm font-medium text-[#1d1d1f]">ครึ่งวัน</span>
-              <Toggle
-                checked={formData.fieldWorkIsHalfDay}
-                onChange={(checked) =>
-                  updateFormData("fieldWorkIsHalfDay", checked)
-                }
-              />
-            </div>
-          </>
-        )}
+        {/* Type-specific Form Fields */}
+        {renderFormFields()}
 
         {/* Common Reason Field */}
         <div>

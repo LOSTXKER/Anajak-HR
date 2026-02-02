@@ -3,13 +3,21 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
+import { createFieldWorkRequest } from "@/lib/services/field-work.service";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { DateInput } from "@/components/ui/DateInput";
-import { ArrowLeft, Calendar, FileText, CheckCircle, AlertCircle, MapPin, Info } from "lucide-react";
+import {
+  ArrowLeft,
+  Calendar,
+  FileText,
+  CheckCircle,
+  AlertCircle,
+  MapPin,
+  Info,
+} from "lucide-react";
 import { format } from "date-fns";
 
 function FieldWorkRequestContent() {
@@ -62,56 +70,21 @@ function FieldWorkRequestContent() {
     setError("");
 
     try {
-      // ตรวจสอบว่ามีคำขอในวันเดียวกันหรือไม่
-      const { data: existingRequest } = await supabase
-        .from("field_work_requests")
-        .select("id")
-        .eq("employee_id", employee.id)
-        .eq("date", formData.date)
-        .in("status", ["pending", "approved"]);
-
-      if (existingRequest && existingRequest.length > 0) {
-        setError("คุณมีคำขอทำงานนอกสถานที่ในวันนี้แล้ว");
-        setLoading(false);
-        return;
-      }
-
-      // Check auto approve setting
-      const { data: autoApproveSetting } = await supabase
-        .from("system_settings")
-        .select("setting_value")
-        .eq("setting_key", "auto_approve_field_work")
-        .single();
-
-      const isAutoApprove = autoApproveSetting?.setting_value === "true";
-
-      const insertData: any = {
+      const { error: createError } = await createFieldWorkRequest({
         employee_id: employee.id,
         date: formData.date,
         is_half_day: formData.isHalfDay,
         location: formData.location.trim(),
         reason: formData.reason.trim(),
-        status: isAutoApprove ? "approved" : "pending",
-      };
+      });
 
-      if (isAutoApprove) {
-        insertData.approved_at = new Date().toISOString();
-        const { data: systemUser } = await supabase
-          .from("employees")
-          .select("id")
-          .eq("email", "system@anajak.com")
-          .single();
-        if (systemUser) insertData.approved_by = systemUser.id;
-      }
-
-      const { error: insertError } = await supabase.from("field_work_requests").insert(insertData);
-
-      if (insertError) throw insertError;
+      if (createError) throw new Error(createError);
 
       setSuccess(true);
       setTimeout(() => router.push("/"), 2000);
-    } catch (err: any) {
-      setError(err.message || "เกิดข้อผิดพลาด");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "เกิดข้อผิดพลาด";
+      setError(message);
     } finally {
       setLoading(false);
     }

@@ -50,6 +50,7 @@ export {
     getPendingOT,
     getOTRequest,
     requestOT,
+    createOTRequest,
     startOT,
     endOT,
     approveOT,
@@ -63,6 +64,7 @@ export {
 // Leave Service
 export {
     requestLeave,
+    createLeaveRequest,
     getLeaveRequest,
     getLeaveHistory,
     getPendingLeave,
@@ -85,3 +87,40 @@ export {
     cancelWFH,
     isTodayWFH,
 } from "./wfh.service";
+
+// Late Request Service
+export {
+    getLateRequests,
+    getLateAttendances,
+    createLateRequest,
+    cancelLateRequest,
+    approveLateRequest,
+    rejectLateRequest,
+} from "./late-request.service";
+export type { LateRequest, LateAttendance, CreateLateRequestData } from "./late-request.service";
+
+// Field Work Service
+export {
+    getFieldWorkRequests,
+    checkExistingFieldWorkRequest,
+    createFieldWorkRequest,
+    cancelFieldWorkRequest,
+    approveFieldWorkRequest,
+    rejectFieldWorkRequest,
+} from "./field-work.service";
+export type { FieldWorkRequest, CreateFieldWorkRequestData } from "./field-work.service";
+
+// Announcement Service
+export {
+    getActiveAnnouncements,
+    getAllAnnouncements,
+    getAnnouncementsWithReadStatus,
+    getAnnouncementById,
+    createAnnouncement,
+    updateAnnouncement,
+    deleteAnnouncement,
+    toggleAnnouncementActive,
+    markAnnouncementAsRead,
+    getUnreadAnnouncementCount,
+} from "./announcement.service";
+export type { Announcement, AnnouncementWithReadStatus, CreateAnnouncementData } from "./announcement.service";

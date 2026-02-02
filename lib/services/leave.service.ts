@@ -7,10 +7,11 @@
 import { supabase } from "@/lib/supabase/client";
 import { format, differenceInCalendarDays, parseISO, eachDayOfInterval, isWeekend } from "date-fns";
 import { isHoliday, getWorkingDays } from "./holiday.service";
+import { checkAutoApprove, applyAutoApproveFields, AUTO_APPROVE_SETTINGS } from "@/lib/utils/auto-approve";
 import type { LeaveRequest } from "@/lib/types";
 
 /**
- * Request new leave
+ * Request new leave (legacy - always pending)
  */
 export async function requestLeave(
     employeeId: string,
@@ -42,6 +43,57 @@ export async function requestLeave(
         return { success: true, data: result as LeaveRequest };
     } catch (error) {
         console.error("Error requesting leave:", error);
+        return { success: false, error: "Failed to submit leave request" };
+    }
+}
+
+/**
+ * Create leave request with auto-approve support
+ */
+export async function createLeaveRequest(
+    employeeId: string,
+    data: {
+        leaveType: LeaveRequest["leave_type"];
+        startDate: string;
+        endDate: string;
+        isHalfDay: boolean;
+        reason: string;
+        attachmentUrl?: string | null;
+    }
+): Promise<{ success: boolean; data?: LeaveRequest; error?: string; isAutoApproved?: boolean }> {
+    try {
+        // Check auto-approve setting
+        const isAutoApprove = await checkAutoApprove(AUTO_APPROVE_SETTINGS.LEAVE);
+
+        // Build base insert data
+        const baseData = {
+            employee_id: employeeId,
+            leave_type: data.leaveType,
+            start_date: data.startDate,
+            end_date: data.endDate,
+            is_half_day: data.isHalfDay,
+            reason: data.reason,
+            attachment_url: data.attachmentUrl || null,
+        };
+
+        // Apply auto-approve fields if enabled
+        const insertData = await applyAutoApproveFields(baseData, isAutoApprove);
+
+        const { data: result, error } = await supabase
+            .from("leave_requests")
+            .insert(insertData)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        return { 
+            success: true, 
+            data: result as LeaveRequest,
+            isAutoApproved: isAutoApprove,
+        };
+    } catch (error) {
+        console.error("Error creating leave request:", error);
         return { success: false, error: "Failed to submit leave request" };
     }
 }

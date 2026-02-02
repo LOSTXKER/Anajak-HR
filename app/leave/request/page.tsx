@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
+import { checkAutoApprove, applyAutoApproveFields, AUTO_APPROVE_SETTINGS } from "@/lib/utils/auto-approve";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -211,15 +212,10 @@ function LeaveRequestContent() {
       }
 
       // Check auto approve setting
-      const { data: autoApproveSetting } = await supabase
-        .from("system_settings")
-        .select("setting_value")
-        .eq("setting_key", "auto_approve_leave")
-        .single();
+      const isAutoApprove = await checkAutoApprove(AUTO_APPROVE_SETTINGS.LEAVE);
 
-      const isAutoApprove = autoApproveSetting?.setting_value === "true";
-
-      const insertData: any = {
+      // Build insert data with auto-approve fields
+      const baseData = {
         employee_id: employee.id,
         leave_type: formData.leaveType,
         start_date: formData.startDate,
@@ -227,24 +223,9 @@ function LeaveRequestContent() {
         is_half_day: formData.isHalfDay,
         reason: formData.reason,
         attachment_url: attachmentUrl,
-        status: isAutoApprove ? "approved" : "pending",
       };
 
-      // If auto approve, set approved info
-      if (isAutoApprove) {
-        insertData.approved_at = new Date().toISOString();
-        
-        // Get system user ID
-        const { data: systemUser } = await supabase
-          .from("employees")
-          .select("id")
-          .eq("email", "system@anajak.com")
-          .single();
-        
-        if (systemUser) {
-          insertData.approved_by = systemUser.id;
-        }
-      }
+      const insertData = await applyAutoApproveFields(baseData, isAutoApprove);
 
       // Insert leave request
       const { error: insertError } = await supabase.from("leave_requests").insert(insertData);

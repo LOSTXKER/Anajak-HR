@@ -9,6 +9,7 @@ import { format, differenceInMinutes } from "date-fns";
 import { getOTRateForDate } from "./holiday.service";
 import { createOrUpdateAttendance } from "./attendance.service";
 import { getSystemSettings } from "./settings.service";
+import { checkAutoApprove, applyAutoApproveFields, AUTO_APPROVE_SETTINGS } from "@/lib/utils/auto-approve";
 import type { OTRequest, Location } from "@/lib/types";
 
 /**
@@ -90,7 +91,7 @@ export async function getOTRequest(otId: string): Promise<OTRequest | null> {
 }
 
 /**
- * Request new OT
+ * Request new OT (legacy - always pending)
  */
 export async function requestOT(
     employeeId: string,
@@ -120,6 +121,62 @@ export async function requestOT(
         return { success: true, data: result as OTRequest };
     } catch (error) {
         console.error("Error requesting OT:", error);
+        return { success: false, error: "Failed to submit OT request" };
+    }
+}
+
+/**
+ * Create OT request with auto-approve support
+ */
+export async function createOTRequest(
+    employeeId: string,
+    data: {
+        date: string;
+        startTime: string;
+        endTime: string;
+        reason: string;
+    }
+): Promise<{ success: boolean; data?: OTRequest; error?: string; isAutoApproved?: boolean }> {
+    try {
+        // Check auto-approve setting
+        const isAutoApprove = await checkAutoApprove(AUTO_APPROVE_SETTINGS.OT);
+
+        const startDateTime = new Date(`${data.date}T${data.startTime}:00`);
+        const endDateTime = new Date(`${data.date}T${data.endTime}:00`);
+
+        // Build base insert data
+        const baseData: Record<string, unknown> = {
+            employee_id: employeeId,
+            request_date: data.date,
+            requested_start_time: startDateTime.toISOString(),
+            requested_end_time: endDateTime.toISOString(),
+            reason: data.reason,
+        };
+
+        // If auto-approve, also set approved times
+        if (isAutoApprove) {
+            baseData.approved_start_time = startDateTime.toISOString();
+            baseData.approved_end_time = endDateTime.toISOString();
+        }
+
+        // Apply auto-approve fields if enabled
+        const insertData = await applyAutoApproveFields(baseData, isAutoApprove);
+
+        const { data: result, error } = await supabase
+            .from("ot_requests")
+            .insert(insertData)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        return { 
+            success: true, 
+            data: result as OTRequest,
+            isAutoApproved: isAutoApprove,
+        };
+    } catch (error) {
+        console.error("Error creating OT request:", error);
         return { success: false, error: "Failed to submit OT request" };
     }
 }

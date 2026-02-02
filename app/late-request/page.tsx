@@ -3,43 +3,31 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
+import {
+  getLateRequests,
+  getLateAttendances,
+  createLateRequest,
+  cancelLateRequest,
+  type LateRequest,
+  type LateAttendance,
+} from "@/lib/services/late-request.service";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { DateInput } from "@/components/ui/DateInput";
-import { 
-  Clock, 
-  ArrowLeft, 
-  Send, 
+import {
+  Clock,
+  ArrowLeft,
+  Send,
   AlertTriangle,
   CheckCircle,
-  XCircle,
   Calendar,
   FileText,
 } from "lucide-react";
-import { format, subDays, addDays } from "date-fns";
+import { format, addDays } from "date-fns";
 import { th } from "date-fns/locale";
-
-interface LateRequest {
-  id: string;
-  request_date: string;
-  reason: string;
-  status: string;
-  actual_late_minutes: number | null;
-  admin_note: string | null;
-  created_at: string;
-}
-
-interface AttendanceLog {
-  id: string;
-  work_date: string;
-  clock_in_time: string;
-  is_late: boolean;
-  late_minutes: number | null;
-}
 
 function LateRequestContent() {
   const router = useRouter();
@@ -47,7 +35,7 @@ function LateRequestContent() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [requests, setRequests] = useState<LateRequest[]>([]);
-  const [lateAttendances, setLateAttendances] = useState<AttendanceLog[]>([]);
+  const [lateAttendances, setLateAttendances] = useState<LateAttendance[]>([]);
 
   // Admin is system account - redirect to admin panel
   useEffect(() => {
@@ -55,7 +43,7 @@ function LateRequestContent() {
       router.replace("/admin");
     }
   }, [employee, router]);
-  
+
   // Form
   const [selectedDate, setSelectedDate] = useState("");
   const [reason, setReason] = useState("");
@@ -66,43 +54,25 @@ function LateRequestContent() {
     if (employee) {
       fetchData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employee]);
 
   const fetchData = async () => {
+    if (!employee) return;
     setLoading(true);
     try {
       // ดึงคำขอมาสายของตัวเอง
-      const { data: requestsData } = await supabase
-        .from("late_requests")
-        .select("*")
-        .eq("employee_id", employee!.id)
-        .order("created_at", { ascending: false })
-        .limit(20);
-
+      const { data: requestsData, error: requestsError } = await getLateRequests(
+        employee.id
+      );
+      if (requestsError) throw new Error(requestsError);
       setRequests(requestsData || []);
 
       // ดึงวันที่มาสายใน 30 วันที่ผ่านมา (ที่ยังไม่มี approved late request)
-      const thirtyDaysAgo = format(subDays(new Date(), 30), "yyyy-MM-dd");
-      const { data: attendanceData } = await supabase
-        .from("attendance_logs")
-        .select("id, work_date, clock_in_time, is_late, late_minutes")
-        .eq("employee_id", employee!.id)
-        .eq("is_late", true)
-        .gte("work_date", thirtyDaysAgo)
-        .order("work_date", { ascending: false });
-
-      // กรองเอาเฉพาะวันที่ยังไม่มี approved request
-      const approvedDates = new Set(
-        (requestsData || [])
-          .filter((r: any) => r.status === "approved" || r.status === "pending")
-          .map((r: any) => r.request_date)
-      );
-      
-      const filteredAttendance = (attendanceData || []).filter(
-        (a: any) => !approvedDates.has(a.work_date)
-      );
-
-      setLateAttendances(filteredAttendance);
+      const { data: attendanceData, error: attendanceError } =
+        await getLateAttendances(employee.id);
+      if (attendanceError) throw new Error(attendanceError);
+      setLateAttendances(attendanceData || []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -122,40 +92,18 @@ function LateRequestContent() {
 
     try {
       // ดึงข้อมูล late_minutes จาก attendance
-      const attendance = lateAttendances.find((a: any) => a.work_date === selectedDate);
-      
-      // Check auto approve setting
-      const { data: autoApproveSetting } = await supabase
-        .from("system_settings")
-        .select("setting_value")
-        .eq("setting_key", "auto_approve_late")
-        .single();
+      const attendance = lateAttendances.find(
+        (a) => a.work_date === selectedDate
+      );
 
-      const isAutoApprove = autoApproveSetting?.setting_value === "true";
-
-      const insertData: any = {
+      const { error: createError } = await createLateRequest({
         employee_id: employee!.id,
         request_date: selectedDate,
         reason: reason.trim(),
         actual_late_minutes: attendance?.late_minutes || null,
-        status: isAutoApprove ? "approved" : "pending",
-      };
+      });
 
-      if (isAutoApprove) {
-        insertData.approved_at = new Date().toISOString();
-        const { data: systemUser } = await supabase
-          .from("employees")
-          .select("id")
-          .eq("email", "system@anajak.com")
-          .single();
-        if (systemUser) insertData.approved_by = systemUser.id;
-      }
-
-      const { error: insertError } = await supabase
-        .from("late_requests")
-        .insert(insertData);
-
-      if (insertError) throw insertError;
+      if (createError) throw new Error(createError);
 
       setSuccess(true);
       setSelectedDate("");
@@ -163,8 +111,9 @@ function LateRequestContent() {
       fetchData();
 
       setTimeout(() => setSuccess(false), 3000);
-    } catch (error: any) {
-      setError(error.message || "เกิดข้อผิดพลาด");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "เกิดข้อผิดพลาด";
+      setError(message);
     } finally {
       setSubmitting(false);
     }
@@ -172,13 +121,8 @@ function LateRequestContent() {
 
   const handleCancel = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from("late_requests")
-        .update({ status: "cancelled" })
-        .eq("id", id)
-        .eq("employee_id", employee!.id);
-
-      if (error) throw error;
+      const { error } = await cancelLateRequest(id, employee!.id);
+      if (error) throw new Error(error);
       fetchData();
     } catch (error) {
       console.error("Error cancelling:", error);
