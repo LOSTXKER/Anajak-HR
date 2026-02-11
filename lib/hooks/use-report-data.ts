@@ -45,6 +45,9 @@ export function useReportData({
   const [otRequests, setOtRequests] = useState<OTRequest[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [wfhRequests, setWfhRequests] = useState<WFHRequest[]>([]);
+  const [approvedLateRequests, setApprovedLateRequests] = useState<
+    { employee_id: string; request_date: string }[]
+  >([]);
 
   // Fetch branches on mount
   useEffect(() => {
@@ -72,12 +75,13 @@ export function useReportData({
       const startStr = format(startDate, "yyyy-MM-dd");
       const endStr = format(endDate, "yyyy-MM-dd");
 
-      const [employeesRes, attendanceRes, otRes, leaveRes, wfhRes] =
+      const [employeesRes, attendanceRes, otRes, leaveRes, wfhRes, lateReqRes] =
         await Promise.all([
           supabase
             .from("employees")
             .select("id, name, email, role, branch_id")
             .eq("account_status", "approved")
+            .is("deleted_at", null)
             .neq("role", "admin"),
           supabase
             .from("attendance_logs")
@@ -102,6 +106,12 @@ export function useReportData({
             .eq("status", "approved")
             .gte("date", startStr)
             .lte("date", endStr),
+          supabase
+            .from("late_requests")
+            .select("employee_id, request_date")
+            .eq("status", "approved")
+            .gte("request_date", startStr)
+            .lte("request_date", endStr),
         ]);
 
       setEmployees(employeesRes.data || []);
@@ -109,6 +119,7 @@ export function useReportData({
       setOtRequests(otRes.data || []);
       setLeaveRequests(leaveRes.data || []);
       setWfhRequests(wfhRes.data || []);
+      setApprovedLateRequests(lateReqRes.data || []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -144,6 +155,13 @@ export function useReportData({
       const empLeave = leaveRequests.filter((l) => l.employee_id === emp.id);
       const empWFH = wfhRequests.filter((w) => w.employee_id === emp.id);
 
+      // Build set of approved late dates for this employee
+      const empApprovedLateDates = new Set(
+        approvedLateRequests
+          .filter((r) => r.employee_id === emp.id)
+          .map((r) => r.request_date)
+      );
+
       const workDays = empAttendance.filter(
         (a) => a.status === "present" || a.status === "wfh"
       ).length;
@@ -153,9 +171,15 @@ export function useReportData({
         0
       );
 
-      const lateDays = empAttendance.filter((a) => a.is_late).length;
+      const lateDays = empAttendance.filter(
+        (a) => a.is_late && !empApprovedLateDates.has(a.work_date)
+      ).length;
       const lateMinutes = empAttendance.reduce(
-        (sum, a) => sum + (a.is_late ? a.late_minutes || 0 : 0),
+        (sum, a) =>
+          sum +
+          (a.is_late && !empApprovedLateDates.has(a.work_date)
+            ? a.late_minutes || 0
+            : 0),
         0
       );
 
@@ -217,6 +241,7 @@ export function useReportData({
     otRequests,
     leaveRequests,
     wfhRequests,
+    approvedLateRequests,
     currentMonth,
     getBranchName,
   ]);
@@ -259,6 +284,11 @@ export function useReportData({
     const endDate = endOfMonth(currentMonth);
     const days = eachDayOfInterval({ start: startDate, end: endDate });
 
+    // Build set of approved late keys (employee_id + date) for quick lookup
+    const approvedLateKeys = new Set(
+      approvedLateRequests.map((r) => `${r.employee_id}:${r.request_date}`)
+    );
+
     return days.map((day) => {
       const dateStr = format(day, "yyyy-MM-dd");
 
@@ -275,7 +305,9 @@ export function useReportData({
         date: format(day, "d", { locale: th }),
         fullDate: dateStr,
         attendance: dayAttendance.length,
-        late: dayAttendance.filter((a) => a.is_late).length,
+        late: dayAttendance.filter(
+          (a) => a.is_late && !approvedLateKeys.has(`${a.employee_id}:${dateStr}`)
+        ).length,
         otHours: dayOT.reduce(
           (sum, o) => sum + (o.actual_ot_hours ?? o.approved_ot_hours ?? 0),
           0
@@ -284,7 +316,7 @@ export function useReportData({
         wfh: dayWFH.length,
       };
     });
-  }, [attendanceLogs, otRequests, leaveRequests, wfhRequests, currentMonth]);
+  }, [attendanceLogs, otRequests, leaveRequests, wfhRequests, approvedLateRequests, currentMonth]);
 
   // Branch stats
   const branchStats = useMemo((): BranchStat[] => {

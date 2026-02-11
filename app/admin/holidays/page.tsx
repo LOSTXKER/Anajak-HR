@@ -11,9 +11,10 @@ import { DateInput } from "@/components/ui/DateInput";
 import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
-import { Calendar, Plus, Edit2, Trash2, PartyPopper, AlertTriangle } from "lucide-react";
+import { Calendar, CalendarRange, Plus, Edit2, Trash2, PartyPopper, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
+import { groupHolidays, type HolidayGroup } from "@/lib/utils/holiday-groups";
 
 interface Holiday {
   id: string;
@@ -41,9 +42,10 @@ function HolidaysContent() {
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     open: boolean;
-    id: string;
+    ids: string[];
     name: string;
-  }>({ open: false, id: "", name: "" });
+    days: number;
+  }>({ open: false, ids: [], name: "", days: 0 });
   const [deleting, setDeleting] = useState(false);
   const [formData, setFormData] = useState({
     date: "",
@@ -159,11 +161,16 @@ function HolidaysContent() {
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      const { error } = await supabase.from("holidays").delete().eq("id", deleteConfirm.id);
+      const { error } = await supabase.from("holidays").delete().in("id", deleteConfirm.ids);
       if (error) throw error;
 
-      toast.success("ลบสำเร็จ", "ลบวันหยุดเรียบร้อยแล้ว");
-      setDeleteConfirm({ open: false, id: "", name: "" });
+      toast.success(
+        "ลบสำเร็จ",
+        deleteConfirm.days > 1
+          ? `ลบวันหยุด ${deleteConfirm.days} วันเรียบร้อยแล้ว`
+          : "ลบวันหยุดเรียบร้อยแล้ว"
+      );
+      setDeleteConfirm({ open: false, ids: [], name: "", days: 0 });
       fetchHolidays();
     } catch (error) {
       toast.error("เกิดข้อผิดพลาด", "ไม่สามารถลบวันหยุดได้");
@@ -189,16 +196,22 @@ function HolidaysContent() {
     return holidayTypes.find((t) => t.value === type) || holidayTypes[0];
   };
 
-  // Group holidays by year
-  const groupedHolidays = holidays.reduce((acc: any, holiday) => {
-    const year = new Date(holiday.date).getFullYear();
+  // Group consecutive holidays, then group by year
+  const holidayGroups = groupHolidays(holidays);
+
+  const groupedByYear = holidayGroups.reduce((acc: Record<string, HolidayGroup[]>, group) => {
+    const year = new Date(group.startDate).getFullYear();
     if (!acc[year]) acc[year] = [];
-    acc[year].push(holiday);
+    acc[year].push(group);
     return acc;
   }, {});
 
+  // Count total individual days per year
+  const totalDaysByYear = (year: string) =>
+    (groupedByYear[year] || []).reduce((sum, g) => sum + g.days, 0);
+
   const currentYear = new Date().getFullYear();
-  const years = Object.keys(groupedHolidays).sort((a, b) => parseInt(b) - parseInt(a));
+  const years = Object.keys(groupedByYear).sort((a, b) => parseInt(b) - parseInt(a));
 
   return (
     <AdminLayout
@@ -362,10 +375,14 @@ function HolidaysContent() {
       {/* Delete Confirmation */}
       <ConfirmDialog
         isOpen={deleteConfirm.open}
-        onClose={() => setDeleteConfirm({ open: false, id: "", name: "" })}
+        onClose={() => setDeleteConfirm({ open: false, ids: [], name: "", days: 0 })}
         onConfirm={handleDelete}
         title="ยืนยันการลบ"
-        message={`คุณต้องการลบวันหยุด "${deleteConfirm.name}" ใช่หรือไม่?`}
+        message={
+          deleteConfirm.days > 1
+            ? `คุณต้องการลบวันหยุด "${deleteConfirm.name}" ทั้ง ${deleteConfirm.days} วันใช่หรือไม่?`
+            : `คุณต้องการลบวันหยุด "${deleteConfirm.name}" ใช่หรือไม่?`
+        }
         type="danger"
         confirmText="ลบ"
         loading={deleting}
@@ -394,34 +411,49 @@ function HolidaysContent() {
             <div key={year}>
               <div className="flex items-center gap-3 mb-4">
                 <h3 className="text-[21px] font-semibold text-[#1d1d1f]">ปี {year}</h3>
-                <Badge variant="info">{groupedHolidays[year].length} วัน</Badge>
+                <Badge variant="info">{totalDaysByYear(year)} วัน</Badge>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {groupedHolidays[year].map((holiday: Holiday) => {
-                  const typeInfo = getTypeInfo(holiday.type);
-                  const isPast = new Date(holiday.date) < new Date();
+                {groupedByYear[year].map((group: HolidayGroup) => {
+                  const typeInfo = getTypeInfo(group.type);
+                  const isPast = new Date(group.endDate) < new Date();
+                  const isMultiDay = group.days > 1;
+                  const startDate = new Date(group.startDate);
+                  const endDate = new Date(group.endDate);
 
                   return (
-                    <Card key={holiday.id} elevated>
+                    <Card key={group.id} elevated>
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-4 flex-1">
-                          <div className="w-14 h-14 bg-[#ff3b30]/10 rounded-xl flex flex-col items-center justify-center flex-shrink-0">
-                            <span className="text-[20px] font-semibold text-[#ff3b30]">
-                              {format(new Date(holiday.date), "d")}
-                            </span>
-                            <span className="text-[10px] text-[#86868b] uppercase">
-                              {format(new Date(holiday.date), "MMM", { locale: th })}
-                            </span>
-                          </div>
+                          {/* Date badge */}
+                          {isMultiDay ? (
+                            <div className="w-14 h-14 bg-[#af52de]/10 rounded-xl flex flex-col items-center justify-center flex-shrink-0">
+                              <CalendarRange className="w-5 h-5 text-[#af52de] mb-0.5" />
+                              <span className="text-[11px] font-bold text-[#af52de]">
+                                {group.days} วัน
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="w-14 h-14 bg-[#ff3b30]/10 rounded-xl flex flex-col items-center justify-center flex-shrink-0">
+                              <span className="text-[20px] font-semibold text-[#ff3b30]">
+                                {format(startDate, "d")}
+                              </span>
+                              <span className="text-[10px] text-[#86868b] uppercase">
+                                {format(startDate, "MMM", { locale: th })}
+                              </span>
+                            </div>
+                          )}
+
                           <div className="flex-1">
                             <h4 className="text-[17px] font-semibold text-[#1d1d1f] mb-1">
-                              {holiday.name}
+                              {group.name}
                             </h4>
                             <p className="text-[14px] text-[#86868b] mb-2">
-                              {format(new Date(holiday.date), "EEEE d MMMM yyyy", {
-                                locale: th,
-                              })}
+                              {isMultiDay
+                                ? `${format(startDate, "EEEE d MMM", { locale: th })} - ${format(endDate, "EEEE d MMM yyyy", { locale: th })}`
+                                : format(startDate, "EEEE d MMMM yyyy", { locale: th })
+                              }
                             </p>
                             <div className="flex items-center gap-2 flex-wrap">
                               <span
@@ -432,7 +464,10 @@ function HolidaysContent() {
                               >
                                 {typeInfo.label}
                               </span>
-                              {!holiday.is_active && (
+                              {isMultiDay && (
+                                <Badge variant="info">{group.days} วันต่อเนื่อง</Badge>
+                              )}
+                              {!group.is_active && (
                                 <Badge variant="danger">ปิดใช้งาน</Badge>
                               )}
                               {isPast && <Badge>ผ่านไปแล้ว</Badge>}
@@ -440,20 +475,54 @@ function HolidaysContent() {
                           </div>
                         </div>
                         <div className="flex gap-1">
-                          <button
-                            onClick={() => handleEdit(holiday)}
-                            className="p-2 text-[#86868b] hover:text-[#0071e3] hover:bg-[#f5f5f7] rounded-lg transition-colors"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() =>
-                              setDeleteConfirm({ open: true, id: holiday.id, name: holiday.name })
-                            }
-                            className="p-2 text-[#86868b] hover:text-[#ff3b30] hover:bg-[#ff3b30]/10 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {isMultiDay ? (
+                            /* For multi-day groups, show edit for first day + delete all */
+                            <>
+                              <button
+                                onClick={() => handleEdit(group.holidays[0] as Holiday)}
+                                className="p-2 text-[#86868b] hover:text-[#0071e3] hover:bg-[#f5f5f7] rounded-lg transition-colors"
+                                title="แก้ไขวันแรก"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setDeleteConfirm({
+                                    open: true,
+                                    ids: group.ids,
+                                    name: group.name,
+                                    days: group.days,
+                                  })
+                                }
+                                className="p-2 text-[#86868b] hover:text-[#ff3b30] hover:bg-[#ff3b30]/10 rounded-lg transition-colors"
+                                title={`ลบทั้ง ${group.days} วัน`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleEdit(group.holidays[0] as Holiday)}
+                                className="p-2 text-[#86868b] hover:text-[#0071e3] hover:bg-[#f5f5f7] rounded-lg transition-colors"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setDeleteConfirm({
+                                    open: true,
+                                    ids: [group.id],
+                                    name: group.name,
+                                    days: 1,
+                                  })
+                                }
+                                className="p-2 text-[#86868b] hover:text-[#ff3b30] hover:bg-[#ff3b30]/10 rounded-lg transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </Card>

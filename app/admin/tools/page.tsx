@@ -65,7 +65,7 @@ function AdminToolsContent() {
         supabase.from("ot_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("attendance_logs").select("id", { count: "exact", head: true }).eq("work_date", today).is("clock_out_time", null),
-        supabase.from("employees").select("id", { count: "exact", head: true }).eq("account_status", "pending"),
+        supabase.from("employees").select("id", { count: "exact", head: true }).eq("account_status", "pending").is("deleted_at", null),
       ]);
 
       setQuickStats({

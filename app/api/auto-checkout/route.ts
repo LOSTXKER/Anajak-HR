@@ -7,6 +7,12 @@ import { th } from "date-fns/locale";
 // Auto checkout จะทำงานทุกวัน เวลา 15:00 UTC (22:00 เวลาไทย) ตาม vercel.json cron
 // หมายเหตุ: Cron schedule "0 15 * * *" = 15:00 UTC = 22:00 Bangkok Time
 export async function GET(request: NextRequest) {
+  // ตรวจสอบ CRON_SECRET เพื่อป้องกันการเรียกจากภายนอก
+  const authHeader = request.headers.get("authorization");
+  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   console.log("[Auto Checkout] Starting auto checkout process...");
 
   try {

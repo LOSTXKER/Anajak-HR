@@ -60,9 +60,7 @@ export { useRequestFilters } from "./use-request-filters";
 export { useEmployees } from "./use-employees";
 
 // Admin Approval Hooks
-export { useApprovals } from "./use-approvals";
-
-// Admin Employee Detail Hook
+export { useApprovals } from "./use-approvals";// Admin Employee Detail Hook
 export { useEmployeeDetail } from "./use-employee-detail";
 
 // Admin Report Data Hook

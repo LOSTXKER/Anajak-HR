@@ -2,14 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Calendar } from "lucide-react";
+import { Calendar, CalendarRange } from "lucide-react";
 import { format, parseISO, differenceInCalendarDays, startOfDay, isSameDay } from "date-fns";
 import { th } from "date-fns/locale";
+import { groupHolidays, type HolidayGroup } from "@/lib/utils/holiday-groups";
 
 interface Holiday {
   id: string;
   name: string;
   date: string;
+  type?: string;
+  is_active?: boolean;
 }
 
 interface UpcomingHolidaysCardProps {
@@ -30,6 +33,15 @@ export function UpcomingHolidaysCard({
     return null;
   }
 
+  // Group consecutive holidays with the same name
+  const groups = groupHolidays(
+    filteredHolidays.map((h) => ({
+      ...h,
+      type: h.type || "public",
+      is_active: h.is_active ?? true,
+    }))
+  );
+
   return (
     <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#e8e8ed] mb-4">
       <div className="flex items-center justify-between mb-4">
@@ -48,25 +60,38 @@ export function UpcomingHolidaysCard({
       </div>
 
       <div className="space-y-3">
-        {filteredHolidays.map((holiday) => {
-          const holidayDate = parseISO(holiday.date);
+        {groups.map((group) => {
+          const startDate = parseISO(group.startDate);
           const today = startOfDay(new Date());
-          const daysUntil = differenceInCalendarDays(holidayDate, today);
+          const daysUntil = differenceInCalendarDays(startDate, today);
+          const isMultiDay = group.days > 1;
 
           return (
             <div
-              key={holiday.id}
+              key={group.id}
               className="flex items-center gap-3 p-3 bg-[#f5f5f7] rounded-xl"
             >
               <div className="w-12 h-12 bg-[#af52de]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                <span className="text-[20px]">🗓️</span>
+                {isMultiDay ? (
+                  <CalendarRange className="w-5 h-5 text-[#af52de]" />
+                ) : (
+                  <span className="text-[20px]">🗓️</span>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[15px] font-medium text-[#1d1d1f] truncate">
-                  {holiday.name}
+                  {group.name}
+                  {isMultiDay && (
+                    <span className="text-[13px] text-[#af52de] font-normal ml-1">
+                      ({group.days} วัน)
+                    </span>
+                  )}
                 </p>
                 <p className="text-[13px] text-[#86868b]">
-                  {format(holidayDate, "d MMMM yyyy", { locale: th })}
+                  {isMultiDay
+                    ? `${format(startDate, "d MMM", { locale: th })} - ${format(parseISO(group.endDate), "d MMM yyyy", { locale: th })}`
+                    : format(startDate, "d MMMM yyyy", { locale: th })
+                  }
                   {daysUntil > 0 && (
                     <span className="text-[#af52de]"> • อีก {daysUntil} วัน</span>
                   )}

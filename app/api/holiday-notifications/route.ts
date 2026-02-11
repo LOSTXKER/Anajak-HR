@@ -9,6 +9,12 @@ import { th } from "date-fns/locale";
  * ควรเรียกผ่าน Cron Job ทุกวันเวลา 09:00
  */
 export async function POST(request: NextRequest) {
+  // ตรวจสอบ CRON_SECRET เพื่อป้องกันการเรียกจากภายนอก
+  const authHeader = request.headers.get("authorization");
+  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     console.log("[Holiday Notifications] Starting holiday check...");
 

@@ -45,7 +45,8 @@ export function usePendingCounts() {
           supabase
             .from("employees")
             .select("id", { count: "exact", head: true })
-            .eq("account_status", ACCOUNT_STATUS.PENDING),
+            .eq("account_status", ACCOUNT_STATUS.PENDING)
+            .is("deleted_at", null),
           supabase
             .from("ot_requests")
             .select("id", { count: "exact", head: true })

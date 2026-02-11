@@ -39,6 +39,9 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
   const [leaveData, setLeaveData] = useState<LeaveRecord[]>([]);
   const [wfhData, setWfhData] = useState<WFHRecord[]>([]);
   const [lateData, setLateData] = useState<LateRequestRecord[]>([]);
+  const [approvedLateDates, setApprovedLateDates] = useState<Set<string>>(
+    new Set()
+  );
 
   // Leave balance (yearly)
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalance>({
@@ -95,14 +98,30 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
 
     try {
       if (activeTab === "attendance") {
-        const { data } = await supabase
-          .from("attendance_logs")
-          .select("*")
-          .eq("employee_id", employeeId)
-          .gte("work_date", startDate)
-          .lte("work_date", endDate)
-          .order("work_date", { ascending: false });
-        setAttendanceData(data || []);
+        const [attRes, lateReqRes] = await Promise.all([
+          supabase
+            .from("attendance_logs")
+            .select("*")
+            .eq("employee_id", employeeId)
+            .gte("work_date", startDate)
+            .lte("work_date", endDate)
+            .order("work_date", { ascending: false }),
+          supabase
+            .from("late_requests")
+            .select("request_date")
+            .eq("employee_id", employeeId)
+            .eq("status", "approved")
+            .gte("request_date", startDate)
+            .lte("request_date", endDate),
+        ]);
+        setAttendanceData(attRes.data || []);
+        setApprovedLateDates(
+          new Set(
+            (lateReqRes.data || []).map(
+              (r: { request_date: string }) => r.request_date
+            )
+          )
+        );
       } else if (activeTab === "ot") {
         const { data } = await supabase
           .from("ot_requests")
@@ -118,7 +137,8 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
           .from("leave_requests")
           .select("*")
           .eq("employee_id", employeeId)
-          .or(`start_date.lte.${endDate},end_date.gte.${startDate}`)
+          .lte("start_date", endDate)
+          .gte("end_date", startDate)
           .order("start_date", { ascending: false });
         setLeaveData(data || []);
 
@@ -188,7 +208,9 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
   const monthlyStats = useMemo((): MonthlyStats => {
     return {
       workDays: attendanceData.filter((a) => a.clock_in_time).length,
-      lateDays: attendanceData.filter((a) => a.is_late).length,
+      lateDays: attendanceData.filter(
+        (a) => a.is_late && !approvedLateDates.has(a.work_date)
+      ).length,
       absentDays: 0,
       otHours: otData
         .filter((o) => o.status === "completed" || o.status === "approved")
@@ -199,7 +221,7 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
       leaveDays: leaveData.filter((l) => l.status === "approved").length,
       wfhDays: wfhData.filter((w) => w.status === "approved").length,
     };
-  }, [attendanceData, otData, leaveData, wfhData]);
+  }, [attendanceData, otData, leaveData, wfhData, approvedLateDates]);
 
   // Save employee
   const handleSave = async () => {

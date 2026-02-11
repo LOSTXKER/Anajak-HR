@@ -216,9 +216,9 @@ export function useAttendanceAdmin() {
   const stats = useMemo((): AttendanceStats => {
     const total = filteredRows.length;
     const present = filteredRows.filter(
-      (r) => r.status === "present" && !r.isLate
+      (r) => r.status === "present" && (!r.isLate || r.lateRequestStatus === "approved")
     ).length;
-    const late = filteredRows.filter((r) => r.isLate).length;
+    const late = filteredRows.filter((r) => r.isLate && r.lateRequestStatus !== "approved").length;
     const absent = filteredRows.filter((r) => r.status === "absent").length;
     const leave = filteredRows.filter((r) => r.leaveType).length;
     const wfh = filteredRows.filter((r) => r.isWFH).length;
@@ -390,7 +390,7 @@ function buildSingleDayRows(
       (fw: any) => fw.employee_id === emp.id && fw.date === dateStr
     );
     const empLateReq = lateReqData.find(
-      (lr: any) => lr.employee_id === emp.id
+      (lr: any) => lr.employee_id === emp.id && lr.request_date === dateStr
     );
 
     if (isNonWorkingDay && !att && empOt.length === 0) {

@@ -56,7 +56,8 @@ export function Sidebar() {
         supabase
           .from("employees")
           .select("id", { count: "exact", head: true })
-          .eq("account_status", "pending"),
+          .eq("account_status", "pending")
+          .is("deleted_at", null),
         supabase
           .from("ot_requests")
           .select("id", { count: "exact", head: true })

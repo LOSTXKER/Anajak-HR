@@ -42,6 +42,7 @@ function PushTestContent() {
       const { data: empData } = await supabase
         .from("employees")
         .select("id, name, email")
+        .is("deleted_at", null)
         .eq("role", "staff")
         .order("name");
 

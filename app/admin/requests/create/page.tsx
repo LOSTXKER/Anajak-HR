@@ -88,6 +88,7 @@ function CreateRequestContent() {
     const { data } = await supabase
       .from("employees")
       .select("id, name, email")
+      .is("deleted_at", null)
       .neq("role", "admin")
       .order("name");
     setEmployees(data || []);

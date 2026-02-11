@@ -151,7 +151,7 @@ function MonitorContent() {
         pendingOTResult, pendingLeaveResult, pendingWFHResult,
         recentResult, holidayResult, anomalyCountResult,
       ] = await Promise.all([
-        supabase.from("employees").select("id").neq("role", "admin").or("is_system_account.is.null,is_system_account.eq.false"),
+        supabase.from("employees").select("id").neq("role", "admin").is("deleted_at", null).or("is_system_account.is.null,is_system_account.eq.false"),
         supabase.from("attendance_logs").select("*, employee:employees!employee_id(id, is_system_account)").eq("work_date", today),
         supabase.from("ot_requests").select("*, employee:employees!employee_id(id, name, email, is_system_account)").eq("status", "approved").not("actual_start_time", "is", null).is("actual_end_time", null),
         supabase.from("ot_requests").select("id", { count: "exact" }).eq("status", "pending"),

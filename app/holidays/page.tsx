@@ -6,10 +6,11 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Calendar, PartyPopper } from "lucide-react";
+import { Calendar, CalendarRange, PartyPopper } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { format, startOfYear, endOfYear } from "date-fns";
 import { th } from "date-fns/locale";
+import { groupHolidays, type HolidayGroup } from "@/lib/utils/holiday-groups";
 
 function HolidaysContent() {
   const { employee } = useAuth();
@@ -39,15 +40,19 @@ function HolidaysContent() {
     setLoading(false);
   };
 
-  // Group holidays by month
-  const holidaysByMonth = holidays.reduce((acc: any, holiday: any) => {
-    const month = new Date(holiday.date).getMonth();
-    if (!acc[month]) {
-      acc[month] = [];
-    }
-    acc[month].push(holiday);
+  // Group consecutive holidays, then split by month
+  const holidayGroups = groupHolidays(holidays);
+
+  const groupsByMonth = holidayGroups.reduce((acc: Record<number, HolidayGroup[]>, group) => {
+    const month = new Date(group.startDate).getMonth();
+    if (!acc[month]) acc[month] = [];
+    acc[month].push(group);
     return acc;
   }, {});
+
+  // Count total individual days per month for badge
+  const totalDaysInMonth = (monthIndex: number) =>
+    (groupsByMonth[monthIndex] || []).reduce((sum, g) => sum + g.days, 0);
 
   const months = [
     "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
@@ -103,7 +108,7 @@ function HolidaysContent() {
           <Card elevated>
             <div className="text-center py-4">
               <p className="text-[32px] font-bold text-[#0071e3]">
-                {Object.keys(holidaysByMonth).length}
+                {Object.keys(groupsByMonth).length}
               </p>
               <p className="text-[13px] text-[#86868b]">เดือนที่มีวันหยุด</p>
             </div>
@@ -111,7 +116,7 @@ function HolidaysContent() {
         </div>
 
         {/* Holidays by Month */}
-        {Object.keys(holidaysByMonth).length === 0 ? (
+        {Object.keys(groupsByMonth).length === 0 ? (
           <Card>
             <div className="text-center py-10">
               <Calendar className="w-12 h-12 mx-auto mb-3 text-[#86868b] opacity-30" />
@@ -121,8 +126,8 @@ function HolidaysContent() {
         ) : (
           <div className="space-y-6">
             {months.map((monthName, monthIndex) => {
-              const monthHolidays = holidaysByMonth[monthIndex];
-              if (!monthHolidays) return null;
+              const monthGroups = groupsByMonth[monthIndex];
+              if (!monthGroups) return null;
 
               return (
                 <Card key={monthIndex}>
@@ -132,20 +137,23 @@ function HolidaysContent() {
                       {monthName} {selectedYear}
                     </h2>
                     <Badge variant="info" className="ml-auto">
-                      {monthHolidays.length} วัน
+                      {totalDaysInMonth(monthIndex)} วัน
                     </Badge>
                   </div>
 
                   <div className="space-y-2">
-                    {monthHolidays.map((holiday: any) => {
-                      const holidayDate = new Date(holiday.date);
+                    {monthGroups.map((group: HolidayGroup) => {
+                      const startDate = new Date(group.startDate);
+                      const endDate = new Date(group.endDate);
                       const today = new Date();
-                      const isPast = holidayDate < today;
-                      const isToday = format(holidayDate, "yyyy-MM-dd") === format(today, "yyyy-MM-dd");
+                      const todayStr = format(today, "yyyy-MM-dd");
+                      const isPast = endDate < today;
+                      const isToday = group.holidays.some((h) => h.date === todayStr);
+                      const isMultiDay = group.days > 1;
 
                       return (
                         <div
-                          key={holiday.id}
+                          key={group.id}
                           className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${isToday
                               ? "bg-[#af52de]/10 border border-[#af52de]/30"
                               : isPast
@@ -153,22 +161,32 @@ function HolidaysContent() {
                                 : "bg-[#f5f5f7] hover:bg-[#e8e8ed]"
                             }`}
                         >
-                          <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center ${isToday ? "bg-[#af52de] text-white" : "bg-white"
-                            }`}>
-                            <span className="text-[16px] font-bold">
-                              {format(holidayDate, "d")}
-                            </span>
-                            <span className="text-[10px] uppercase">
-                              {format(holidayDate, "EEE", { locale: th }).slice(0, 2)}
-                            </span>
-                          </div>
+                          {isMultiDay ? (
+                            <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center ${isToday ? "bg-[#af52de] text-white" : "bg-white"}`}>
+                              <CalendarRange className={`w-4 h-4 ${isToday ? "text-white" : "text-[#af52de]"} mb-0.5`} />
+                              <span className={`text-[10px] font-bold ${isToday ? "text-white" : "text-[#af52de]"}`}>
+                                {group.days} วัน
+                              </span>
+                            </div>
+                          ) : (
+                            <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center ${isToday ? "bg-[#af52de] text-white" : "bg-white"}`}>
+                              <span className="text-[16px] font-bold">
+                                {format(startDate, "d")}
+                              </span>
+                              <span className="text-[10px] uppercase">
+                                {format(startDate, "EEE", { locale: th }).slice(0, 2)}
+                              </span>
+                            </div>
+                          )}
                           <div className="flex-1">
-                            <p className={`text-[15px] font-medium ${isToday ? "text-[#af52de]" : "text-[#1d1d1f]"
-                              }`}>
-                              {holiday.name}
+                            <p className={`text-[15px] font-medium ${isToday ? "text-[#af52de]" : "text-[#1d1d1f]"}`}>
+                              {group.name}
                             </p>
                             <p className="text-[13px] text-[#86868b]">
-                              {format(holidayDate, "d MMMM yyyy", { locale: th })}
+                              {isMultiDay
+                                ? `${format(startDate, "d MMM", { locale: th })} - ${format(endDate, "d MMM yyyy", { locale: th })} (${group.days} วัน)`
+                                : format(startDate, "d MMMM yyyy", { locale: th })
+                              }
                             </p>
                           </div>
                           {isToday && (

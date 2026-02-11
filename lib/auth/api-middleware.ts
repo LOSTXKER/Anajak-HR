@@ -102,6 +102,11 @@ export async function requireAuth(request: NextRequest): Promise<AuthResult> {
 
   const employee = employeeData as Employee;
 
+  // Check if account is deleted
+  if (employee.deleted_at) {
+    throw new AuthError("บัญชีของคุณถูกลบออกจากระบบแล้ว", 403);
+  }
+
   // Check if account is active
   if (employee.account_status !== "approved") {
     throw new AuthError("บัญชีของคุณยังไม่ได้รับการอนุมัติ", 403);

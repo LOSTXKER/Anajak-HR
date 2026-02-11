@@ -124,6 +124,7 @@ export function useRequestFetching(
     const { data } = await supabase
       .from("employees")
       .select("id, name, email, base_salary")
+      .is("deleted_at", null)
       .neq("role", "admin")
       .order("name");
     setEmployees(data || []);

@@ -3,6 +3,13 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { sendLineMessage, formatCheckOutMessage } from "@/lib/line/messaging";
 
 export async function POST(request: NextRequest) {
+  // ตรวจสอบว่ามี auth token (ป้องกันการเรียกจากภายนอก)
+  const authHeader = request.headers.get("authorization");
+  const cookieToken = request.cookies.get("sb-access-token")?.value;
+  if (!authHeader && !cookieToken) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { employeeName, time, totalHours, location } = body;
