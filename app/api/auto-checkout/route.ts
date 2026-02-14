@@ -43,18 +43,18 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // ใช้เวลาจาก setting (default: 22:00 = 10 PM)
-    let autoCheckoutTimeStr = settingsMap.auto_checkout_time || "22:00";
+    // เวลาที่ cron ทำงาน (ใช้ตรวจสอบว่าจะ auto checkout หรือยัง)
+    const autoCheckoutTimeStr = settingsMap.auto_checkout_time || "22:00";
+    // เวลาเลิกงานตามบริษัทตั้งไว้ (ใช้เป็นเวลาเช็คเอาท์จริง)
+    let workEndTimeStr = settingsMap.work_end_time || "18:00";
     const skipIfOT = settingsMap.auto_checkout_skip_if_ot !== "false"; // default true
     const notifyAdminOnAutoCheckout = settingsMap.notify_admin_on_auto_checkout !== "false"; // default true
     
-    // ตรวจสอบรูปแบบเวลา - ถ้าไม่ใช่ 24-hour format ให้แปลง
-    // HTML time input ควรให้ค่าเป็น HH:mm (24-hour) อยู่แล้ว
-    // แต่เพื่อความปลอดภัยเราตรวจสอบเพิ่ม
-    const timeMatch = autoCheckoutTimeStr.match(/^(\d{1,2}):(\d{2})$/);
-    if (!timeMatch) {
-      console.error(`[Auto Checkout] Invalid time format: ${autoCheckoutTimeStr}, using default 22:00`);
-      autoCheckoutTimeStr = "22:00";
+    // ตรวจสอบรูปแบบเวลา
+    const workEndMatch = workEndTimeStr.match(/^(\d{1,2}):(\d{2})$/);
+    if (!workEndMatch) {
+      console.error(`[Auto Checkout] Invalid work_end_time format: ${workEndTimeStr}, using default 18:00`);
+      workEndTimeStr = "18:00";
     }
     
     // คำนวณวันที่ในเขตเวลาไทย (UTC+7)
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     const currentBangkokMinute = bangkokTime.getMinutes();
 
     console.log(`[Auto Checkout] Current Bangkok time: ${format(bangkokTime, "yyyy-MM-dd HH:mm:ss")}`);
-    console.log(`[Auto Checkout] Processing for date: ${today}, auto_checkout_time: ${autoCheckoutTimeStr}, skip_if_ot: ${skipIfOT}`);
+    console.log(`[Auto Checkout] Processing for date: ${today}, work_end_time: ${workEndTimeStr}, auto_checkout_time: ${autoCheckoutTimeStr}, skip_if_ot: ${skipIfOT}`);
 
     // ค้นหาพนักงานที่เช็คอินวันนี้แต่ยังไม่เช็คเอาท์
     const { data: uncheckedOut, error: fetchError } = await supabaseServer
@@ -141,22 +141,22 @@ export async function GET(request: NextRequest) {
 
         const clockInTime = new Date(attendance.clock_in_time);
         
-        // ใช้เวลา checkout จาก setting แทนเวลาปัจจุบัน
-        // สร้าง Date object สำหรับเวลา checkout ในวันเดียวกับ clock_in
-        const autoCheckoutTime = new Date(`${today}T${autoCheckoutTimeStr}:00+07:00`);
+        // ใช้เวลาเลิกงานตามบริษัทตั้งไว้เป็นเวลาเช็คเอาท์
+        // (ไม่ใช้เวลาที่ cron ทำงาน เพราะจะทำให้ชั่วโมงทำงานเกินจริง)
+        const checkoutTime = new Date(`${today}T${workEndTimeStr}:00+07:00`);
 
-        // คำนวณ total hours จาก clock_in ถึง auto_checkout_time
-        const diffMs = autoCheckoutTime.getTime() - clockInTime.getTime();
+        // คำนวณ total hours จาก clock_in ถึง work_end_time
+        const diffMs = checkoutTime.getTime() - clockInTime.getTime();
         const totalHours = Math.max(0, Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100);
 
         // อัปเดต attendance log
         const { error: updateError } = await supabaseServer
           .from("attendance_logs")
           .update({
-            clock_out_time: autoCheckoutTime.toISOString(),
+            clock_out_time: checkoutTime.toISOString(),
             total_hours: totalHours,
             auto_checkout: true,
-            auto_checkout_reason: `เช็คเอาท์อัตโนมัติ เนื่องจากไม่มีการเช็คเอาท์ก่อนเวลา ${autoCheckoutTimeStr} น.`,
+            auto_checkout_reason: `เช็คเอาท์อัตโนมัติเวลา ${workEndTimeStr} น. (เวลาเลิกงาน) เนื่องจากไม่มีการเช็คเอาท์ก่อนเวลา ${autoCheckoutTimeStr} น.`,
           })
           .eq("id", attendance.id);
 
@@ -175,7 +175,7 @@ export async function GET(request: NextRequest) {
           employee_id: attendance.employee_id,
           date: today,
           anomaly_type: "auto_checkout",
-          description: `เช็คเอาท์อัตโนมัติเวลา ${autoCheckoutTimeStr} น. (ไม่มีการเช็คเอาท์ก่อนกำหนด)`,
+          description: `เช็คเอาท์อัตโนมัติเวลา ${workEndTimeStr} น. (เวลาเลิกงาน) เนื่องจากไม่มีการเช็คเอาท์ก่อน ${autoCheckoutTimeStr} น.`,
           status: "pending",
         });
 
@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
 เนื่องจากไม่มีการเช็คเอาท์ก่อนเวลา ${autoCheckoutTimeStr} น.
 
 เวลาเข้างาน: ${format(clockInTime, "HH:mm", { locale: th })} น.
-เวลาออก (อัตโนมัติ): ${autoCheckoutTimeStr} น.
+เวลาออก (ตามเวลาเลิกงาน): ${workEndTimeStr} น.
 ชั่วโมงทำงาน: ${totalHours.toFixed(2)} ชม.
 
 หากข้อมูลไม่ถูกต้อง กรุณาติดต่อ HR เพื่อแก้ไข`;
@@ -204,7 +204,7 @@ export async function GET(request: NextRequest) {
 
         processed++;
         console.log(
-          `[Auto Checkout] Processed ${employee?.name || attendance.employee_id} - checkout at ${autoCheckoutTimeStr}, ${totalHours.toFixed(2)} hours`
+          `[Auto Checkout] Processed ${employee?.name || attendance.employee_id} - checkout at ${workEndTimeStr} (work_end_time), ${totalHours.toFixed(2)} hours`
         );
       } catch (err) {
         console.error(
