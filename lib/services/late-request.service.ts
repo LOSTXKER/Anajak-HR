@@ -162,7 +162,8 @@ export async function cancelLateRequest(
       .from("late_requests")
       .update({ status: "cancelled" })
       .eq("id", requestId)
-      .eq("employee_id", employeeId);
+      .eq("employee_id", employeeId)
+      .eq("status", "pending");
 
     if (error) throw error;
     return { data: true, error: null };

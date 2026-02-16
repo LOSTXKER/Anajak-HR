@@ -10,13 +10,14 @@ import {
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { supabaseServer } from "@/lib/supabase/server";
+import { requireAuth, handleAuthError } from "@/lib/auth/api-middleware";
 
 export async function POST(request: NextRequest) {
-  // ตรวจสอบว่ามี auth token (ป้องกันการเรียกจากภายนอก)
-  const authHeader = request.headers.get("authorization");
-  const cookieToken = request.cookies.get("sb-access-token")?.value;
-  if (!authHeader && !cookieToken) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  // ตรวจสอบว่ามี auth token จริง (validate JWT)
+  try {
+    await requireAuth(request);
+  } catch (authError) {
+    return handleAuthError(authError);
   }
 
   try {
@@ -156,11 +157,13 @@ OT เสร็จสิ้น`;
 
       case "leave_approval":
         if (settingsMap.enable_leave_notifications === "true") {
+          const leaveStartStr = data.startDate ? format(new Date(data.startDate), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
+          const leaveEndStr = data.endDate ? format(new Date(data.endDate), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
           message = await formatLeaveApprovalMessage(
             data.employeeName,
             data.leaveType,
-            format(new Date(data.startDate), "d MMMM yyyy", { locale: th }),
-            format(new Date(data.endDate), "d MMMM yyyy", { locale: th }),
+            leaveStartStr,
+            leaveEndStr,
             data.approved
           );
           success = await sendLineMessage(message);
@@ -185,9 +188,10 @@ OT เสร็จสิ้น`;
 
       case "wfh_approval":
         if (settingsMap.enable_wfh_notifications === "true") {
+          const wfhApprovalDateStr = data.date ? format(new Date(data.date), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
           message = await formatWFHApprovalMessage(
             data.employeeName,
-            format(new Date(data.date), "d MMMM yyyy", { locale: th }),
+            wfhApprovalDateStr,
             data.approved
           );
           success = await sendLineMessage(message);

@@ -246,7 +246,7 @@ export function useAttendanceAdmin() {
         .select("id")
         .eq("employee_id", addForm.employeeId)
         .eq("work_date", addForm.workDate)
-        .single();
+        .maybeSingle();
 
       if (existing) {
         toast.error("มีข้อมูลการเข้างานวันนี้แล้ว");
@@ -258,8 +258,22 @@ export function useAttendanceAdmin() {
       const clockOut = new Date(
         `${addForm.workDate}T${addForm.clockOutTime}:00`
       );
+
+      // ถ้า clock_out < clock_in แสดงว่าข้ามวัน
+      if (clockOut.getTime() <= clockIn.getTime()) {
+        clockOut.setDate(clockOut.getDate() + 1);
+      }
+
       const totalHours =
         (clockOut.getTime() - clockIn.getTime()) / (1000 * 60 * 60);
+
+      // คำนวณ late_minutes ถ้า isLate เป็น true
+      let lateMinutes = 0;
+      if (addForm.isLate) {
+        const clockInMinutes = clockIn.getHours() * 60 + clockIn.getMinutes();
+        const workStartMinutes = 9 * 60; // default 09:00 ถ้าไม่มี settings
+        lateMinutes = Math.max(0, clockInMinutes - workStartMinutes);
+      }
 
       const { error } = await supabase.from("attendance_logs").insert({
         employee_id: addForm.employeeId,
@@ -268,7 +282,7 @@ export function useAttendanceAdmin() {
         clock_out_time: clockOut.toISOString(),
         total_hours: totalHours,
         is_late: addForm.isLate,
-        late_minutes: 0,
+        late_minutes: lateMinutes,
         status: addForm.status,
         auto_checkout: false,
         edited_at: new Date().toISOString(),

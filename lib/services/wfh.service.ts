@@ -23,7 +23,7 @@ export async function requestWFH(
             .from("wfh_requests")
             .insert({
                 employee_id: employeeId,
-                request_date: data.date,
+                date: data.date,
                 reason: data.reason,
                 status: "pending",
             })
@@ -72,9 +72,9 @@ export async function getWFHHistory(
             .from("wfh_requests")
             .select("*")
             .eq("employee_id", employeeId)
-            .gte("request_date", startDate)
-            .lte("request_date", endDate)
-            .order("request_date", { ascending: false });
+            .gte("date", startDate)
+            .lte("date", endDate)
+            .order("date", { ascending: false });
 
         if (error) throw error;
 
@@ -97,8 +97,8 @@ export async function getPendingWFH(employeeId: string): Promise<WFHRequest[]> {
             .select("*")
             .eq("employee_id", employeeId)
             .eq("status", "pending")
-            .gte("request_date", today)
-            .order("request_date", { ascending: true });
+            .gte("date", today)
+            .order("date", { ascending: true });
 
         if (error) throw error;
 
@@ -173,9 +173,9 @@ export async function getAllWFHRequests(
         let query = supabase
             .from("wfh_requests")
             .select("*, employee:employees(*)")
-            .gte("request_date", startDate)
-            .lte("request_date", endDate)
-            .order("request_date", { ascending: false });
+            .gte("date", startDate)
+            .lte("date", endDate)
+            .order("date", { ascending: false });
 
         if (status) {
             query = query.eq("status", status);
@@ -222,7 +222,7 @@ export async function isTodayWFH(employeeId: string): Promise<boolean> {
             .from("wfh_requests")
             .select("id")
             .eq("employee_id", employeeId)
-            .eq("request_date", today)
+            .eq("date", today)
             .eq("status", "approved")
             .maybeSingle();
 

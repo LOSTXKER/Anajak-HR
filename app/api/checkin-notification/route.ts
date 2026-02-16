@@ -1,13 +1,14 @@
 import { NextRequest } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { sendLineMessage, formatCheckInMessage } from "@/lib/line/messaging";
+import { requireAuth, handleAuthError } from "@/lib/auth/api-middleware";
 
 export async function POST(request: NextRequest) {
-  // ตรวจสอบว่ามี auth token (ป้องกันการเรียกจากภายนอก)
-  const authHeader = request.headers.get("authorization");
-  const cookieToken = request.cookies.get("sb-access-token")?.value;
-  if (!authHeader && !cookieToken) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  // ตรวจสอบว่ามี auth token จริง (validate JWT)
+  try {
+    await requireAuth(request);
+  } catch (authError) {
+    return handleAuthError(authError);
   }
 
   try {

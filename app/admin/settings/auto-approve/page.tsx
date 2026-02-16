@@ -126,8 +126,10 @@ function AutoApproveContent() {
       for (const update of updates) {
         const { error } = await supabase
           .from("system_settings")
-          .update({ setting_value: update.setting_value })
-          .eq("setting_key", update.setting_key);
+          .upsert(
+            { setting_key: update.setting_key, setting_value: update.setting_value },
+            { onConflict: "setting_key" }
+          );
 
         if (error) throw error;
       }

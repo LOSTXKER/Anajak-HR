@@ -359,7 +359,7 @@ export function useApprovals(
     []
   );
 
-  // Handle cancel
+  // Handle cancel (with leave balance restoration for approved leave requests)
   const handleCancel = useCallback(
     async (
       request: RequestItem,
@@ -382,6 +382,58 @@ export function useApprovals(
           .eq("id", request.id);
 
         if (error) throw error;
+
+        // Restore leave balance if cancelling an approved leave request
+        if (request.type === "leave" && request.status === "approved") {
+          const raw = request.rawData;
+          const leaveType = raw.leave_type as string;
+          const year = new Date(raw.start_date).getFullYear();
+
+          // Calculate days to restore
+          let daysToRestore = 0;
+          if (raw.is_half_day) {
+            daysToRestore = 0.5;
+          } else {
+            const start = new Date(raw.start_date);
+            const end = new Date(raw.end_date);
+            daysToRestore =
+              Math.ceil(
+                (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+              ) + 1;
+          }
+
+          // Map leave type to balance columns
+          const columnMap: Record<string, { used: string; remaining: string }> = {
+            annual: { used: "annual_leave_used", remaining: "annual_leave_remaining" },
+            sick: { used: "sick_leave_used", remaining: "sick_leave_remaining" },
+            personal: { used: "personal_leave_used", remaining: "personal_leave_remaining" },
+          };
+
+          const cols = columnMap[leaveType];
+          if (cols) {
+            // Fetch current balance
+            const { data: balance } = await supabase
+              .from("leave_balances")
+              .select("*")
+              .eq("employee_id", request.employeeId)
+              .eq("year", year)
+              .maybeSingle();
+
+            if (balance) {
+              const currentUsed = (balance as any)[cols.used] || 0;
+              const currentRemaining = (balance as any)[cols.remaining] || 0;
+
+              await supabase
+                .from("leave_balances")
+                .update({
+                  [cols.used]: Math.max(0, currentUsed - daysToRestore),
+                  [cols.remaining]: currentRemaining + daysToRestore,
+                })
+                .eq("employee_id", request.employeeId)
+                .eq("year", year);
+            }
+          }
+        }
 
         await fetchHistory();
         return { success: true };

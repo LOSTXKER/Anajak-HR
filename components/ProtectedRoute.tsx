@@ -21,7 +21,10 @@ export function ProtectedRoute({
     if (!loading) {
       if (!user) {
         router.push("/login");
-      } else if (employee && !allowedRoles.includes(employee.role)) {
+      } else if (!employee) {
+        // User exists but employee record missing - redirect to login
+        router.push("/login");
+      } else if (!allowedRoles.includes(employee.role)) {
         router.push("/");
       }
     }

@@ -65,7 +65,7 @@ export function usePayroll() {
       calculatePayroll();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentMonth, selectedEmployee, selectedBranch, employees, settings]);
+  }, [currentMonth, selectedEmployee, selectedBranch, employees, settings, searchTerm]);
 
   const fetchBranches = async () => {
     const { data } = await supabase
@@ -150,6 +150,7 @@ export function usePayroll() {
             .from("ot_requests")
             .select("*")
             .eq("employee_id", emp.id)
+            .in("status", ["approved", "completed"])
             .not("actual_end_time", "is", null)
             .gte("request_date", startDate)
             .lte("request_date", endDate),
@@ -218,30 +219,44 @@ export function usePayroll() {
 
                 if (clockInTotalMinutes > workStartTotalMinutes) {
                   const mins = clockInTotalMinutes - workStartTotalMinutes;
-                  if (mins <= MAX_LATE_MINUTES) {
-                    lateMinutes += mins;
-                  }
+                  lateMinutes += Math.min(mins, MAX_LATE_MINUTES);
                 }
               }
             }
           }
         );
 
-        // Calculate leave days
+        // Calculate leave days (exclude weekends, clip to month boundaries)
         let leaveDays = 0;
+        const monthStart = new Date(startDate);
+        const monthEnd = new Date(endDate);
         leaves.forEach(
           (l: {
             start_date: string;
             end_date: string;
             is_half_day: boolean;
           }) => {
-            const start = new Date(l.start_date);
-            const end = new Date(l.end_date);
-            const days =
-              Math.ceil(
-                (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
-              ) + 1;
-            leaveDays += l.is_half_day ? 0.5 : days;
+            if (l.is_half_day) {
+              leaveDays += 0.5;
+            } else {
+              // Clip leave dates to current month
+              const leaveStart = new Date(l.start_date);
+              const leaveEnd = new Date(l.end_date);
+              const clippedStart = leaveStart < monthStart ? monthStart : leaveStart;
+              const clippedEnd = leaveEnd > monthEnd ? monthEnd : leaveEnd;
+
+              // Count only weekdays
+              let days = 0;
+              const current = new Date(clippedStart);
+              while (current <= clippedEnd) {
+                const dayOfWeek = current.getDay();
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                  days++;
+                }
+                current.setDate(current.getDate() + 1);
+              }
+              leaveDays += days;
+            }
           }
         );
 
@@ -411,7 +426,14 @@ export function usePayroll() {
       r.totalPay.toFixed(2),
     ]);
 
-    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const escapeCSV = (val: any) => {
+      const str = String(val ?? "");
+      if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+    const csv = [headers.map(escapeCSV).join(","), ...rows.map((r) => r.map(escapeCSV).join(","))].join("\n");
     const blob = new Blob(["\uFEFF" + csv], {
       type: "text/csv;charset=utf-8;",
     });

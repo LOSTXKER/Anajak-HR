@@ -36,6 +36,7 @@ interface AttendanceLog {
   edited_by: string | null;
   edited_at: string | null;
   edit_reason: string | null;
+  original_clock_in: string | null;
   original_clock_out: string | null;
   employee?: {
     name: string;
@@ -139,6 +140,11 @@ function EditAttendanceContent() {
         newClockOut = new Date(clockInDate); // ใช้วันเดียวกับ clock_in_time
         newClockOut.setHours(outHours, outMinutes, 0, 0);
         
+        // ถ้า clock_out < clock_in แสดงว่าข้ามวัน → เพิ่ม 1 วัน
+        if (newClockOut.getTime() <= newClockIn.getTime()) {
+          newClockOut.setDate(newClockOut.getDate() + 1);
+        }
+        
         const diffMs = newClockOut.getTime() - newClockIn.getTime();
         totalHours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100; // ปัดเศษ 2 ตำแหน่ง
       }
@@ -161,7 +167,8 @@ function EditAttendanceContent() {
           total_hours: totalHours,
           is_late: isLate,
           late_minutes: lateMinutes,
-          original_clock_out: attendance.clock_out_time || attendance.original_clock_out,
+          original_clock_in: attendance.original_clock_in || attendance.clock_in_time,
+          original_clock_out: attendance.original_clock_out || attendance.clock_out_time,
           edited_at: new Date().toISOString(),
           edit_reason: editReason,
           edited_by: currentAdmin?.id || null,

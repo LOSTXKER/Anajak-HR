@@ -187,7 +187,7 @@ export async function GET(request: NextRequest) {
 คุณ ${employee.name} ถูกเช็คเอาท์อัตโนมัติ
 เนื่องจากไม่มีการเช็คเอาท์ก่อนเวลา ${autoCheckoutTimeStr} น.
 
-เวลาเข้างาน: ${format(clockInTime, "HH:mm", { locale: th })} น.
+เวลาเข้างาน: ${format(new Date(clockInTime.getTime() + 7 * 60 * 60 * 1000), "HH:mm", { locale: th })} น.
 เวลาออก (ตามเวลาเลิกงาน): ${workEndTimeStr} น.
 ชั่วโมงทำงาน: ${totalHours.toFixed(2)} ชม.
 

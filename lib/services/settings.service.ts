@@ -84,6 +84,7 @@ export async function getSystemSettings(): Promise<AllSettings> {
                     settings.checkoutTimeEnd = item.setting_value;
                     break;
                 case "late_threshold":
+                case "late_threshold_minutes":
                     settings.lateThreshold = parseInt(item.setting_value) || DEFAULT_SETTINGS.lateThreshold;
                     break;
                 case "working_days":

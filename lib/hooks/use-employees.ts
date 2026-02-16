@@ -103,7 +103,7 @@ export function useEmployees(
           sick_used: b.sick_leave_used || 0,
           sick_remaining: b.sick_leave_remaining || 0,
           personal_used: b.personal_leave_used || 0,
-          personal_remaining: b.personal_remaining || 0,
+          personal_remaining: b.personal_leave_remaining || 0,
         };
       });
       setBalances(balanceMap);
@@ -183,8 +183,21 @@ export function useEmployees(
 
         if (error) throw error;
 
-        // Update balance for current year
+        // Update balance for current year (recalculate remaining)
         const currentYear = new Date().getFullYear();
+
+        // Fetch current balance to recalculate remaining
+        const { data: currentBalance } = await supabase
+          .from("leave_balances")
+          .select("*")
+          .eq("employee_id", empId)
+          .eq("year", currentYear)
+          .maybeSingle();
+
+        const annualUsed = currentBalance?.annual_leave_used || 0;
+        const sickUsed = currentBalance?.sick_leave_used || 0;
+        const personalUsed = currentBalance?.personal_leave_used || 0;
+
         await supabase
           .from("leave_balances")
           .upsert(
@@ -194,6 +207,9 @@ export function useEmployees(
               annual_leave_quota: formData.annualQuota,
               sick_leave_quota: formData.sickQuota,
               personal_leave_quota: formData.personalQuota,
+              annual_leave_remaining: Math.max(0, formData.annualQuota - annualUsed),
+              sick_leave_remaining: Math.max(0, formData.sickQuota - sickUsed),
+              personal_leave_remaining: Math.max(0, formData.personalQuota - personalUsed),
             },
             { onConflict: "employee_id,year" }
           );

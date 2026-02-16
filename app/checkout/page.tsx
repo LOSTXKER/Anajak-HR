@@ -25,6 +25,7 @@ function CheckoutContent() {
   const { employee } = useAuth();
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -33,6 +34,7 @@ function CheckoutContent() {
   const [success, setSuccess] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [todayLog, setTodayLog] = useState<any>(null);
+  const [todayLogLoading, setTodayLogLoading] = useState(true);
 
   // ข้อมูลสาขาและการตรวจรัศมี
   const [branch, setBranch] = useState<Branch | null>(null);
@@ -47,6 +49,9 @@ function CheckoutContent() {
 
   // ช่วงเวลาที่อนุญาต
   const [allowedTime, setAllowedTime] = useState({ checkoutStart: "15:00", checkoutEnd: "22:00" });
+
+  // Field work request (bypass GPS radius)
+  const [hasFieldWork, setHasFieldWork] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -78,9 +83,10 @@ function CheckoutContent() {
 
   const fetchBranch = async () => {
     if (!employee?.branch_id) return;
+    const today = format(new Date(), "yyyy-MM-dd");
 
-    // ดึงข้อมูลสาขาและ settings พร้อมกัน
-    const [branchRes, settingsRes] = await Promise.all([
+    // ดึงข้อมูลสาขา, settings, และ field work พร้อมกัน
+    const [branchRes, settingsRes, fieldWorkRes] = await Promise.all([
       supabase
         .from("branches")
         .select("id, name, gps_lat, gps_lng, radius_meters")
@@ -89,7 +95,14 @@ function CheckoutContent() {
       supabase
         .from("system_settings")
         .select("setting_key, setting_value")
-        .in("setting_key", ["checkout_time_start", "checkout_time_end"])
+        .in("setting_key", ["checkout_time_start", "checkout_time_end"]),
+      supabase
+        .from("field_work_requests")
+        .select("id")
+        .eq("employee_id", employee.id)
+        .eq("date", today)
+        .eq("status", "approved")
+        .maybeSingle(),
     ]);
 
     if (branchRes.data) {
@@ -106,10 +119,16 @@ function CheckoutContent() {
         checkoutEnd: settings.checkout_time_end || "22:00",
       });
     }
+
+    // Check if there's approved field work request for today
+    if (fieldWorkRes.data) {
+      setHasFieldWork(true);
+    }
   };
 
   const checkTodayLog = async () => {
     if (!employee) return;
+    setTodayLogLoading(true);
     const today = format(new Date(), "yyyy-MM-dd");
     const { data } = await supabase
       .from("attendance_logs")
@@ -118,6 +137,7 @@ function CheckoutContent() {
       .eq("work_date", today)
       .maybeSingle();
     setTodayLog(data);
+    setTodayLogLoading(false);
   };
 
   const startCamera = async () => {
@@ -125,6 +145,7 @@ function CheckoutContent() {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user" },
       });
+      streamRef.current = mediaStream;
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
@@ -135,7 +156,8 @@ function CheckoutContent() {
   };
 
   const stopCamera = () => {
-    stream?.getTracks().forEach((track) => track.stop());
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
   };
 
   const getLocation = () => {
@@ -159,6 +181,12 @@ function CheckoutContent() {
   const handleCheckout = async () => {
     if (!photo || !location || !employee || !todayLog) return;
 
+    // ตรวจสอบรัศมี GPS (ข้ามถ้ามี approved field work)
+    if (!hasFieldWork && radiusCheck && !radiusCheck.inRadius) {
+      setError(`คุณอยู่นอกรัศมีที่อนุญาต (ห่าง ${formatDistance(radiusCheck.distance)} จากสาขา ${branch?.name || "สาขา"})`);
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -170,10 +198,11 @@ function CheckoutContent() {
         return;
       }
 
-      // ตรวจสอบเวลาที่อนุญาต
+      // ตรวจสอบเวลาที่อนุญาต (บังคับ Bangkok timezone)
       const now = new Date();
-      const currentHour = now.getHours();
-      const currentMinute = now.getMinutes();
+      const bangkokNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Bangkok" }));
+      const currentHour = bangkokNow.getHours();
+      const currentMinute = bangkokNow.getMinutes();
       const currentTimeInMinutes = currentHour * 60 + currentMinute;
 
       const [startHour, startMinute] = allowedTime.checkoutStart.split(":").map(Number);
@@ -207,7 +236,7 @@ function CheckoutContent() {
       const clockIn = new Date(todayLog.clock_in_time);
       const totalHours = (now.getTime() - clockIn.getTime()) / (1000 * 60 * 60);
 
-      const { error: updateError } = await supabase
+      const { data: updateData, error: updateError } = await supabase
         .from("attendance_logs")
         .update({
           clock_out_time: now.toISOString(),
@@ -216,9 +245,18 @@ function CheckoutContent() {
           clock_out_photo_url: photoUrl,
           total_hours: totalHours,
         })
-        .eq("id", todayLog.id);
+        .eq("id", todayLog.id)
+        .is("clock_out_time", null)
+        .select("id");
 
       if (updateError) throw updateError;
+
+      // ถ้าไม่มี row ถูก update = มีคนเช็คเอาท์ไปแล้ว
+      if (!updateData || updateData.length === 0) {
+        setError("คุณได้เช็คเอาท์ไปแล้ว กรุณารีเฟรชหน้า");
+        setLoading(false);
+        return;
+      }
 
       // ถ้าเป็น Early Checkout → บันทึก anomaly และแจ้งเตือนแอดมิน
       if (isEarlyCheckout) {
@@ -234,9 +272,13 @@ function CheckoutContent() {
 
         // แจ้งเตือนแอดมินผ่าน LINE
         try {
+          const { data: { session: earlySession } } = await supabase.auth.getSession();
           fetch("/api/notifications", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...(earlySession?.access_token ? { "Authorization": `Bearer ${earlySession.access_token}` } : {}),
+            },
             body: JSON.stringify({
               type: "early_checkout",
               data: {
@@ -255,9 +297,13 @@ function CheckoutContent() {
 
       // ส่งแจ้งเตือน LINE ปกติ (ไม่บล็อก UI)
       try {
+        const { data: { session } } = await supabase.auth.getSession();
         fetch("/api/checkout-notification", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
+          },
           body: JSON.stringify({
             employeeName: employee.name,
             time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false }),
@@ -292,6 +338,17 @@ function CheckoutContent() {
           <p className="text-[17px] text-[#86868b]">
             บันทึกเวลาออกงานเรียบร้อยแล้ว
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (todayLogLoading) {
+    return (
+      <div className="min-h-screen bg-[#fbfbfd] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-4 text-[15px] text-[#86868b]">กำลังโหลด...</p>
         </div>
       </div>
     );
@@ -504,7 +561,7 @@ function CheckoutContent() {
                 variant="danger"
                 onClick={handleCheckout}
                 loading={loading}
-                disabled={!location}
+                disabled={!location || (!hasFieldWork && radiusCheck !== null && !radiusCheck.inRadius)}
                 size="lg"
               >
                 <CheckCircle className="w-5 h-5" />

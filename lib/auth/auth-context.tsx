@@ -15,13 +15,7 @@ interface AuthContextType {
   isConfigured: boolean;
 }
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  employee: null,
-  loading: true,
-  signOut: async () => {},
-  isConfigured: false,
-});
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);

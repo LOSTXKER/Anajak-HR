@@ -26,6 +26,7 @@ function CheckinContent() {
   const { employee } = useAuth();
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -52,6 +53,9 @@ function CheckinContent() {
   const [isRestDay, setIsRestDay] = useState(false);
   const [restDayName, setRestDayName] = useState("");
   const [hasApprovedOT, setHasApprovedOT] = useState(false);
+
+  // Field work request (bypass GPS radius)
+  const [hasFieldWork, setHasFieldWork] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -84,8 +88,8 @@ function CheckinContent() {
     if (!employee?.branch_id) return;
     const today = format(new Date(), "yyyy-MM-dd");
 
-    // ดึงข้อมูลสาขา, settings, และ OT พร้อมกัน
-    const [branchRes, settingsRes, dayTypeRes, otRes] = await Promise.all([
+    // ดึงข้อมูลสาขา, settings, OT, และ field work พร้อมกัน
+    const [branchRes, settingsRes, dayTypeRes, otRes, fieldWorkRes] = await Promise.all([
       supabase
         .from("branches")
         .select("id, name, gps_lat, gps_lng, radius_meters")
@@ -102,7 +106,14 @@ function CheckinContent() {
         .select("id")
         .eq("employee_id", employee.id)
         .eq("request_date", today)
+        .eq("status", "approved"),
+      supabase
+        .from("field_work_requests")
+        .select("id")
+        .eq("employee_id", employee.id)
+        .eq("date", today)
         .eq("status", "approved")
+        .maybeSingle(),
     ]);
 
     if (branchRes.data) {
@@ -133,6 +144,11 @@ function CheckinContent() {
     if (otRes.data && otRes.data.length > 0) {
       setHasApprovedOT(true);
     }
+
+    // Check if there's approved field work request for today
+    if (fieldWorkRes.data) {
+      setHasFieldWork(true);
+    }
   };
 
   const startCamera = async () => {
@@ -140,6 +156,7 @@ function CheckinContent() {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user" },
       });
+      streamRef.current = mediaStream;
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
@@ -150,7 +167,8 @@ function CheckinContent() {
   };
 
   const stopCamera = () => {
-    stream?.getTracks().forEach((track) => track.stop());
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
   };
 
   const getLocation = () => {
@@ -180,10 +198,11 @@ function CheckinContent() {
       return;
     }
 
-    // ตรวจสอบเวลาที่อนุญาต
+    // ตรวจสอบเวลาที่อนุญาต (บังคับ Bangkok timezone)
     const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
+    const bangkokNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Bangkok" }));
+    const currentHour = bangkokNow.getHours();
+    const currentMinute = bangkokNow.getMinutes();
     const currentTimeInMinutes = currentHour * 60 + currentMinute;
 
     const [startHour, startMinute] = allowedTime.checkinStart.split(":").map(Number);
@@ -200,17 +219,7 @@ function CheckinContent() {
       return;
     }
 
-    // ตรวจสอบว่ามี approved field work request หรือไม่
     const today = format(new Date(), "yyyy-MM-dd");
-    const { data: fieldWorkData } = await supabase
-      .from("field_work_requests")
-      .select("id")
-      .eq("employee_id", employee.id)
-      .eq("date", today)
-      .eq("status", "approved")
-      .maybeSingle();
-
-    const hasFieldWork = !!fieldWorkData;
 
     // บังคับตรวจสอบรัศมี (ข้ามถ้ามี approved field work)
     if (!hasFieldWork && radiusCheck && !radiusCheck.inRadius) {
@@ -222,20 +231,6 @@ function CheckinContent() {
     setError("");
 
     try {
-      // Check if already checked in
-      const { data: existing } = await supabase
-        .from("attendance_logs")
-        .select("id")
-        .eq("employee_id", employee.id)
-        .eq("work_date", today)
-        .maybeSingle();
-
-      if (existing) {
-        setError("คุณได้เช็กอินวันนี้แล้ว");
-        setLoading(false);
-        return;
-      }
-
       // อัปโหลดรูปภาพไปที่ Supabase Storage
       const photoUrl = await uploadAttendancePhoto(photo, employee.id, "checkin");
       if (!photoUrl) {
@@ -281,15 +276,29 @@ function CheckinContent() {
           clock_in_photo_url: photoUrl,
           is_late: isLate,
           late_minutes: lateMinutes,
+          work_mode: hasFieldWork ? "field" : "onsite",
+          status: "present",
         });
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        // Handle unique constraint violation (already checked in)
+        if (insertError.code === "23505") {
+          setError("คุณได้เช็กอินวันนี้แล้ว");
+          setLoading(false);
+          return;
+        }
+        throw insertError;
+      }
 
       // ส่งแจ้งเตือน LINE (ไม่บล็อก UI)
       try {
+        const { data: { session } } = await supabase.auth.getSession();
         fetch("/api/checkin-notification", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
+          },
           body: JSON.stringify({
             employeeName: employee.name,
             time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false }),
@@ -541,7 +550,7 @@ function CheckinContent() {
                 fullWidth
                 onClick={handleCheckin}
                 loading={loading}
-                disabled={!location || !branch || (radiusCheck !== null && !radiusCheck.inRadius)}
+                disabled={!location || !branch || (!hasFieldWork && radiusCheck !== null && !radiusCheck.inRadius)}
                 size="lg"
               >
                 <CheckCircle className="w-5 h-5" />

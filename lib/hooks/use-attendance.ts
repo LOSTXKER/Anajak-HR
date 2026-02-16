@@ -105,23 +105,23 @@ export function useAttendanceHistory(
  * Hook to get live work stats (for dashboard)
  * @param employeeId - Employee ID
  */
-export function useWorkStats(employeeId: string | undefined) {
+export function useWorkStats(employeeId: string | undefined, hoursPerDay: number = 8) {
     const { attendance, isLoading, error, refetch } = useTodayAttendance(employeeId);
 
     // Calculate work stats
     const workHours = attendance ? calculateWorkHours(attendance) : 0;
-    const workProgress = attendance ? calculateWorkProgress(attendance, 8) : 0;
+    const workProgress = attendance ? calculateWorkProgress(attendance, hoursPerDay) : 0;
     const workDuration = attendance ? formatWorkDuration(attendance) : "00:00:00";
 
-    // Check if overtime (more than 8 hours)
-    const isOvertime = workHours > 8;
+    // Check if overtime
+    const isOvertime = workHours > hoursPerDay;
 
     // Calculate time remaining
     let timeRemaining: string | null = null;
     if (attendance && !attendance.clock_out_time) {
-        const remainingHours = Math.max(0, 8 - workHours);
+        const remainingHours = Math.max(0, hoursPerDay - workHours);
         if (isOvertime) {
-            const overtimeHours = workHours - 8;
+            const overtimeHours = workHours - hoursPerDay;
             const hours = Math.floor(overtimeHours);
             const minutes = Math.round((overtimeHours - hours) * 60);
             timeRemaining = `ทำงานเกินมา ${hours} ชม. ${minutes} นาที`;

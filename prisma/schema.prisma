@@ -88,6 +88,7 @@ model attendance_logs {
   edit_reason                                      String?
   edited_by                                        String?                @db.Uuid
   edited_at                                        DateTime?              @db.Timestamptz(6)
+  original_clock_in                                DateTime?              @db.Timestamptz(6)
   original_clock_out                               DateTime?              @db.Timestamptz(6)
   auto_checkout                                    Boolean?               @default(false)
   auto_checkout_reason                             String?
