@@ -2,6 +2,7 @@
 
 import { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
+import { Breadcrumbs } from "./Breadcrumbs";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -19,6 +20,7 @@ export function AdminLayout({ children, title, description }: AdminLayoutProps) 
         {/* Header */}
         {title && (
           <header className="sticky top-0 z-30 apple-glass border-b border-[#e8e8ed]/50 px-6 lg:px-8 py-6">
+            <Breadcrumbs />
             <h1 className="text-[28px] font-semibold text-[#1d1d1f]">
               {title}
             </h1>

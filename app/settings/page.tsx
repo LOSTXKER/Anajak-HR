@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
+import { ConfirmDialog } from "@/components/ui/Modal";
 import { BottomNav } from "@/components/BottomNav";
 import { InstallButton } from "@/components/InstallButton";
 import {
@@ -22,12 +24,11 @@ import { useAuth } from "@/lib/auth/auth-context";
 function SettingsContent() {
   const router = useRouter();
   const { employee, user, signOut } = useAuth();
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
   const handleSignOut = async () => {
-    if (confirm("ต้องการออกจากระบบหรือไม่?")) {
-      await signOut();
-      router.push("/login");
-    }
+    await signOut();
+    router.push("/login");
   };
 
   const menuItems = [
@@ -135,13 +136,24 @@ function SettingsContent() {
           <Button
             fullWidth
             variant="danger"
-            onClick={handleSignOut}
+            onClick={() => setShowSignOutConfirm(true)}
             size="lg"
           >
             <LogOut className="w-5 h-5" />
             ออกจากระบบ
           </Button>
         </main>
+
+        <ConfirmDialog
+          isOpen={showSignOutConfirm}
+          onClose={() => setShowSignOutConfirm(false)}
+          onConfirm={handleSignOut}
+          title="ออกจากระบบ"
+          message="ต้องการออกจากระบบหรือไม่?"
+          type="warning"
+          confirmText="ออกจากระบบ"
+          cancelText="ยกเลิก"
+        />
 
         <BottomNav />
       </div>

@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { uploadAttendancePhoto } from "@/lib/utils/upload-photo";
 import { isWithinRadius, formatDistance } from "@/lib/utils/geo";
-import { Camera, MapPin, ArrowLeft, CheckCircle, AlertCircle, Navigation, Calendar, Timer } from "lucide-react";
+import { Camera, MapPin, ArrowLeft, CheckCircle, AlertCircle, Navigation, Calendar, Timer, RotateCcw } from "lucide-react";
 import { format, parseISO, isSameDay, startOfDay } from "date-fns";
 import { getDayType } from "@/lib/services/holiday.service";
 
@@ -151,6 +151,8 @@ function CheckinContent() {
     }
   };
 
+  const [gpsLoading, setGpsLoading] = useState(false);
+
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -161,8 +163,14 @@ function CheckinContent() {
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
-    } catch (err) {
-      setError("ไม่สามารถเข้าถึงกล้องได้");
+    } catch (err: any) {
+      if (err.name === "NotAllowedError") {
+        setError("กรุณาอนุญาตการเข้าถึงกล้องในการตั้งค่าเบราว์เซอร์");
+      } else if (err.name === "NotFoundError") {
+        setError("ไม่พบกล้องบนอุปกรณ์นี้");
+      } else {
+        setError("ไม่สามารถเข้าถึงกล้องได้ กรุณาลองใหม่");
+      }
     }
   };
 
@@ -172,12 +180,29 @@ function CheckinContent() {
   };
 
   const getLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => setError("ไม่สามารถเข้าถึงตำแหน่งได้")
-      );
+    if (!navigator.geolocation) {
+      setError("อุปกรณ์ไม่รองรับ GPS");
+      return;
     }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGpsLoading(false);
+        setError("");
+      },
+      (err) => {
+        setGpsLoading(false);
+        if (err.code === err.PERMISSION_DENIED) {
+          setError("กรุณาเปิดการเข้าถึงตำแหน่งในการตั้งค่า");
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          setError("ไม่สามารถหาตำแหน่งได้ ลองออกไปที่โล่งแล้วกดลองใหม่");
+        } else {
+          setError("หาตำแหน่ง GPS หมดเวลา กดลองใหม่");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
   };
 
   const capturePhoto = () => {
@@ -434,14 +459,17 @@ function CheckinContent() {
           <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-[#e8e8ed]">
             <div className="flex items-center gap-3">
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center ${location ? "bg-[#34c759]/10" : "bg-[#ff9500]/10"
-                  }`}
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${location ? "bg-[#34c759]/10" : "bg-[#ff9500]/10"}`}
               >
-                <MapPin className={`w-5 h-5 ${location ? "text-[#34c759]" : "text-[#ff9500]"}`} />
+                {gpsLoading ? (
+                  <div className="w-5 h-5 border-2 border-[#ff9500] border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <MapPin className={`w-5 h-5 ${location ? "text-[#34c759]" : "text-[#ff9500]"}`} />
+                )}
               </div>
               <div>
                 <p className="text-[15px] font-medium text-[#1d1d1f]">
-                  {location ? "พบตำแหน่ง GPS" : "กำลังหาตำแหน่ง..."}
+                  {location ? "พบตำแหน่ง GPS" : gpsLoading ? "กำลังหาตำแหน่ง..." : "ไม่พบตำแหน่ง"}
                 </p>
                 {location && (
                   <p className="text-[13px] text-[#86868b]">
@@ -450,9 +478,17 @@ function CheckinContent() {
                 )}
               </div>
             </div>
-            <div
-              className={`w-3 h-3 rounded-full ${location ? "bg-[#34c759]" : "bg-[#ff9500] animate-pulse"}`}
-            />
+            {!location && !gpsLoading ? (
+              <button
+                onClick={getLocation}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/15 transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                ลองใหม่
+              </button>
+            ) : (
+              <div className={`w-3 h-3 rounded-full ${location ? "bg-[#34c759]" : "bg-[#ff9500] animate-pulse"}`} />
+            )}
           </div>
 
           {/* Radius Check Status */}

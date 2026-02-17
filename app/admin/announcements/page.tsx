@@ -7,6 +7,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { ConfirmDialog } from "@/components/ui/Modal";
 import {
   Plus,
   Megaphone,
@@ -32,6 +33,7 @@ function AnnouncementsContent() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "published" | "draft">("all");
 
   const fetchAnnouncements = useCallback(async () => {
@@ -74,8 +76,6 @@ function AnnouncementsContent() {
   }, [fetchAnnouncements]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("ต้องการลบประกาศนี้หรือไม่?")) return;
-
     setDeleting(id);
     try {
       const { error } = await supabase
@@ -86,6 +86,7 @@ function AnnouncementsContent() {
       if (error) throw error;
 
       toast.success("ลบสำเร็จ", "ลบประกาศเรียบร้อยแล้ว");
+      setDeleteTarget(null);
       fetchAnnouncements();
     } catch (error: any) {
       toast.error("เกิดข้อผิดพลาด", error.message);
@@ -325,7 +326,7 @@ function AnnouncementsContent() {
                       <Button
                         size="sm"
                         variant="danger"
-                        onClick={() => handleDelete(announcement.id)}
+                        onClick={() => setDeleteTarget(announcement.id)}
                         loading={deleting === announcement.id}
                       >
                         <Trash2 className="w-4 h-4" />
@@ -337,6 +338,17 @@ function AnnouncementsContent() {
             ))}
           </div>
         )}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && handleDelete(deleteTarget)}
+        title="ลบประกาศ"
+        message="ต้องการลบประกาศนี้หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้"
+        type="danger"
+        confirmText="ลบ"
+        cancelText="ยกเลิก"
+        loading={!!deleting}
+      />
     </AdminLayout>
   );
 }

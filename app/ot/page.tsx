@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { ConfirmDialog } from "@/components/ui/Modal";
 import { BottomNav } from "@/components/BottomNav";
 import {
   Clock,
@@ -51,6 +52,7 @@ function OTPageContent() {
   const [loading, setLoading] = useState(true);
   const [elapsedTime, setElapsedTime] = useState("00:00:00");
   const [canceling, setCanceling] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<string | null>(null);
   const [viewingPhoto, setViewingPhoto] = useState<{ url: string; type: string } | null>(null);
 
   useEffect(() => {
@@ -115,7 +117,6 @@ function OTPageContent() {
   };
 
   const handleCancelOT = async (id: string) => {
-    if (!confirm("ต้องการยกเลิกคำขอ OT นี้ใช่หรือไม่?")) return;
     if (!employee) return;
 
     setCanceling(id);
@@ -128,10 +129,10 @@ function OTPageContent() {
         .eq("status", "pending");
 
       if (error) throw error;
+      setCancelTarget(null);
       fetchOTData();
     } catch (error: any) {
       console.error("Error canceling OT:", error);
-      alert(error?.message || "ไม่สามารถยกเลิกคำขอได้");
     } finally {
       setCanceling(null);
     }
@@ -316,7 +317,7 @@ function OTPageContent() {
                           <p className="text-[13px] text-[#86868b] mt-1">{ot.reason}</p>
                         </div>
                         <button
-                          onClick={() => handleCancelOT(ot.id)}
+                          onClick={() => setCancelTarget(ot.id)}
                           disabled={canceling === ot.id}
                           className="flex items-center gap-1 px-3 py-2 text-[13px] text-[#ff3b30] bg-[#ff3b30]/10 rounded-lg hover:bg-[#ff3b30]/20 transition-colors disabled:opacity-50"
                         >
@@ -453,6 +454,18 @@ function OTPageContent() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!cancelTarget}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={() => cancelTarget && handleCancelOT(cancelTarget)}
+        title="ยกเลิกคำขอ OT"
+        message="ต้องการยกเลิกคำขอ OT นี้ใช่หรือไม่?"
+        type="danger"
+        confirmText="ยกเลิกคำขอ"
+        cancelText="ไม่ใช่"
+        loading={!!canceling}
+      />
 
       <BottomNav />
     </div>

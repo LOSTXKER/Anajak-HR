@@ -4,106 +4,51 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SettingsLayout } from "@/components/admin/SettingsLayout";
-import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
+import { Bell, CheckCircle } from "lucide-react";
 import {
-  Bell,
-  Save,
-  ArrowLeft,
-  Clock,
-  Calendar,
-  AlertTriangle,
-  LogIn,
-  LogOut,
-  Timer,
-  Info,
-  CheckCircle,
-  FileText,
-  Home,
-  MapPin,
-  Megaphone,
-  UserPlus,
-} from "lucide-react";
-import Link from "next/link";
-import { TimeInput } from "@/components/ui/TimeInput";
+  NotificationToggles,
+  PushSettings,
+  NotificationSchedule,
+  IOSInstructions,
+} from "@/components/admin/settings";
+import type { NotificationSettings } from "@/components/admin/settings";
 
-// Toggle Switch Component
-const ToggleSwitch = ({ 
-  enabled, 
-  onChange,
-  disabled = false,
-}: { 
-  enabled: boolean; 
-  onChange: () => void;
-  disabled?: boolean;
-}) => (
-  <button
-    type="button"
-    onClick={onChange}
-    disabled={disabled}
-    className={`
-      relative w-12 h-7 rounded-full transition-colors flex-shrink-0
-      ${disabled ? "opacity-50 cursor-not-allowed" : ""}
-      ${enabled ? "bg-[#34c759]" : "bg-[#d2d2d7]"}
-    `}
-  >
-    <span
-      className={`
-        absolute top-1 w-5 h-5 bg-white rounded-full transition-transform shadow-sm
-        ${enabled ? "right-1" : "left-1"}
-      `}
-    />
-  </button>
-);
+const DEFAULT_SETTINGS: NotificationSettings = {
+  enableCheckinNotifications: false,
+  enableCheckoutNotifications: false,
+  enableHolidayNotifications: true,
+  holidayNotificationDaysBefore: "1",
+  holidayNotificationTime: "09:00",
+  otNotifyOnRequest: true,
+  otNotifyOnApproval: true,
+  otNotifyOnStart: true,
+  otNotifyOnEnd: true,
+  enableLeaveNotifications: false,
+  enableWfhNotifications: false,
+  enableLateNotifications: false,
+  enableFieldworkNotifications: false,
+  enableAnnouncementNotifications: false,
+  enableEmployeeRegistrationNotifications: false,
+  enableAnomalyNotifications: false,
+  autoCheckoutEnabled: false,
+  autoCheckoutTime: "23:00",
+  autoCheckoutDelayHours: "2",
+  autoCheckoutSkipIfOt: true,
+  reminderEnabled: true,
+  reminderFirstMinutes: "60",
+  reminderSecondMinutes: "30",
+  reminderThirdMinutes: "15",
+  notifyAdminOnAutoCheckout: true,
+  workStartTime: "08:00",
+  workEndTime: "17:00",
+};
 
 function NotificationSettingsContent() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
-  const [settings, setSettings] = useState({
-    // Checkin/Checkout Notifications
-    enableCheckinNotifications: false,
-    enableCheckoutNotifications: false,
-    
-    // Holiday Notifications
-    enableHolidayNotifications: true,
-    holidayNotificationDaysBefore: "1",
-    holidayNotificationTime: "09:00",
-    
-    // OT Notifications
-    otNotifyOnRequest: true,
-    otNotifyOnApproval: true,
-    otNotifyOnStart: true,
-    otNotifyOnEnd: true,
-    
-    // Request Notifications (Leave, WFH, Late, Field Work)
-    enableLeaveNotifications: false,
-    enableWfhNotifications: false,
-    enableLateNotifications: false,
-    enableFieldworkNotifications: false,
-    
-    // Other Notifications
-    enableAnnouncementNotifications: false,
-    enableEmployeeRegistrationNotifications: false,
-    enableAnomalyNotifications: false,
-    
-    // Auto-checkout & Reminder
-    autoCheckoutEnabled: false,
-    autoCheckoutTime: "23:00",
-    autoCheckoutDelayHours: "2",
-    autoCheckoutSkipIfOt: true,
-    reminderEnabled: true,
-    reminderFirstMinutes: "60",
-    reminderSecondMinutes: "30",
-    reminderThirdMinutes: "15",
-    notifyAdminOnAutoCheckout: true,
-    
-    // Read-only display from work times
-    workStartTime: "08:00",
-    workEndTime: "17:00",
-  });
+  const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
 
   useEffect(() => {
     fetchSettings();
@@ -115,35 +60,28 @@ function NotificationSettingsContent() {
       const { data } = await supabase.from("system_settings").select("*");
 
       if (data) {
-        const map: any = {};
-        data.forEach((item: any) => {
+        const map: Record<string, string> = {};
+        data.forEach((item: { setting_key: string; setting_value: string }) => {
           map[item.setting_key] = item.setting_value;
         });
 
         setSettings({
           enableCheckinNotifications: map.enable_checkin_notifications === "true",
           enableCheckoutNotifications: map.enable_checkout_notifications === "true",
-          
           enableHolidayNotifications: map.enable_holiday_notifications !== "false",
           holidayNotificationDaysBefore: map.holiday_notification_days_before || "1",
           holidayNotificationTime: map.holiday_notification_time || "09:00",
-          
           otNotifyOnRequest: map.ot_notify_on_request !== "false",
           otNotifyOnApproval: map.ot_notify_on_approval !== "false",
           otNotifyOnStart: map.ot_notify_on_start !== "false",
           otNotifyOnEnd: map.ot_notify_on_end !== "false",
-          
-          // Request Notifications (default false to save quota)
           enableLeaveNotifications: map.enable_leave_notifications === "true",
           enableWfhNotifications: map.enable_wfh_notifications === "true",
           enableLateNotifications: map.enable_late_notifications === "true",
           enableFieldworkNotifications: map.enable_fieldwork_notifications === "true",
-          
-          // Other Notifications (default false to save quota)
           enableAnnouncementNotifications: map.enable_announcement_notifications === "true",
           enableEmployeeRegistrationNotifications: map.enable_employee_registration_notifications === "true",
           enableAnomalyNotifications: map.enable_anomaly_notifications === "true",
-          
           autoCheckoutEnabled: map.auto_checkout_enabled === "true",
           autoCheckoutTime: map.auto_checkout_time || "23:00",
           autoCheckoutDelayHours: map.auto_checkout_delay_hours || "2",
@@ -153,8 +91,6 @@ function NotificationSettingsContent() {
           reminderSecondMinutes: map.reminder_second_minutes || "30",
           reminderThirdMinutes: map.reminder_third_minutes || "15",
           notifyAdminOnAutoCheckout: map.notify_admin_on_auto_checkout !== "false",
-          
-          // Read-only: Display work times (used by PWA notifications)
           workStartTime: map.work_start_time || "08:00",
           workEndTime: map.work_end_time || "17:00",
         });
@@ -166,33 +102,30 @@ function NotificationSettingsContent() {
     }
   };
 
+  const handleSettingChange = (updates: Partial<NotificationSettings>) => {
+    setSettings((prev) => ({ ...prev, ...updates }));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
       const updates = [
         { key: "enable_checkin_notifications", value: settings.enableCheckinNotifications.toString() },
         { key: "enable_checkout_notifications", value: settings.enableCheckoutNotifications.toString() },
-        
         { key: "enable_holiday_notifications", value: settings.enableHolidayNotifications.toString() },
         { key: "holiday_notification_days_before", value: settings.holidayNotificationDaysBefore },
         { key: "holiday_notification_time", value: settings.holidayNotificationTime },
-        
         { key: "ot_notify_on_request", value: settings.otNotifyOnRequest.toString() },
         { key: "ot_notify_on_approval", value: settings.otNotifyOnApproval.toString() },
         { key: "ot_notify_on_start", value: settings.otNotifyOnStart.toString() },
         { key: "ot_notify_on_end", value: settings.otNotifyOnEnd.toString() },
-        
-        // Request Notifications
         { key: "enable_leave_notifications", value: settings.enableLeaveNotifications.toString() },
         { key: "enable_wfh_notifications", value: settings.enableWfhNotifications.toString() },
         { key: "enable_late_notifications", value: settings.enableLateNotifications.toString() },
         { key: "enable_fieldwork_notifications", value: settings.enableFieldworkNotifications.toString() },
-        
-        // Other Notifications
         { key: "enable_announcement_notifications", value: settings.enableAnnouncementNotifications.toString() },
         { key: "enable_employee_registration_notifications", value: settings.enableEmployeeRegistrationNotifications.toString() },
         { key: "enable_anomaly_notifications", value: settings.enableAnomalyNotifications.toString() },
-        
         { key: "auto_checkout_enabled", value: settings.autoCheckoutEnabled.toString() },
         { key: "auto_checkout_time", value: settings.autoCheckoutTime },
         { key: "auto_checkout_delay_hours", value: settings.autoCheckoutDelayHours },
@@ -270,503 +203,20 @@ function NotificationSettingsContent() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column */}
-        <div className="space-y-6">
-          {/* Checkin/Checkout Notifications */}
-          <Card elevated>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-[#0071e3]/10 rounded-xl flex items-center justify-center">
-                <Bell className="w-5 h-5 text-[#0071e3]" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-[17px] font-semibold text-[#1d1d1f]">แจ้งเตือนเข้า-ออกงาน</h3>
-                  <span className="px-2 py-0.5 bg-[#34c759] text-white text-[10px] font-bold rounded">LINE</span>
-                </div>
-                <p className="text-[13px] text-[#86868b]">ส่ง LINE เมื่อพนักงานลงเวลา</p>
-              </div>
-            </div>
+        {/* Left Column - LINE Notification Toggles */}
+        <NotificationToggles settings={settings} onChange={handleSettingChange} />
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                <div className="flex items-center gap-3">
-                  <LogIn className="w-5 h-5 text-[#34c759]" />
-                  <span className="text-[14px] text-[#1d1d1f]">แจ้งเตือนเมื่อเช็คอิน</span>
-                </div>
-                <ToggleSwitch 
-                  enabled={settings.enableCheckinNotifications} 
-                  onChange={() => setSettings({ ...settings, enableCheckinNotifications: !settings.enableCheckinNotifications })}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                <div className="flex items-center gap-3">
-                  <LogOut className="w-5 h-5 text-[#ff9500]" />
-                  <span className="text-[14px] text-[#1d1d1f]">แจ้งเตือนเมื่อเช็คเอาท์</span>
-                </div>
-                <ToggleSwitch 
-                  enabled={settings.enableCheckoutNotifications} 
-                  onChange={() => setSettings({ ...settings, enableCheckoutNotifications: !settings.enableCheckoutNotifications })}
-                />
-              </div>
-            </div>
-          </Card>
-
-
-          {/* OT Notifications */}
-          <Card elevated>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-[#ff9500]/10 rounded-xl flex items-center justify-center">
-                <Clock className="w-5 h-5 text-[#ff9500]" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-[17px] font-semibold text-[#1d1d1f]">แจ้งเตือน OT</h3>
-                  <span className="px-2 py-0.5 bg-[#34c759] text-white text-[10px] font-bold rounded">LINE</span>
-                </div>
-                <p className="text-[13px] text-[#86868b]">ส่ง LINE เมื่อมี OT</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                <span className="text-[14px] text-[#1d1d1f]">แจ้งเมื่อมีคำขอ OT ใหม่</span>
-                <ToggleSwitch 
-                  enabled={settings.otNotifyOnRequest} 
-                  onChange={() => setSettings({ ...settings, otNotifyOnRequest: !settings.otNotifyOnRequest })}
-                />
-              </div>
-              <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                <span className="text-[14px] text-[#1d1d1f]">แจ้งเมื่อ OT ได้รับการอนุมัติ</span>
-                <ToggleSwitch 
-                  enabled={settings.otNotifyOnApproval} 
-                  onChange={() => setSettings({ ...settings, otNotifyOnApproval: !settings.otNotifyOnApproval })}
-                />
-              </div>
-              <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                <span className="text-[14px] text-[#1d1d1f]">แจ้งเมื่อเริ่มทำ OT</span>
-                <ToggleSwitch 
-                  enabled={settings.otNotifyOnStart} 
-                  onChange={() => setSettings({ ...settings, otNotifyOnStart: !settings.otNotifyOnStart })}
-                />
-              </div>
-              <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                <span className="text-[14px] text-[#1d1d1f]">แจ้งเมื่อจบ OT</span>
-                <ToggleSwitch 
-                  enabled={settings.otNotifyOnEnd} 
-                  onChange={() => setSettings({ ...settings, otNotifyOnEnd: !settings.otNotifyOnEnd })}
-                />
-              </div>
-            </div>
-          </Card>
-
-          {/* Holiday Notifications */}
-          <Card elevated>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-[#ff3b30]/10 rounded-xl flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-[#ff3b30]" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-[17px] font-semibold text-[#1d1d1f]">แจ้งเตือนวันหยุด</h3>
-                  <span className="px-2 py-0.5 bg-[#34c759] text-white text-[10px] font-bold rounded">LINE</span>
-                </div>
-                <p className="text-[13px] text-[#86868b]">แจ้งล่วงหน้าก่อนวันหยุด</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                <span className="text-[14px] text-[#1d1d1f]">เปิดใช้งานการแจ้งเตือนวันหยุด</span>
-                <ToggleSwitch 
-                  enabled={settings.enableHolidayNotifications} 
-                  onChange={() => setSettings({ ...settings, enableHolidayNotifications: !settings.enableHolidayNotifications })}
-                />
-              </div>
-
-              {settings.enableHolidayNotifications && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                      แจ้งล่วงหน้า (วัน)
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="7"
-                      value={settings.holidayNotificationDaysBefore}
-                      onChange={(e) => setSettings({ ...settings, holidayNotificationDaysBefore: e.target.value })}
-                      className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
-                    />
-                  </div>
-                  <TimeInput
-                    label="เวลาแจ้งเตือน"
-                    value={settings.holidayNotificationTime}
-                    onChange={(val) => setSettings({ ...settings, holidayNotificationTime: val })}
-                  />
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* Request Notifications (Leave, WFH, Late, Field Work) */}
-          <Card elevated>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-[#5856d6]/10 rounded-xl flex items-center justify-center">
-                <FileText className="w-5 h-5 text-[#5856d6]" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-[17px] font-semibold text-[#1d1d1f]">แจ้งเตือนคำขอต่างๆ</h3>
-                  <span className="px-2 py-0.5 bg-[#34c759] text-white text-[10px] font-bold rounded">LINE</span>
-                </div>
-                <p className="text-[13px] text-[#86868b]">ลางาน, WFH, มาสาย, งานนอกสถานที่</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                <div className="flex items-center gap-3">
-                  <FileText className="w-5 h-5 text-[#5856d6]" />
-                  <div>
-                    <span className="text-[14px] text-[#1d1d1f] block">ลางาน</span>
-                    <span className="text-[11px] text-[#86868b]">คำขอใหม่ + อนุมัติ/ปฏิเสธ</span>
-                  </div>
-                </div>
-                <ToggleSwitch 
-                  enabled={settings.enableLeaveNotifications} 
-                  onChange={() => setSettings({ ...settings, enableLeaveNotifications: !settings.enableLeaveNotifications })}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                <div className="flex items-center gap-3">
-                  <Home className="w-5 h-5 text-[#007aff]" />
-                  <div>
-                    <span className="text-[14px] text-[#1d1d1f] block">WFH (Work From Home)</span>
-                    <span className="text-[11px] text-[#86868b]">คำขอใหม่ + อนุมัติ/ปฏิเสธ</span>
-                  </div>
-                </div>
-                <ToggleSwitch 
-                  enabled={settings.enableWfhNotifications} 
-                  onChange={() => setSettings({ ...settings, enableWfhNotifications: !settings.enableWfhNotifications })}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                <div className="flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-[#ff9500]" />
-                  <div>
-                    <span className="text-[14px] text-[#1d1d1f] block">ขออนุมัติมาสาย</span>
-                    <span className="text-[11px] text-[#86868b]">คำขอใหม่ + อนุมัติ/ปฏิเสธ</span>
-                  </div>
-                </div>
-                <ToggleSwitch 
-                  enabled={settings.enableLateNotifications} 
-                  onChange={() => setSettings({ ...settings, enableLateNotifications: !settings.enableLateNotifications })}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                <div className="flex items-center gap-3">
-                  <MapPin className="w-5 h-5 text-[#34c759]" />
-                  <div>
-                    <span className="text-[14px] text-[#1d1d1f] block">งานนอกสถานที่</span>
-                    <span className="text-[11px] text-[#86868b]">คำขอใหม่ + อนุมัติ/ปฏิเสธ</span>
-                  </div>
-                </div>
-                <ToggleSwitch 
-                  enabled={settings.enableFieldworkNotifications} 
-                  onChange={() => setSettings({ ...settings, enableFieldworkNotifications: !settings.enableFieldworkNotifications })}
-                />
-              </div>
-            </div>
-          </Card>
-
-          {/* Other Notifications */}
-          <Card elevated>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-[#ff2d55]/10 rounded-xl flex items-center justify-center">
-                <Megaphone className="w-5 h-5 text-[#ff2d55]" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-[17px] font-semibold text-[#1d1d1f]">แจ้งเตือนอื่นๆ</h3>
-                  <span className="px-2 py-0.5 bg-[#34c759] text-white text-[10px] font-bold rounded">LINE</span>
-                </div>
-                <p className="text-[13px] text-[#86868b]">ประกาศ, พนักงานใหม่, Anomaly</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                <div className="flex items-center gap-3">
-                  <Megaphone className="w-5 h-5 text-[#ff2d55]" />
-                  <div>
-                    <span className="text-[14px] text-[#1d1d1f] block">ประกาศใหม่</span>
-                    <span className="text-[11px] text-[#86868b]">แจ้งเมื่อมีประกาศใหม่</span>
-                  </div>
-                </div>
-                <ToggleSwitch 
-                  enabled={settings.enableAnnouncementNotifications} 
-                  onChange={() => setSettings({ ...settings, enableAnnouncementNotifications: !settings.enableAnnouncementNotifications })}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                <div className="flex items-center gap-3">
-                  <UserPlus className="w-5 h-5 text-[#007aff]" />
-                  <div>
-                    <span className="text-[14px] text-[#1d1d1f] block">พนักงานลงทะเบียนใหม่</span>
-                    <span className="text-[11px] text-[#86868b]">แจ้งเมื่อมีคนสมัครใหม่</span>
-                  </div>
-                </div>
-                <ToggleSwitch 
-                  enabled={settings.enableEmployeeRegistrationNotifications} 
-                  onChange={() => setSettings({ ...settings, enableEmployeeRegistrationNotifications: !settings.enableEmployeeRegistrationNotifications })}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className="w-5 h-5 text-[#ff9500]" />
-                  <div>
-                    <span className="text-[14px] text-[#1d1d1f] block">Anomaly / ผิดปกติ</span>
-                    <span className="text-[11px] text-[#86868b]">เช็คเอาท์ก่อนเวลา, GPS ไม่ตรง ฯลฯ</span>
-                  </div>
-                </div>
-                <ToggleSwitch 
-                  enabled={settings.enableAnomalyNotifications} 
-                  onChange={() => setSettings({ ...settings, enableAnomalyNotifications: !settings.enableAnomalyNotifications })}
-                />
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Right Column */}
-        <div className="space-y-6">
-          {/* Auto-checkout */}
-          <Card elevated>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-[#af52de]/10 rounded-xl flex items-center justify-center">
-                <Timer className="w-5 h-5 text-[#af52de]" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-[17px] font-semibold text-[#1d1d1f]">Auto Check-out</h3>
-                  <span className="px-2 py-0.5 bg-[#34c759] text-white text-[10px] font-bold rounded">LINE</span>
-                </div>
-                <p className="text-[13px] text-[#86868b]">เช็คเอาท์อัตโนมัติสำหรับคนลืม</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                <div>
-                  <span className="text-[14px] text-[#1d1d1f] block">เปิด Auto Check-out</span>
-                  <span className="text-[12px] text-[#86868b]">ระบบจะเช็คเอาท์ให้อัตโนมัติ</span>
-                </div>
-                <ToggleSwitch 
-                  enabled={settings.autoCheckoutEnabled} 
-                  onChange={() => setSettings({ ...settings, autoCheckoutEnabled: !settings.autoCheckoutEnabled })}
-                />
-              </div>
-
-              {settings.autoCheckoutEnabled && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <TimeInput
-                      label="เวลา Auto Check-out"
-                      value={settings.autoCheckoutTime}
-                      onChange={(val) => setSettings({ ...settings, autoCheckoutTime: val })}
-                    />
-                    <div>
-                      <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                        หลังเลิกงาน (ชม.)
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="12"
-                        value={settings.autoCheckoutDelayHours}
-                        onChange={(e) => setSettings({ ...settings, autoCheckoutDelayHours: e.target.value })}
-                        className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                    <span className="text-[14px] text-[#1d1d1f]">ข้ามถ้ากำลังทำ OT</span>
-                    <ToggleSwitch 
-                      enabled={settings.autoCheckoutSkipIfOt} 
-                      onChange={() => setSettings({ ...settings, autoCheckoutSkipIfOt: !settings.autoCheckoutSkipIfOt })}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                    <span className="text-[14px] text-[#1d1d1f]">แจ้ง Admin เมื่อ Auto Check-out</span>
-                    <ToggleSwitch 
-                      enabled={settings.notifyAdminOnAutoCheckout} 
-                      onChange={() => setSettings({ ...settings, notifyAdminOnAutoCheckout: !settings.notifyAdminOnAutoCheckout })}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-          </Card>
-
-          {/* Reminder Settings */}
-          <Card elevated>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-[#5ac8fa]/10 rounded-xl flex items-center justify-center">
-                <AlertTriangle className="w-5 h-5 text-[#5ac8fa]" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-[17px] font-semibold text-[#1d1d1f]">เตือนลืมเช็คเอาท์</h3>
-                  <span className="px-2 py-0.5 bg-[#34c759] text-white text-[10px] font-bold rounded">LINE</span>
-                </div>
-                <p className="text-[13px] text-[#86868b]">ส่ง LINE เตือนก่อน Auto Check-out</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
-                <span className="text-[14px] text-[#1d1d1f]">เปิดการเตือน</span>
-                <ToggleSwitch 
-                  enabled={settings.reminderEnabled} 
-                  onChange={() => setSettings({ ...settings, reminderEnabled: !settings.reminderEnabled })}
-                />
-              </div>
-
-              {settings.reminderEnabled && (
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                      ครั้งที่ 1 (นาที)
-                    </label>
-                    <input
-                      type="number"
-                      min="5"
-                      value={settings.reminderFirstMinutes}
-                      onChange={(e) => setSettings({ ...settings, reminderFirstMinutes: e.target.value })}
-                      className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                      ครั้งที่ 2 (นาที)
-                    </label>
-                    <input
-                      type="number"
-                      min="5"
-                      value={settings.reminderSecondMinutes}
-                      onChange={(e) => setSettings({ ...settings, reminderSecondMinutes: e.target.value })}
-                      className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                      ครั้งที่ 3 (นาที)
-                    </label>
-                    <input
-                      type="number"
-                      min="5"
-                      value={settings.reminderThirdMinutes}
-                      onChange={(e) => setSettings({ ...settings, reminderThirdMinutes: e.target.value })}
-                      className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <p className="text-xs text-[#86868b] mt-2 flex items-center gap-1">
-                <Info className="w-3.5 h-3.5" />
-                เตือนก่อน Auto Check-out เช่น 60 นาที, 30 นาที, 15 นาที
-              </p>
-            </div>
-          </Card>
-
-          {/* Save Button */}
-          <Button 
-            onClick={handleSave} 
-            size="lg" 
-            loading={saving}
-            fullWidth
-            icon={!saving ? <Save className="w-5 h-5" /> : undefined}
-          >
-            {saving ? "กำลังบันทึก..." : "บันทึกการตั้งค่า LINE Notifications"}
-          </Button>
-        </div>
+        {/* Right Column - Schedule & Save */}
+        <NotificationSchedule
+          settings={settings}
+          onChange={handleSettingChange}
+          onSave={handleSave}
+          saving={saving}
+        />
       </div>
 
-      {/* Test Push Button */}
-      <div className="mt-8">
-        <Link href="/admin/settings/push-test">
-          <Button
-            fullWidth
-            variant="secondary"
-            size="lg"
-            icon={<Bell className="w-5 h-5" />}
-          >
-            ทดสอบ Push Notifications
-          </Button>
-        </Link>
-      </div>
-
-      {/* PWA Info Section - Read Only */}
-      <div className="mt-6 p-5 bg-[#f5f5f7] rounded-2xl border-2 border-[#e8e8ed]">
-        <div className="flex items-start gap-4 mb-4">
-          <div className="w-10 h-10 rounded-lg bg-[#86868b] flex items-center justify-center flex-shrink-0">
-            <Info className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h3 className="text-[17px] font-bold text-[#1d1d1f] mb-1 flex items-center gap-2">
-              PWA Notifications (ข้อมูลเพิ่มเติม)
-              <span className="px-2 py-0.5 bg-[#86868b] text-white text-[10px] font-bold rounded">อ่านอย่างเดียว</span>
-            </h3>
-            <p className="text-[13px] text-[#86868b]">
-              Reminder ส่วนตัวสำหรับพนักงาน - พนักงานตั้งค่าเองผ่านแอป
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 bg-white rounded-xl">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[13px] font-medium text-[#86868b]">⏰ เตือนเช็คอิน</span>
-              <span className="text-[16px] font-bold text-[#0071e3]">{settings.workStartTime} น.</span>
-            </div>
-            <p className="text-[11px] text-[#86868b]">อิงตาม work_start_time</p>
-          </div>
-
-          <div className="p-4 bg-white rounded-xl">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[13px] font-medium text-[#86868b]">🏠 เตือนเช็คเอาท์</span>
-              <span className="text-[16px] font-bold text-[#ff9500]">{settings.workEndTime} น.</span>
-            </div>
-            <p className="text-[11px] text-[#86868b]">อิงตาม work_end_time</p>
-          </div>
-        </div>
-
-        <div className="mt-4 p-3 bg-[#ff9500]/10 rounded-xl border border-[#ff9500]/20">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-[#ff9500] mt-0.5 flex-shrink-0" />
-            <div className="text-[12px] text-[#1d1d1f] space-y-1">
-              <p><strong>หมายเหตุ:</strong> PWA Notifications มีข้อจำกัด</p>
-              <ul className="list-disc list-inside text-[#86868b] space-y-0.5 ml-2">
-                <li>ใช้ setTimeout (ไม่ persistent - หายเมื่อปิด browser)</li>
-                <li>iOS ต้องติดตั้งแอป + ใช้ iOS 16.4+</li>
-                <li>ทำงานได้ดีถ้าแอปเปิดอยู่</li>
-              </ul>
-              <p className="text-[#ff9500] font-semibold mt-2">
-                💡 แนะนำใช้ LINE Notifications เป็นหลัก (มีประสิทธิภาพกว่า)
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PushSettings />
+      <IOSInstructions settings={settings} />
     </SettingsLayout>
   );
 }

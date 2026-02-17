@@ -4,12 +4,15 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
+import { useWorkSettings } from "@/lib/hooks/use-settings";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
+import { DashboardSkeleton } from "@/components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   Users,
   UserCheck,
@@ -21,6 +24,8 @@ import {
   Home,
   ChevronRight,
   AlertCircle,
+  RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
@@ -63,7 +68,9 @@ function StatCard({
 
 function AdminDashboardContent() {
   const { employee } = useAuth();
+  const { settings: workSettings } = useWorkSettings();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState({
     totalEmployees: 0,
     present: 0,
@@ -85,6 +92,7 @@ function AdminDashboardContent() {
 
   const fetchDashboardData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const today = format(new Date(), "yyyy-MM-dd");
       const dayOfWeek = new Date().getDay();
@@ -149,10 +157,10 @@ function AdminDashboardContent() {
 
       const present = attendance?.filter((a: any) => a.clock_in_time)?.length || 0;
       
-      // ตรวจสอบว่ายังไม่ถึงเวลาเข้างาน
       const now = new Date();
       const currentHour = now.getHours();
-      const workStartHour = 9; // TODO: Get from settings
+      const workStartTime = workSettings?.workStartTime || "09:00";
+      const workStartHour = parseInt(workStartTime.split(":")[0], 10);
       const isBeforeWorkStart = currentHour < workStartHour;
       
       // วันหยุด/สุดสัปดาห์ หรือ ก่อนเวลาเข้างาน → ไม่นับขาดงาน
@@ -173,8 +181,9 @@ function AdminDashboardContent() {
         leave: leaveRequests || [],
         wfh: wfhRequests || [],
       });
-    } catch (error) {
-      console.error("Error:", error);
+    } catch (err: any) {
+      console.error("Error:", err);
+      setError("ไม่สามารถโหลดข้อมูล Dashboard ได้");
     } finally {
       setLoading(false);
     }
@@ -229,10 +238,33 @@ function AdminDashboardContent() {
 
   if (loading) {
     return (
-      <AdminLayout title="Dashboard">
-        <div className="flex items-center justify-center h-[60vh]">
-          <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
-        </div>
+      <AdminLayout title="Dashboard" description={format(new Date(), "EEEE d MMMM yyyy", { locale: th })}>
+        <DashboardSkeleton />
+      </AdminLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminLayout title="Dashboard" description={format(new Date(), "EEEE d MMMM yyyy", { locale: th })}>
+        <Card elevated className="border-l-4 border-l-[#ff3b30]">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-[#ff3b30]/10 rounded-full flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6 text-[#ff3b30]" />
+            </div>
+            <div className="flex-1">
+              <p className="text-[15px] font-semibold text-[#1d1d1f]">{error}</p>
+              <p className="text-[13px] text-[#86868b]">กรุณาลองใหม่อีกครั้ง</p>
+            </div>
+            <button
+              onClick={fetchDashboardData}
+              className="flex items-center gap-2 px-4 py-2 text-[14px] font-medium text-[#0071e3] bg-[#0071e3]/10 rounded-xl hover:bg-[#0071e3]/15 transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              ลองใหม่
+            </button>
+          </div>
+        </Card>
       </AdminLayout>
     );
   }
@@ -269,21 +301,21 @@ function AdminDashboardContent() {
           value={stats.pendingOT}
           icon={Clock}
           color="bg-[#ff9500]"
-          href="/admin/ot"
+          href="/admin/requests?tab=pending&type=ot"
         />
         <StatCard
           title="รอลา"
           value={stats.pendingLeave}
           icon={FileText}
           color="bg-[#af52de]"
-          href="/admin/leave"
+          href="/admin/requests?tab=pending&type=leave"
         />
         <StatCard
           title="รอ WFH"
           value={stats.pendingWFH}
           icon={Home}
           color="bg-[#5856d6]"
-          href="/admin/wfh"
+          href="/admin/requests?tab=pending&type=wfh"
         />
       </div>
 
@@ -363,7 +395,7 @@ function AdminDashboardContent() {
               </h3>
               </div>
               <Link
-                href="/admin/approvals"
+                href="/admin/requests?tab=pending"
                 className="text-[14px] text-[#0071e3] hover:underline"
               >
                 จัดการทั้งหมด →
@@ -379,11 +411,11 @@ function AdminDashboardContent() {
               <div className="space-y-3">
                 {pendingRequests.ot.length > 0 && (
                   <Link
-                    href="/admin/approvals"
+                    href="/admin/requests?tab=pending&type=ot"
                     className="flex items-center justify-between p-3 bg-[#ff9500]/10 rounded-xl hover:bg-[#ff9500]/15 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <Clock className="w-5 h-5 text-[#0071e3]" />
+                      <Clock className="w-5 h-5 text-[#ff9500]" />
                       <span className="text-[14px] text-[#1d1d1f]">คำขอ OT</span>
                     </div>
                     <Badge variant="warning">{pendingRequests.ot.length}</Badge>
@@ -392,11 +424,11 @@ function AdminDashboardContent() {
 
                 {pendingRequests.leave.length > 0 && (
                   <Link
-                    href="/admin/approvals"
+                    href="/admin/requests?tab=pending&type=leave"
                     className="flex items-center justify-between p-3 bg-[#0071e3]/10 rounded-xl hover:bg-[#0071e3]/15 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-[#34c759]" />
+                      <FileText className="w-5 h-5 text-[#af52de]" />
                       <span className="text-[14px] text-[#1d1d1f]">คำขอลางาน</span>
                     </div>
                     <Badge variant="info">{pendingRequests.leave.length}</Badge>
@@ -405,11 +437,11 @@ function AdminDashboardContent() {
 
                 {pendingRequests.wfh.length > 0 && (
                   <Link
-                    href="/admin/approvals"
+                    href="/admin/requests?tab=pending&type=wfh"
                     className="flex items-center justify-between p-3 bg-[#34c759]/10 rounded-xl hover:bg-[#34c759]/15 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <Home className="w-5 h-5 text-[#af52de]" />
+                      <Home className="w-5 h-5 text-[#5856d6]" />
                       <span className="text-[14px] text-[#1d1d1f]">คำขอ WFH</span>
                     </div>
                     <Badge variant="success">{pendingRequests.wfh.length}</Badge>

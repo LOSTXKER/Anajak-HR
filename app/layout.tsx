@@ -3,6 +3,8 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { ToastProvider } from "@/components/ui/Toast";
 import { NotificationInitializer } from "@/components/NotificationInitializer";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { SWRProvider } from "@/components/SWRProvider";
 
 export const metadata: Metadata = {
   title: "Anajak HR - ระบบบันทึกเข้างาน OT",
@@ -51,10 +53,14 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <AuthProvider>
-          <ToastProvider>
-            <NotificationInitializer />
-            {children}
-          </ToastProvider>
+          <SWRProvider>
+            <ToastProvider>
+              <ErrorBoundary>
+                <NotificationInitializer />
+                {children}
+              </ErrorBoundary>
+            </ToastProvider>
+          </SWRProvider>
         </AuthProvider>
       </body>
     </html>

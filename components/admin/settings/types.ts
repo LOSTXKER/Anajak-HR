@@ -1,0 +1,29 @@
+export interface NotificationSettings {
+  enableCheckinNotifications: boolean;
+  enableCheckoutNotifications: boolean;
+  enableHolidayNotifications: boolean;
+  holidayNotificationDaysBefore: string;
+  holidayNotificationTime: string;
+  otNotifyOnRequest: boolean;
+  otNotifyOnApproval: boolean;
+  otNotifyOnStart: boolean;
+  otNotifyOnEnd: boolean;
+  enableLeaveNotifications: boolean;
+  enableWfhNotifications: boolean;
+  enableLateNotifications: boolean;
+  enableFieldworkNotifications: boolean;
+  enableAnnouncementNotifications: boolean;
+  enableEmployeeRegistrationNotifications: boolean;
+  enableAnomalyNotifications: boolean;
+  autoCheckoutEnabled: boolean;
+  autoCheckoutTime: string;
+  autoCheckoutDelayHours: string;
+  autoCheckoutSkipIfOt: boolean;
+  reminderEnabled: boolean;
+  reminderFirstMinutes: string;
+  reminderSecondMinutes: string;
+  reminderThirdMinutes: string;
+  notifyAdminOnAutoCheckout: boolean;
+  workStartTime: string;
+  workEndTime: string;
+}

@@ -333,3 +333,9 @@ export interface WFHRequestFormData {
     date: string;
     reason: string;
 }
+
+// =============================================
+// API RESPONSE TYPES (additional)
+// =============================================
+
+export type { ServiceResult } from "./api";

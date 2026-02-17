@@ -75,3 +75,6 @@ export { useAttendanceAdmin } from "./use-attendance-admin";
 
 // Admin Payroll Hook
 export { usePayroll } from "./use-payroll";
+
+// Admin Monitor Hook
+export { useMonitor } from "./use-monitor";
