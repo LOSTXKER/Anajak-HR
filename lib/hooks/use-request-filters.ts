@@ -10,7 +10,7 @@ import {
   RequestType,
   RequestStatus,
   RequestStats,
-} from "@/components/admin/requests/types";
+} from "@/lib/types/request";
 
 interface UseRequestFiltersOptions {
   requests: RequestItem[];

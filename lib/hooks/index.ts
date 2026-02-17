@@ -50,7 +50,9 @@ export { useCameraCapture } from "./use-camera-capture";
 // Announcement Hooks
 export { useUnreadAnnouncements } from "./use-unread-announcements";
 
-// Admin Request Hooks
+// Admin Request Hooks (unified)
+export { useRequests } from "./use-requests";
+// Legacy hooks (kept for backward compatibility)
 export { useAdminRequests } from "./use-admin-requests";
 export { useRequestFetching } from "./use-request-fetching";
 export { useRequestActions } from "./use-request-actions";
@@ -59,7 +61,7 @@ export { useRequestFilters } from "./use-request-filters";
 // Admin Employee Hooks
 export { useEmployees } from "./use-employees";
 
-// Admin Approval Hooks
+// Admin Approval Hooks (deprecated, redirects to /admin/requests)
 export { useApprovals } from "./use-approvals";
 
 // Admin Employee Detail Hook

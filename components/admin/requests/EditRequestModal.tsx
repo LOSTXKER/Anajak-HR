@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Toggle } from "@/components/ui/Toggle";
-import { RequestItem, typeConfig, leaveTypeLabels } from "./types";
+import { RequestItem, typeConfig, leaveTypeLabels } from "@/lib/types/request";
 
 interface EditRequestModalProps {
   request: RequestItem | null;

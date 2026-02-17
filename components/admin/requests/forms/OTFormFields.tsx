@@ -2,7 +2,7 @@
 
 import { Input } from "@/components/ui/Input";
 import { Toggle } from "@/components/ui/Toggle";
-import { OTRateInfo, CreateFormData } from "../types";
+import { OTRateInfo, CreateFormData } from "@/lib/types/request";
 
 interface OTFormFieldsProps {
   formData: CreateFormData;

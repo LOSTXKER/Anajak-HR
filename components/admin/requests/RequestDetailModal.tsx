@@ -2,12 +2,12 @@
 
 import { format, parseISO } from "date-fns";
 import { th } from "date-fns/locale";
-import { X, Check, Edit, Ban, DollarSign, CheckCircle } from "lucide-react";
+import { X, Check, Edit, Ban, DollarSign, CheckCircle, XCircle } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { RequestItem, typeConfig, statusConfig } from "./types";
+import { RequestItem, typeConfig, statusConfig } from "@/lib/types/request";
 
 interface RequestDetailModalProps {
   request: RequestItem | null;
@@ -35,6 +35,7 @@ export function RequestDetailModal({
   const Icon = typeInfo.icon;
   const isPending = request.status === "pending";
   const isCompleted = request.status === "completed";
+  const isRejected = request.status === "rejected";
   const canCancel =
     request.status === "pending" || request.status === "approved";
 
@@ -82,12 +83,14 @@ export function RequestDetailModal({
             </div>
           )}
 
-          <div>
-            <label className="text-xs text-[#86868b]">รายละเอียด</label>
-            <p className="text-sm text-[#1d1d1f] whitespace-pre-line">
-              {request.details}
-            </p>
-          </div>
+          {request.details && (
+            <div>
+              <label className="text-xs text-[#86868b]">รายละเอียด</label>
+              <p className="text-sm text-[#1d1d1f] whitespace-pre-line">
+                {request.details}
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="text-xs text-[#86868b]">วันที่ส่งคำขอ</label>
@@ -134,15 +137,13 @@ export function RequestDetailModal({
             </div>
           )}
 
-          {/* Approval Info */}
-          {request.approvedAt && (
+          {/* Approval Info (for approved status) */}
+          {request.approvedAt && !isRejected && (
             <div className="p-3 bg-[#34c759]/10 rounded-xl">
               <div className="flex items-center gap-2 mb-1">
                 <CheckCircle className="w-4 h-4 text-[#34c759]" />
                 <span className="text-sm font-medium text-[#34c759]">
-                  {request.status === "rejected"
-                    ? "ปฏิเสธเมื่อ"
-                    : "อนุมัติเมื่อ"}
+                  อนุมัติเมื่อ
                 </span>
               </div>
               <p className="text-sm text-[#1d1d1f]">
@@ -150,15 +151,47 @@ export function RequestDetailModal({
                   locale: th,
                 })}
               </p>
+              {request.approvedByName && (
+                <p className="text-xs text-[#86868b] mt-1">
+                  โดย: {request.approvedByName}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Rejection Info */}
+          {isRejected && request.approvedAt && (
+            <div className="p-3 bg-[#ff3b30]/10 rounded-xl">
+              <div className="flex items-center gap-2 mb-1">
+                <XCircle className="w-4 h-4 text-[#ff3b30]" />
+                <span className="text-sm font-medium text-[#ff3b30]">
+                  ปฏิเสธเมื่อ
+                </span>
+              </div>
+              <p className="text-sm text-[#1d1d1f]">
+                {format(parseISO(request.approvedAt), "d MMMM yyyy HH:mm", {
+                  locale: th,
+                })}
+              </p>
+              {request.approvedByName && (
+                <p className="text-xs text-[#86868b] mt-1">
+                  โดย: {request.approvedByName}
+                </p>
+              )}
+              {request.rejectReason && (
+                <p className="text-sm text-[#1d1d1f] mt-1">
+                  เหตุผล: {request.rejectReason}
+                </p>
+              )}
             </div>
           )}
 
           {/* Cancellation Info */}
           {request.status === "cancelled" && (
-            <div className="p-3 bg-[#ff3b30]/10 rounded-xl">
+            <div className="p-3 bg-[#86868b]/10 rounded-xl">
               <div className="flex items-center gap-2 mb-1">
-                <Ban className="w-4 h-4 text-[#ff3b30]" />
-                <span className="text-sm font-medium text-[#ff3b30]">
+                <Ban className="w-4 h-4 text-[#86868b]" />
+                <span className="text-sm font-medium text-[#86868b]">
                   ถูกยกเลิก
                 </span>
               </div>

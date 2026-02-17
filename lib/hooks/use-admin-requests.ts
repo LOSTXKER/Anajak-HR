@@ -14,7 +14,7 @@ import {
   OTSettings,
   OTRateInfo,
   CreateFormData,
-} from "@/components/admin/requests/types";
+} from "@/lib/types/request";
 import { useRequestFetching } from "./use-request-fetching";
 import { useRequestActions } from "./use-request-actions";
 import { useRequestFilters } from "./use-request-filters";

@@ -16,8 +16,10 @@ import {
   FileText,
   DollarSign,
   Activity,
-  Wrench,
   Megaphone,
+  Zap,
+  Building2,
+  CalendarDays,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { useState, useEffect } from "react";
@@ -52,7 +54,7 @@ export function Sidebar() {
 
   const fetchPendingCounts = async () => {
     try {
-      const [employeesResult, otResult, leaveResult, wfhResult, lateResult] = await Promise.all([
+      const [employeesResult, otResult, leaveResult, wfhResult, lateResult, fieldWorkResult] = await Promise.all([
         supabase
           .from("employees")
           .select("id", { count: "exact", head: true })
@@ -74,27 +76,28 @@ export function Sidebar() {
           .from("late_requests")
           .select("id", { count: "exact", head: true })
           .eq("status", "pending"),
+        supabase
+          .from("field_work_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending"),
       ]);
 
       setPendingCounts({
         employees: employeesResult.count || 0,
-        approvals: (otResult.count || 0) + (leaveResult.count || 0) + (wfhResult.count || 0) + (lateResult.count || 0),
+        approvals: (otResult.count || 0) + (leaveResult.count || 0) + (wfhResult.count || 0) + (lateResult.count || 0) + (fieldWorkResult.count || 0),
       });
     } catch (error) {
       console.error("Error fetching pending counts:", error);
     }
   };
 
-  // Simplified menu structure
   const menuSections: MenuSection[] = [
     {
       title: "หลัก",
       items: [
         { title: "Dashboard", href: "/admin", icon: LayoutGrid },
         { title: "ประกาศ", href: "/admin/announcements", icon: Megaphone },
-        { title: "Admin Tools", href: "/admin/tools", icon: Wrench },
-        { title: "อนุมัติ", href: "/admin/approvals", icon: FileText, badge: pendingCounts.approvals },
-        { title: "จัดการคำขอ", href: "/admin/requests", icon: Clock },
+        { title: "คำขอ", href: "/admin/requests", icon: FileText, badge: pendingCounts.approvals },
       ],
     },
     {
@@ -102,6 +105,7 @@ export function Sidebar() {
       items: [
         { title: "พนักงาน", href: "/admin/employees", icon: Users, badge: pendingCounts.employees },
         { title: "การเข้างาน", href: "/admin/attendance", icon: Clock },
+        { title: "Quick Fix", href: "/admin/tools/quick-fix", icon: Zap },
         { title: "Monitor", href: "/admin/monitor", icon: Activity },
       ],
     },
@@ -116,6 +120,8 @@ export function Sidebar() {
       title: "ตั้งค่า",
       items: [
         { title: "ตั้งค่าระบบ", href: "/admin/settings", icon: Settings },
+        { title: "สาขา", href: "/admin/branches", icon: Building2 },
+        { title: "วันหยุด", href: "/admin/holidays", icon: CalendarDays },
       ],
     },
   ];

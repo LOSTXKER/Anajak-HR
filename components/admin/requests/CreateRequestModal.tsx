@@ -12,7 +12,7 @@ import {
   Employee,
   OTRateInfo,
   typeConfig,
-} from "./types";
+} from "@/lib/types/request";
 import {
   OTFormFields,
   LeaveFormFields,

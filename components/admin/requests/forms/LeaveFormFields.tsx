@@ -2,7 +2,7 @@
 
 import { Input } from "@/components/ui/Input";
 import { Toggle } from "@/components/ui/Toggle";
-import { CreateFormData, leaveTypeLabels } from "../types";
+import { CreateFormData, leaveTypeLabels } from "@/lib/types/request";
 
 interface LeaveFormFieldsProps {
   formData: CreateFormData;

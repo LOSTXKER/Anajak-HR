@@ -9,7 +9,7 @@ import {
   RequestStats,
   typeConfig,
   statusConfig,
-} from "./types";
+} from "@/lib/types/request";
 
 interface RequestFiltersProps {
   // Filter state

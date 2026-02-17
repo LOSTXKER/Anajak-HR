@@ -12,7 +12,7 @@ import {
   Employee,
   CreateFormData,
   tableMap,
-} from "@/components/admin/requests/types";
+} from "@/lib/types/request";
 
 interface UseRequestActionsOptions {
   employees: Employee[];

@@ -6,7 +6,7 @@
 
 import { format, parseISO } from "date-fns";
 import { th } from "date-fns/locale";
-import { RequestItem, leaveTypeLabels } from "@/components/admin/requests/types";
+import { RequestItem, leaveTypeLabels } from "@/lib/types/request";
 
 /**
  * Process OT request raw data into RequestItem

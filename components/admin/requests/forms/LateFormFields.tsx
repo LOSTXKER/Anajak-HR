@@ -1,7 +1,7 @@
 "use client";
 
 import { Input } from "@/components/ui/Input";
-import { CreateFormData } from "../types";
+import { CreateFormData } from "@/lib/types/request";
 
 interface LateFormFieldsProps {
   formData: CreateFormData;

@@ -12,8 +12,16 @@ import {
   RequestItem,
   RequestType,
   HistoryStatus,
-  ApprovalStats,
-} from "@/components/admin/approvals/types";
+} from "@/lib/types/request";
+
+interface ApprovalStats {
+  ot: number;
+  leave: number;
+  wfh: number;
+  late: number;
+  field_work: number;
+  total: number;
+}
 
 interface UseApprovalsOptions {
   initialType?: RequestType | "all";

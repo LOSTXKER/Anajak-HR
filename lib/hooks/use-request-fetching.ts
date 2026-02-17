@@ -13,7 +13,7 @@ import {
   Holiday,
   OTSettings,
   OTRateInfo,
-} from "@/components/admin/requests/types";
+} from "@/lib/types/request";
 import { processAllRequests } from "@/lib/utils/request-processor";
 
 interface DateRange {
