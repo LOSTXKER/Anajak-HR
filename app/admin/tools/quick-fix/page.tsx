@@ -21,6 +21,7 @@ import {
   TrendingUp,
   User,
   Home,
+  Calculator,
 } from "lucide-react";
 import { format, parseISO, differenceInHours } from "date-fns";
 import { th } from "date-fns/locale";
@@ -54,6 +55,8 @@ function QuickFixDashboardContent() {
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
   const [wfhFixLoading, setWfhFixLoading] = useState(false);
   const [wfhFixResult, setWfhFixResult] = useState<{ inserted: number; missing: number } | null>(null);
+  const [leaveCalcLoading, setLeaveCalcLoading] = useState(false);
+  const [leaveCalcResult, setLeaveCalcResult] = useState<number | null>(null);
 
   useEffect(() => {
     fetchProblems();
@@ -235,6 +238,106 @@ function QuickFixDashboardContent() {
     }
   };
 
+  // Recalculate leave balances excluding weekends and holidays
+  const recalculateLeaveBalances = async () => {
+    setLeaveCalcLoading(true);
+    setLeaveCalcResult(null);
+    try {
+      const currentYear = new Date().getFullYear();
+
+      // ดึง holidays ปีนี้ทั้งหมดมาไว้ใน Set
+      const { data: holidays } = await supabase
+        .from("holidays")
+        .select("date")
+        .eq("is_active", true)
+        .gte("date", `${currentYear}-01-01`)
+        .lte("date", `${currentYear}-12-31`);
+
+      const holidaySet = new Set((holidays || []).map((h: any) => h.date as string));
+
+      // นับวันทำงานจริง (ข้าม weekend + holiday)
+      const countWorkingDays = (startDate: string, endDate: string, isHalfDay: boolean): number => {
+        if (isHalfDay) return 0.5;
+        const current = new Date(startDate + "T00:00:00");
+        const end = new Date(endDate + "T00:00:00");
+        let count = 0;
+        while (current <= end) {
+          const dow = current.getDay();
+          const dateStr = current.toISOString().split("T")[0];
+          if (dow !== 0 && dow !== 6 && !holidaySet.has(dateStr)) {
+            count++;
+          }
+          current.setDate(current.getDate() + 1);
+        }
+        return count;
+      };
+
+      // ดึง approved leave requests ปีนี้
+      const { data: leaveRequests, error: leaveErr } = await supabase
+        .from("leave_requests")
+        .select("employee_id, leave_type, start_date, end_date, is_half_day")
+        .eq("status", "approved")
+        .gte("start_date", `${currentYear}-01-01`)
+        .lte("start_date", `${currentYear}-12-31`);
+
+      if (leaveErr) throw leaveErr;
+
+      // รวมวันลาแยกตามพนักงาน
+      const employeeLeave: Record<string, { sick: number; personal: number; annual: number }> = {};
+      for (const lr of (leaveRequests || [])) {
+        if (!employeeLeave[lr.employee_id]) {
+          employeeLeave[lr.employee_id] = { sick: 0, personal: 0, annual: 0 };
+        }
+        const days = countWorkingDays(lr.start_date, lr.end_date, lr.is_half_day);
+        if (lr.leave_type === "sick") employeeLeave[lr.employee_id].sick += days;
+        else if (lr.leave_type === "personal") employeeLeave[lr.employee_id].personal += days;
+        else if (lr.leave_type === "annual") employeeLeave[lr.employee_id].annual += days;
+      }
+
+      // ดึง quota ของพนักงานทุกคน
+      const { data: employees } = await supabase
+        .from("employees")
+        .select("id, annual_leave_quota, sick_leave_quota, personal_leave_quota")
+        .is("deleted_at", null);
+
+      let updated = 0;
+      for (const emp of (employees || [])) {
+        const used = employeeLeave[emp.id] || { sick: 0, personal: 0, annual: 0 };
+        const annualQuota = emp.annual_leave_quota || 10;
+        const sickQuota = emp.sick_leave_quota || 30;
+        const personalQuota = emp.personal_leave_quota || 3;
+
+        const { error: upsertErr } = await supabase
+          .from("leave_balances")
+          .upsert(
+            {
+              employee_id: emp.id,
+              year: currentYear,
+              annual_leave_quota: annualQuota,
+              sick_leave_quota: sickQuota,
+              personal_leave_quota: personalQuota,
+              annual_leave_used: used.annual,
+              sick_leave_used: used.sick,
+              personal_leave_used: used.personal,
+              annual_leave_remaining: Math.max(0, annualQuota - used.annual),
+              sick_leave_remaining: Math.max(0, sickQuota - used.sick),
+              personal_leave_remaining: Math.max(0, personalQuota - used.personal),
+            },
+            { onConflict: "employee_id,year" }
+          );
+
+        if (!upsertErr) updated++;
+      }
+
+      setLeaveCalcResult(updated);
+      toast.success("สำเร็จ", `คำนวณวันลาใหม่ ${updated} คน เรียบร้อย`);
+    } catch (err: any) {
+      toast.error("เกิดข้อผิดพลาด", err.message);
+    } finally {
+      setLeaveCalcLoading(false);
+    }
+  };
+
   // Quick fix for no checkout
   const quickFixCheckout = async (problem: Problem) => {
     if (!currentAdmin) return;
@@ -397,6 +500,36 @@ function QuickFixDashboardContent() {
               icon={<Home className="w-4 h-4" />}
             >
               เพิ่มเวลาทำงาน WFH ย้อนหลัง
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Leave Balance Recalculation Section */}
+      <Card elevated className="mb-6">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 bg-[#34c759]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Calculator className="w-6 h-6 text-[#34c759]" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-[17px] font-semibold text-[#1d1d1f] mb-1">
+              คำนวณวันลาใหม่ (ไม่นับ Weekend & วันหยุด)
+            </h3>
+            <p className="text-[14px] text-[#86868b] mb-4">
+              คำนวณยอดวันลาคงเหลือทุกคนใหม่ โดยนับเฉพาะวันทำงาน ไม่นับวันเสาร์-อาทิตย์ และวันหยุดนักขัตฤกษ์
+            </p>
+            {leaveCalcResult !== null && (
+              <div className="p-3 rounded-xl mb-4 text-[14px] bg-[#34c759]/10 text-[#34c759]">
+                ✓ คำนวณวันลาใหม่ครบ {leaveCalcResult} คน เรียบร้อย
+              </div>
+            )}
+            <Button
+              onClick={recalculateLeaveBalances}
+              loading={leaveCalcLoading}
+              variant="secondary"
+              icon={<Calculator className="w-4 h-4" />}
+            >
+              คำนวณวันลาใหม่
             </Button>
           </div>
         </div>
