@@ -152,6 +152,12 @@ export function EmployeeStatusGrid({
                       {activity.is_late && !activity.clock_out_time && (
                         <span className="text-[#ff9500]"> (สาย)</span>
                       )}
+                      {(activity as any).work_mode === "wfh" && (
+                        <span className="ml-1 px-1.5 py-0.5 bg-[#0071e3]/10 text-[#0071e3] text-[11px] rounded-full">🏠 WFH</span>
+                      )}
+                      {(activity as any).work_mode === "field" && (
+                        <span className="ml-1 px-1.5 py-0.5 bg-[#34c759]/10 text-[#34c759] text-[11px] rounded-full">🚗 Field</span>
+                      )}
                     </p>
                   </div>
                 </div>

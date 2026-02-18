@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
         id,
         employee_id,
         clock_in_time,
+        work_mode,
         employees!employee_id (
           id,
           name,
@@ -119,8 +120,21 @@ export async function GET(request: NextRequest) {
       console.log(`[Auto Checkout] Found ${employeesWithOT.size} employees with active OT`);
     }
 
+    // ดึง WFH ที่ approved สำหรับวันนี้ (ข้าม auto-checkout เพราะ WFH ทำงานที่บ้าน)
+    const { data: activeWFHs } = await supabaseServer
+      .from("wfh_requests")
+      .select("employee_id")
+      .eq("date", today)
+      .eq("status", "approved");
+
+    const employeesWithWFH = new Set<string>(
+      activeWFHs?.map((w: { employee_id: string }) => w.employee_id) || []
+    );
+    console.log(`[Auto Checkout] Found ${employeesWithWFH.size} employees with approved WFH`);
+
     let processed = 0;
     let skippedOT = 0;
+    let skippedWFH = 0;
     const errors: string[] = [];
 
     for (const attendance of uncheckedOut) {
@@ -136,6 +150,14 @@ export async function GET(request: NextRequest) {
         if (skipIfOT && employeesWithOT.has(attendance.employee_id)) {
           console.log(`[Auto Checkout] Skipping ${employee?.name || attendance.employee_id} - has approved/started OT`);
           skippedOT++;
+          continue;
+        }
+
+        // ข้ามพนักงานที่มี WFH approved หรือ work_mode='wfh'
+        const attRecord = attendance as any;
+        if (employeesWithWFH.has(attendance.employee_id) || attRecord.work_mode === "wfh") {
+          console.log(`[Auto Checkout] Skipping ${employee?.name || attendance.employee_id} - WFH day`);
+          skippedWFH++;
           continue;
         }
 
@@ -216,7 +238,7 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(
-      `[Auto Checkout] Completed. Processed: ${processed}, Skipped (OT): ${skippedOT}, Errors: ${errors.length}`
+      `[Auto Checkout] Completed. Processed: ${processed}, Skipped (OT): ${skippedOT}, Skipped (WFH): ${skippedWFH}, Errors: ${errors.length}`
     );
 
     // Send anomaly notification to admin if there were auto checkouts (check setting first)
@@ -241,6 +263,7 @@ ${skippedOT > 0 ? `⏭️ ข้าม (มี OT): ${skippedOT} คน\n` : ""}
       message: `Auto checkout completed`,
       processed,
       skippedOT,
+      skippedWFH,
       total: uncheckedOut.length,
       errors: errors.length > 0 ? errors : undefined,
     });

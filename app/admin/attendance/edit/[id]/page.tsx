@@ -341,6 +341,14 @@ function EditAttendanceContent() {
                 )}
               </p>
             </div>
+            <div>
+              <p className="text-[13px] text-[#86868b] mb-1">โหมดการทำงาน</p>
+              <p className="text-[15px] font-semibold text-[#1d1d1f]">
+                {(attendance as any).work_mode === "wfh" ? "🏠 WFH"
+                  : (attendance as any).work_mode === "field" ? "🚗 ภาคสนาม"
+                  : "🏢 ออฟฟิศ"}
+              </p>
+            </div>
           </div>
 
           {attendance.edit_reason && (

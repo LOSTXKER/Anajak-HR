@@ -14,6 +14,7 @@ import {
 interface TodayAttendance {
   clock_in_time: string | null;
   clock_out_time: string | null;
+  work_mode?: "onsite" | "wfh" | "field" | null;
 }
 
 interface TodayHoliday {
@@ -138,6 +139,16 @@ function CheckedInContent({
                   "HH:mm"
                 )} น.`}
             </p>
+            {todayAttendance.work_mode === "wfh" && (
+              <span className="inline-block mt-1 px-2 py-0.5 bg-white/20 text-white text-[11px] font-medium rounded-full">
+                🏠 ทำงานจากบ้าน (WFH)
+              </span>
+            )}
+            {todayAttendance.work_mode === "field" && (
+              <span className="inline-block mt-1 px-2 py-0.5 bg-white/20 text-white text-[11px] font-medium rounded-full">
+                🚗 งานภาคสนาม
+              </span>
+            )}
           </div>
         </div>
       </div>
