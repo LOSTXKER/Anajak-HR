@@ -140,13 +140,11 @@ export function useAttendanceAdmin() {
       const fieldWorkData = fieldWorkRes.data || [];
       const lateReqData = lateReqRes.data || [];
 
-      // Check if before work start time
+      // ถ้าเป็นวันนี้ → ยังไม่ตัดสินว่า "ขาด" จนกว่าจะจบวันทำงาน
       const now = new Date();
-      const currentHour = now.getHours();
-      const workStartHour = 9;
-      const isBeforeWorkStart = currentHour < workStartHour;
       const isTodaySelected =
         format(selectedDate, "yyyy-MM-dd") === format(now, "yyyy-MM-dd");
+      const isTodayNotOver = isTodaySelected; // วันนี้ยังไม่จบ = ไม่ควรแสดง "ขาด"
 
       // Build rows based on date mode
       if (dateMode === "single") {
@@ -160,7 +158,7 @@ export function useAttendanceAdmin() {
           lateReqData,
           holidayDates,
           selectedDate,
-          isTodaySelected && isBeforeWorkStart
+          isTodayNotOver
         );
         setAttendanceRows(rows);
       } else {
