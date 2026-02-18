@@ -171,11 +171,15 @@ function QuickFixDashboardContent() {
       const [endH, endM] = workEnd.split(":").map(Number);
       const totalHours = ((endH * 60 + endM) - (startH * 60 + startM)) / 60;
 
-      // ดึง approved WFH requests ทั้งหมด
+      // ดึง approved WFH requests เฉพาะวันที่ผ่านไปแล้ว (ไม่รวมวันนี้ — วันนี้ให้พนักงาน checkin/out เอง)
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
       const { data: wfhList, error: wfhErr } = await supabase
         .from("wfh_requests")
         .select("id, employee_id, date")
         .eq("status", "approved")
+        .lt("date", todayStr)
         .order("date", { ascending: true });
 
       if (wfhErr) throw wfhErr;
@@ -183,6 +187,14 @@ function QuickFixDashboardContent() {
         toast.info("ไม่มีข้อมูล", "ไม่พบ WFH ที่อนุมัติแล้ว");
         return;
       }
+
+      // ลบ backfill ที่สร้างผิดพลาดสำหรับวันนี้หรืออนาคต
+      await supabase
+        .from("attendance_logs")
+        .delete()
+        .gte("work_date", todayStr)
+        .eq("work_mode", "wfh")
+        .like("note", "%auto-backfill%");
 
       // ดึง attendance_logs ที่มีอยู่
       const { data: existingLogs } = await supabase

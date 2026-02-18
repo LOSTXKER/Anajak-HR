@@ -46,6 +46,7 @@ BEGIN
       ON a.employee_id = w.employee_id
      AND a.work_date   = w.date
     WHERE w.status = 'approved'
+      AND w.date < CURRENT_DATE
       AND a.id IS NULL
     ORDER BY w.date
   LOOP

@@ -46,11 +46,15 @@ export async function POST(request: NextRequest) {
     const [endH, endM] = workEnd.split(":").map(Number);
     const totalHours = ((endH * 60 + endM) - (startH * 60 + startM)) / 60;
 
-    // ดึง approved WFH requests ทั้งหมด
+    // ดึง approved WFH requests เฉพาะวันที่ผ่านไปแล้ว (ไม่รวมวันนี้/อนาคต)
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
     const { data: wfhList, error: wfhErr } = await supabase
       .from("wfh_requests")
       .select("id, employee_id, date")
       .eq("status", "approved")
+      .lt("date", todayStr)
       .order("date", { ascending: true });
 
     if (wfhErr) throw wfhErr;
