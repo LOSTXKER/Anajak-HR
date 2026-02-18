@@ -266,6 +266,24 @@ export function useEmployees(
 
       setSaving(true);
       try {
+        // ยกเลิก pending requests ทั้งหมดของพนักงานที่ถูกลบ
+        const pendingTables = [
+          "leave_requests",
+          "ot_requests",
+          "wfh_requests",
+          "field_work_requests",
+          "late_requests",
+        ] as const;
+
+        for (const table of pendingTables) {
+          await supabase
+            .from(table)
+            .update({ status: "cancelled" })
+            .eq("employee_id", empId)
+            .eq("status", "pending");
+        }
+
+        // Soft delete พนักงาน
         const { error } = await supabase
           .from("employees")
           .update({

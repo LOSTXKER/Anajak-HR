@@ -61,20 +61,29 @@ function LeaveRequestContent() {
   useEffect(() => {
     if (employee) {
       fetchLeaveSummary();
-      fetchLeaveQuota();
     }
   }, [employee]);
 
-  const fetchLeaveQuota = async () => {
+  const fetchLeaveSummary = async () => {
     if (!employee) return;
+
     try {
+      const currentYear = new Date().getFullYear();
+
+      // ดึงข้อมูลจาก leave_balances ซึ่ง DB trigger คำนวณให้แล้ว (นับเฉพาะวันทำงาน)
       const { data } = await supabase
-        .from("employees")
-        .select("annual_leave_quota, sick_leave_quota, personal_leave_quota")
-        .eq("id", employee.id)
-        .single();
+        .from("leave_balances")
+        .select("*")
+        .eq("employee_id", employee.id)
+        .eq("year", currentYear)
+        .maybeSingle();
 
       if (data) {
+        setLeaveSummary({
+          sick: Number(data.sick_leave_used) || 0,
+          personal: Number(data.personal_leave_used) || 0,
+          annual: Number(data.annual_leave_used) || 0,
+        });
         setLeaveQuota({
           annual: data.annual_leave_quota || 10,
           sick: data.sick_leave_quota || 30,
@@ -82,54 +91,8 @@ function LeaveRequestContent() {
         });
       }
     } catch (error) {
-      console.error("Error fetching leave quota:", error);
-    }
-  };
-
-  const fetchLeaveSummary = async () => {
-    if (!employee) return;
-
-    try {
-      const startOfYear = `${new Date().getFullYear()}-01-01`;
-      const endOfYear = `${new Date().getFullYear()}-12-31`;
-
-      const { data } = await supabase
-        .from("leave_requests")
-        .select("*")
-        .eq("employee_id", employee.id)
-        .eq("status", "approved")
-        .gte("start_date", startOfYear)
-        .lte("end_date", endOfYear);
-
-      if (data) {
-        const summary = { sick: 0, personal: 0, annual: 0 };
-        data.forEach((leave: any) => {
-          const days = calculateDays(leave.start_date, leave.end_date, leave.is_half_day);
-          if (leave.leave_type === "sick") summary.sick += days;
-          else if (leave.leave_type === "personal") summary.personal += days;
-          else if (leave.leave_type === "annual") summary.annual += days;
-        });
-        setLeaveSummary(summary);
-      }
-    } catch (error) {
       console.error("Error fetching leave summary:", error);
     }
-  };
-
-  const calculateDays = (startDate: string, endDate: string, isHalfDay: boolean) => {
-    if (isHalfDay) return 0.5;
-    
-    // Parse dates as local timezone to avoid UTC parsing issues
-    // "YYYY-MM-DD" parsed with new Date() can cause timezone issues
-    const start = new Date(startDate + "T00:00:00");
-    const end = new Date(endDate + "T00:00:00");
-    
-    // Calculate difference in days (inclusive of both start and end)
-    const diffTime = end.getTime() - start.getTime();
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    
-    // Ensure we return at least 1 day
-    return Math.max(1, diffDays);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
