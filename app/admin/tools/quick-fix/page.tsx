@@ -20,6 +20,7 @@ import {
   RefreshCw,
   TrendingUp,
   User,
+  Home,
 } from "lucide-react";
 import { format, parseISO, differenceInHours } from "date-fns";
 import { th } from "date-fns/locale";
@@ -51,6 +52,8 @@ function QuickFixDashboardContent() {
   const [problems, setProblems] = useState<Problem[]>([]);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
+  const [wfhFixLoading, setWfhFixLoading] = useState(false);
+  const [wfhFixResult, setWfhFixResult] = useState<{ inserted: number; missing: number } | null>(null);
 
   useEffect(() => {
     fetchProblems();
@@ -142,6 +145,93 @@ function QuickFixDashboardContent() {
       toast.error("เกิดข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลได้");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Backfill WFH attendance records
+  const fixWFHAttendance = async () => {
+    setWfhFixLoading(true);
+    setWfhFixResult(null);
+    try {
+      // ดึง work hours จาก settings
+      const { data: settings } = await supabase
+        .from("system_settings")
+        .select("setting_key, setting_value")
+        .in("setting_key", ["work_start_time", "work_end_time"]);
+
+      const settingsMap: Record<string, string> = {};
+      (settings || []).forEach((s: any) => { settingsMap[s.setting_key] = s.setting_value; });
+
+      const workStart = settingsMap["work_start_time"] || "09:00";
+      const workEnd = settingsMap["work_end_time"] || "18:00";
+      const [startH, startM] = workStart.split(":").map(Number);
+      const [endH, endM] = workEnd.split(":").map(Number);
+      const totalHours = ((endH * 60 + endM) - (startH * 60 + startM)) / 60;
+
+      // ดึง approved WFH requests ทั้งหมด
+      const { data: wfhList, error: wfhErr } = await supabase
+        .from("wfh_requests")
+        .select("id, employee_id, date")
+        .eq("status", "approved")
+        .order("date", { ascending: true });
+
+      if (wfhErr) throw wfhErr;
+      if (!wfhList || wfhList.length === 0) {
+        toast.info("ไม่มีข้อมูล", "ไม่พบ WFH ที่อนุมัติแล้ว");
+        return;
+      }
+
+      // ดึง attendance_logs ที่มีอยู่
+      const { data: existingLogs } = await supabase
+        .from("attendance_logs")
+        .select("employee_id, work_date");
+
+      const existingSet = new Set(
+        (existingLogs || []).map((l: any) => `${l.employee_id}_${l.work_date}`)
+      );
+
+      const missing = wfhList.filter(
+        (w: any) => !existingSet.has(`${w.employee_id}_${w.date}`)
+      );
+
+      if (missing.length === 0) {
+        toast.success("ครบแล้ว", "ทุก WFH มีข้อมูลเวลาครบแล้ว");
+        setWfhFixResult({ inserted: 0, missing: 0 });
+        return;
+      }
+
+      let inserted = 0;
+      for (const wfh of missing) {
+        const dateStr: string = wfh.date;
+        const clockIn = new Date(`${dateStr}T${workStart}:00+07:00`).toISOString();
+        const clockOut = new Date(`${dateStr}T${workEnd}:00+07:00`).toISOString();
+
+        const { error: insertErr } = await supabase
+          .from("attendance_logs")
+          .insert({
+            employee_id: wfh.employee_id,
+            work_date: dateStr,
+            clock_in_time: clockIn,
+            clock_out_time: clockOut,
+            total_hours: totalHours,
+            is_late: false,
+            late_minutes: 0,
+            work_mode: "wfh",
+            status: "present",
+            note: "บันทึกย้อนหลัง WFH (auto-backfill)",
+          });
+
+        if (!insertErr || insertErr.code === "23505") {
+          if (!insertErr) inserted++;
+        }
+      }
+
+      setWfhFixResult({ inserted, missing: missing.length });
+      toast.success("สำเร็จ", `เพิ่มข้อมูล WFH ย้อนหลัง ${inserted} รายการ`);
+    } catch (err: any) {
+      toast.error("เกิดข้อผิดพลาด", err.message);
+    } finally {
+      setWfhFixLoading(false);
     }
   };
 
@@ -275,11 +365,42 @@ function QuickFixDashboardContent() {
       </div>
 
       {/* Refresh Button */}
-      <div className="mb-6">
+      <div className="mb-6 flex items-center gap-3">
         <Button onClick={fetchProblems} variant="secondary" icon={<RefreshCw className="w-4 h-4" />}>
           รีเฟรชข้อมูล
         </Button>
       </div>
+
+      {/* WFH Backfill Section */}
+      <Card elevated className="mb-6">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 bg-[#0071e3]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Home className="w-6 h-6 text-[#0071e3]" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-[17px] font-semibold text-[#1d1d1f] mb-1">
+              เพิ่มเวลาทำงาน WFH ย้อนหลัง
+            </h3>
+            <p className="text-[14px] text-[#86868b] mb-4">
+              ค้นหา WFH ที่อนุมัติแล้วแต่ยังไม่มีบันทึกเวลาเข้า/ออกงาน และเพิ่มเวลาทำงานตามเวลาปกติในระบบ
+            </p>
+            {wfhFixResult && (
+              <div className={`p-3 rounded-xl mb-4 text-[14px] ${wfhFixResult.inserted > 0 ? "bg-[#34c759]/10 text-[#34c759]" : "bg-[#86868b]/10 text-[#86868b]"}`}>
+                {wfhFixResult.inserted > 0
+                  ? `✓ เพิ่มข้อมูลย้อนหลัง ${wfhFixResult.inserted} จาก ${wfhFixResult.missing} รายการสำเร็จ`
+                  : "ข้อมูลครบแล้ว ไม่มีอะไรต้องเพิ่ม"}
+              </div>
+            )}
+            <Button
+              onClick={fixWFHAttendance}
+              loading={wfhFixLoading}
+              icon={<Home className="w-4 h-4" />}
+            >
+              เพิ่มเวลาทำงาน WFH ย้อนหลัง
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       {/* No Problems */}
       {problems.length === 0 && (
