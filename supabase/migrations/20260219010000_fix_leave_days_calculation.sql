@@ -4,7 +4,7 @@
 -- =====================================================
 -- Update calculate_leave_days function
 -- Previously: (end_date - start_date) + 1 (calendar days, includes weekends)
--- Now: Count only working days (Mon-Fri), excluding holidays
+-- Now: Count only working days based on system_settings.working_days, excluding holidays
 -- =====================================================
 CREATE OR REPLACE FUNCTION calculate_leave_days(
   p_start_date DATE,
@@ -14,22 +14,46 @@ CREATE OR REPLACE FUNCTION calculate_leave_days(
 DECLARE
   v_days DECIMAL(5, 2) := 0;
   v_date DATE;
+  v_working_days INTEGER[];
+  v_working_days_str TEXT;
+  v_dow INTEGER; -- our format: 1=Mon ... 6=Sat, 7=Sun
 BEGIN
   IF p_is_half_day THEN
     RETURN 0.5;
   END IF;
 
-  -- Iterate through each day in range
+  -- ดึง working_days จาก system_settings (เช่น "1,2,3,4,5,6" = จ-ส)
+  SELECT setting_value INTO v_working_days_str
+  FROM system_settings
+  WHERE setting_key = 'working_days'
+  LIMIT 1;
+
+  -- แปลง string เป็น array of integers, default จ-ศ ถ้าไม่มีค่า
+  IF v_working_days_str IS NULL OR v_working_days_str = '' THEN
+    v_working_days := ARRAY[1, 2, 3, 4, 5];
+  ELSE
+    SELECT ARRAY(
+      SELECT elem::INTEGER
+      FROM unnest(string_to_array(v_working_days_str, ',')) AS elem
+    ) INTO v_working_days;
+  END IF;
+
+  -- วนทุกวันในช่วง
   FOR v_date IN
     SELECT d::DATE
     FROM generate_series(p_start_date, p_end_date, '1 day'::INTERVAL) AS d
   LOOP
-    -- Skip weekends: 0 = Sunday, 6 = Saturday
-    IF EXTRACT(DOW FROM v_date) IN (0, 6) THEN
+    -- แปลง DOW: PostgreSQL 0=อา, 1=จ, ..., 6=ส → our format: 0→7, อื่นๆ ตรงกัน
+    v_dow := CASE WHEN EXTRACT(DOW FROM v_date)::INTEGER = 0 THEN 7
+                  ELSE EXTRACT(DOW FROM v_date)::INTEGER
+             END;
+
+    -- ข้ามถ้าไม่ใช่วันทำงาน
+    IF NOT (v_dow = ANY(v_working_days)) THEN
       CONTINUE;
     END IF;
 
-    -- Skip public holidays
+    -- ข้ามวันหยุดนักขัตฤกษ์
     IF EXISTS (
       SELECT 1 FROM holidays
       WHERE date = v_date

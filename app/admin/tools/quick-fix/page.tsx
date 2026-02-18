@@ -245,6 +245,17 @@ function QuickFixDashboardContent() {
     try {
       const currentYear = new Date().getFullYear();
 
+      // ดึง working_days จาก system_settings (1=จ, 2=อ, ..., 6=ส, 7=อา)
+      const { data: wdSetting } = await supabase
+        .from("system_settings")
+        .select("setting_value")
+        .eq("setting_key", "working_days")
+        .maybeSingle();
+
+      const workingDayNums: number[] = wdSetting?.setting_value
+        ? wdSetting.setting_value.split(",").map(Number).filter(Boolean)
+        : [1, 2, 3, 4, 5]; // default จ-ศ
+
       // ดึง holidays ปีนี้ทั้งหมดมาไว้ใน Set
       const { data: holidays } = await supabase
         .from("holidays")
@@ -255,16 +266,18 @@ function QuickFixDashboardContent() {
 
       const holidaySet = new Set((holidays || []).map((h: any) => h.date as string));
 
-      // นับวันทำงานจริง (ข้าม weekend + holiday)
+      // นับวันทำงานจริง (ข้ามวันหยุดตามที่ตั้งในระบบ + วันหยุดนักขัตฤกษ์)
       const countWorkingDays = (startDate: string, endDate: string, isHalfDay: boolean): number => {
         if (isHalfDay) return 0.5;
         const current = new Date(startDate + "T00:00:00");
         const end = new Date(endDate + "T00:00:00");
         let count = 0;
         while (current <= end) {
-          const dow = current.getDay();
+          // JS: 0=อา, 1=จ, ..., 6=ส → แปลงเป็น our format: 0→7, 1→1, ..., 6→6
+          const jsDow = current.getDay();
+          const ourDow = jsDow === 0 ? 7 : jsDow;
           const dateStr = current.toISOString().split("T")[0];
-          if (dow !== 0 && dow !== 6 && !holidaySet.has(dateStr)) {
+          if (workingDayNums.includes(ourDow) && !holidaySet.has(dateStr)) {
             count++;
           }
           current.setDate(current.getDate() + 1);
