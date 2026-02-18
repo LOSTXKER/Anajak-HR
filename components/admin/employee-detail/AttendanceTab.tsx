@@ -68,16 +68,24 @@ export function AttendanceTab({ data }: AttendanceTabProps) {
                   {att.total_hours?.toFixed(1) || "-"}
                 </td>
                 <td className="text-center px-3 py-3">
-                  {att.is_late ? (
-                    <Badge variant="warning">สาย {att.late_minutes}น.</Badge>
-                  ) : att.status === "holiday" ? (
-                    <Badge variant="info">วันหยุด</Badge>
-                  ) : (
-                    <Badge variant="success">ปกติ</Badge>
-                  )}
-                  {att.auto_checkout && (
-                    <span className="ml-1 text-[10px] text-[#0071e3]">Auto</span>
-                  )}
+                  <div className="flex items-center justify-center gap-1 flex-wrap">
+                    {att.is_late ? (
+                      <Badge variant="warning">สาย {att.late_minutes}น.</Badge>
+                    ) : att.status === "holiday" ? (
+                      <Badge variant="info">วันหยุด</Badge>
+                    ) : (
+                      <Badge variant="success">ปกติ</Badge>
+                    )}
+                    {att.work_mode === "wfh" && (
+                      <Badge variant="info">🏠 WFH</Badge>
+                    )}
+                    {att.work_mode === "field" && (
+                      <Badge variant="default">🚗 ภาคสนาม</Badge>
+                    )}
+                    {att.auto_checkout && (
+                      <span className="text-[10px] text-[#0071e3]">Auto</span>
+                    )}
+                  </div>
                 </td>
                 <td className="text-right px-4 py-3">
                   <Link

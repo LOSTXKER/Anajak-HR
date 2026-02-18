@@ -35,7 +35,9 @@ export interface AttendanceRecord {
   is_late: boolean;
   late_minutes: number;
   status: string;
+  work_mode: "onsite" | "wfh" | "field" | null;
   auto_checkout: boolean;
+  note: string | null;
 }
 
 export interface OTRecord {
