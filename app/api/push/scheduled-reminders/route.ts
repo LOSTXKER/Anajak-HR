@@ -8,6 +8,15 @@ import { format } from "date-fns";
  * Should be called every minute by Vercel Cron
  */
 export async function POST(request: NextRequest) {
+  // ตรวจสอบ CRON_SECRET
+  const authHeader = request.headers.get("authorization");
+  if (!process.env.CRON_SECRET) {
+    return Response.json({ error: "CRON_SECRET not configured" }, { status: 500 });
+  }
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     console.log('[Push Reminders] Starting scheduled check...');
 

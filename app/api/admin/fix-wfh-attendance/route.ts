@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireAdmin, handleAuthError } from "@/lib/auth/api-middleware";
 
 /**
  * POST /api/admin/fix-wfh-attendance
  * Backfill attendance_logs สำหรับ approved WFH requests ที่ยังไม่มีเวลาทำงาน
+ * Admin only
  */
 export async function POST(request: NextRequest) {
+  try {
+    // ตรวจสอบ admin role
+    await requireAdmin(request);
+  } catch (authError) {
+    return handleAuthError(authError);
+  }
+
   try {
     // ใช้ auth token ของ user (admin) เพื่อ bypass RLS ผ่าน user session
     const authHeader = request.headers.get("authorization");

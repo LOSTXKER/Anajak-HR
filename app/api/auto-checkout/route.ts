@@ -9,7 +9,10 @@ import { th } from "date-fns/locale";
 export async function GET(request: NextRequest) {
   // ตรวจสอบ CRON_SECRET เพื่อป้องกันการเรียกจากภายนอก
   const authHeader = request.headers.get("authorization");
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET) {
+    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
+  }
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
