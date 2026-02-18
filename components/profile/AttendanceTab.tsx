@@ -40,11 +40,19 @@ export function AttendanceTab({ data, onViewPhoto }: AttendanceTabProps) {
             </div>
             <div className="text-right">
               <p className="text-lg font-bold text-[#0071e3]">{att.total_hours?.toFixed(1) || 0} ชม.</p>
-              {att.is_late ? (
-                <Badge variant="warning">สาย {att.late_minutes}น.</Badge>
-              ) : (
-                <Badge variant="success">ปกติ</Badge>
-              )}
+              <div className="flex items-center justify-end gap-1 flex-wrap mt-1">
+                {att.is_late ? (
+                  <Badge variant="warning">สาย {att.late_minutes}น.</Badge>
+                ) : (
+                  <Badge variant="success">ปกติ</Badge>
+                )}
+                {att.work_mode === "wfh" && (
+                  <Badge variant="info">🏠 WFH</Badge>
+                )}
+                {att.work_mode === "field" && (
+                  <Badge variant="default">🚗 ภาคสนาม</Badge>
+                )}
+              </div>
             </div>
           </div>
           {(att.clock_in_photo_url || att.clock_out_photo_url) && (

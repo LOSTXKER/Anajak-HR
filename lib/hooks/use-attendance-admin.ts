@@ -446,8 +446,8 @@ function buildSingleDayRows(
       ),
       otAmount: empOt.reduce((sum: number, o: any) => sum + (o.ot_amount || 0), 0),
       leaveType: empLeave?.leave_type || null,
-      isWFH: !!empWfh,
-      isFieldWork: !!empFieldWork,
+      isWFH: !!empWfh || att?.work_mode === "wfh",
+      isFieldWork: !!empFieldWork || att?.work_mode === "field",
       fieldWorkLocation: empFieldWork?.location || null,
       lateRequestStatus: empLateReq?.status || null,
     });
@@ -517,8 +517,8 @@ function buildRangeRows(
       ),
       otAmount: empOt.reduce((sum: number, o: any) => sum + (o.ot_amount || 0), 0),
       leaveType: empLeave?.leave_type || null,
-      isWFH: !!empWfh,
-      isFieldWork: !!empFieldWork,
+      isWFH: !!empWfh || att.work_mode === "wfh",
+      isFieldWork: !!empFieldWork || att.work_mode === "field",
       fieldWorkLocation: empFieldWork?.location || null,
       lateRequestStatus: empLateReq?.status || null,
     });

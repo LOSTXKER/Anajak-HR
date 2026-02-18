@@ -219,7 +219,10 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
         .filter((o) => o.status === "completed" || o.status === "approved")
         .reduce((sum, o) => sum + (o.ot_amount || 0), 0),
       leaveDays: leaveData.filter((l) => l.status === "approved").length,
-      wfhDays: wfhData.filter((w) => w.status === "approved").length,
+      wfhDays: new Set([
+        ...wfhData.filter((w) => w.status === "approved").map((w: any) => w.date),
+        ...attendanceData.filter((a: any) => a.work_mode === "wfh").map((a: any) => a.work_date),
+      ]).size,
     };
   }, [attendanceData, otData, leaveData, wfhData, approvedLateDates]);
 

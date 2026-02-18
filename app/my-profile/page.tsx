@@ -112,7 +112,10 @@ export default function MyProfilePage() {
     otHours: otData.filter((o) => ["approved", "completed"].includes(o.status)).reduce((sum, o) => sum + (o.actual_ot_hours || o.approved_ot_hours || 0), 0),
     otAmount: otData.filter((o) => ["approved", "completed"].includes(o.status)).reduce((sum, o) => sum + (o.ot_amount || 0), 0),
     leaveDays: leaveData.filter((l) => l.status === "approved").length,
-    wfhDays: wfhData.filter((w) => w.status === "approved").length,
+    wfhDays: new Set([
+      ...wfhData.filter((w) => w.status === "approved").map((w) => w.date),
+      ...attendanceData.filter((a) => a.work_mode === "wfh").map((a) => a.work_date),
+    ]).size,
   }), [attendanceData, otData, leaveData, wfhData]);
 
   const handleCancel = async (type: "leave" | "wfh", id: string) => {
