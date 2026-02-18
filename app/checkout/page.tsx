@@ -53,6 +53,9 @@ function CheckoutContent() {
   // Field work request (bypass GPS radius)
   const [hasFieldWork, setHasFieldWork] = useState(false);
 
+  // WFH request (bypass GPS radius)
+  const [hasWFH, setHasWFH] = useState(false);
+
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -86,7 +89,7 @@ function CheckoutContent() {
     const today = format(new Date(), "yyyy-MM-dd");
 
     // ดึงข้อมูลสาขา, settings, และ field work พร้อมกัน
-    const [branchRes, settingsRes, fieldWorkRes] = await Promise.all([
+    const [branchRes, settingsRes, fieldWorkRes, wfhRes] = await Promise.all([
       supabase
         .from("branches")
         .select("id, name, gps_lat, gps_lng, radius_meters")
@@ -98,6 +101,13 @@ function CheckoutContent() {
         .in("setting_key", ["checkout_time_start", "checkout_time_end"]),
       supabase
         .from("field_work_requests")
+        .select("id")
+        .eq("employee_id", employee.id)
+        .eq("date", today)
+        .eq("status", "approved")
+        .maybeSingle(),
+      supabase
+        .from("wfh_requests")
         .select("id")
         .eq("employee_id", employee.id)
         .eq("date", today)
@@ -123,6 +133,11 @@ function CheckoutContent() {
     // Check if there's approved field work request for today
     if (fieldWorkRes.data) {
       setHasFieldWork(true);
+    }
+
+    // Check if there's approved WFH request for today
+    if (wfhRes.data) {
+      setHasWFH(true);
     }
   };
 
@@ -206,8 +221,8 @@ function CheckoutContent() {
   const handleCheckout = async () => {
     if (!photo || !location || !employee || !todayLog) return;
 
-    // ตรวจสอบรัศมี GPS (ข้ามถ้ามี approved field work)
-    if (!hasFieldWork && radiusCheck && !radiusCheck.inRadius) {
+    // ตรวจสอบรัศมี GPS (ข้ามถ้ามี approved field work หรือ WFH)
+    if (!hasFieldWork && !hasWFH && radiusCheck && !radiusCheck.inRadius) {
       setError(`คุณอยู่นอกรัศมีที่อนุญาต (ห่าง ${formatDistance(radiusCheck.distance)} จากสาขา ${branch?.name || "สาขา"})`);
       return;
     }
@@ -499,6 +514,19 @@ function CheckoutContent() {
 
         {/* Status */}
         <div className="space-y-3 mb-6">
+          {/* WFH Status */}
+          {hasWFH && (
+            <div className="flex items-center gap-3 p-4 bg-[#0071e3]/10 rounded-xl border border-[#0071e3]/30">
+              <div className="w-10 h-10 rounded-full bg-[#0071e3]/20 flex items-center justify-center">
+                <span className="text-[18px]">🏠</span>
+              </div>
+              <div>
+                <p className="text-[15px] font-medium text-[#0071e3]">ทำงานจากบ้าน (WFH)</p>
+                <p className="text-[13px] text-[#86868b]">ไม่ต้องอยู่ในรัศมีสาขา</p>
+              </div>
+            </div>
+          )}
+
           {/* GPS Status */}
           <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-[#e8e8ed]">
             <div className="flex items-center gap-3">
@@ -597,7 +625,7 @@ function CheckoutContent() {
                 variant="danger"
                 onClick={handleCheckout}
                 loading={loading}
-                disabled={!location || (!hasFieldWork && radiusCheck !== null && !radiusCheck.inRadius)}
+                disabled={!location || (!hasFieldWork && !hasWFH && radiusCheck !== null && !radiusCheck.inRadius)}
                 size="lg"
               >
                 <CheckCircle className="w-5 h-5" />
