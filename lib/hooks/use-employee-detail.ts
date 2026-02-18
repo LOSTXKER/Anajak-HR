@@ -89,16 +89,19 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
     }
   }, [employeeId, router, toast]);
 
-  // Fetch tab data
+  // Fetch all tab data in parallel — ดึงทั้งหมดพร้อมกันเพื่อให้ stats cards แสดงครบตั้งแต่แรก
   const fetchTabData = useCallback(async () => {
     if (!employeeId) return;
 
     const startDate = format(startOfMonth(currentMonth), "yyyy-MM-dd");
     const endDate = format(endOfMonth(currentMonth), "yyyy-MM-dd");
+    const currentYear = new Date().getFullYear();
+    const yearStart = `${currentYear}-01-01`;
+    const yearEnd = `${currentYear}-12-31`;
 
     try {
-      if (activeTab === "attendance") {
-        const [attRes, lateReqRes] = await Promise.all([
+      const [attRes, lateReqRes, otRes, leaveRes, yearlyLeaveRes, wfhRes, lateDataRes] =
+        await Promise.all([
           supabase
             .from("attendance_logs")
             .select("*")
@@ -113,85 +116,74 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
             .eq("status", "approved")
             .gte("request_date", startDate)
             .lte("request_date", endDate),
+          supabase
+            .from("ot_requests")
+            .select("*")
+            .eq("employee_id", employeeId)
+            .gte("request_date", startDate)
+            .lte("request_date", endDate)
+            .order("request_date", { ascending: false }),
+          supabase
+            .from("leave_requests")
+            .select("*")
+            .eq("employee_id", employeeId)
+            .lte("start_date", endDate)
+            .gte("end_date", startDate)
+            .order("start_date", { ascending: false }),
+          supabase
+            .from("leave_requests")
+            .select("leave_type, start_date, end_date, is_half_day")
+            .eq("employee_id", employeeId)
+            .eq("status", "approved")
+            .gte("start_date", yearStart)
+            .lte("start_date", yearEnd),
+          supabase
+            .from("wfh_requests")
+            .select("*")
+            .eq("employee_id", employeeId)
+            .gte("date", startDate)
+            .lte("date", endDate)
+            .order("date", { ascending: false }),
+          supabase
+            .from("late_requests")
+            .select("*")
+            .eq("employee_id", employeeId)
+            .gte("request_date", startDate)
+            .lte("request_date", endDate)
+            .order("request_date", { ascending: false }),
         ]);
-        setAttendanceData(attRes.data || []);
-        setApprovedLateDates(
-          new Set(
-            (lateReqRes.data || []).map(
-              (r: { request_date: string }) => r.request_date
-            )
+
+      setAttendanceData(attRes.data || []);
+      setApprovedLateDates(
+        new Set(
+          (lateReqRes.data || []).map(
+            (r: { request_date: string }) => r.request_date
           )
-        );
-      } else if (activeTab === "ot") {
-        const { data } = await supabase
-          .from("ot_requests")
-          .select("*")
-          .eq("employee_id", employeeId)
-          .gte("request_date", startDate)
-          .lte("request_date", endDate)
-          .order("request_date", { ascending: false });
-        setOtData(data || []);
-      } else if (activeTab === "leave") {
-        // Fetch leave data for current month
-        const { data } = await supabase
-          .from("leave_requests")
-          .select("*")
-          .eq("employee_id", employeeId)
-          .lte("start_date", endDate)
-          .gte("end_date", startDate)
-          .order("start_date", { ascending: false });
-        setLeaveData(data || []);
+        )
+      );
+      setOtData(otRes.data || []);
+      setLeaveData(leaveRes.data || []);
+      setWfhData(wfhRes.data || []);
+      setLateData(lateDataRes.data || []);
 
-        // Fetch yearly leave usage (approved only)
-        const currentYear = new Date().getFullYear();
-        const yearStart = `${currentYear}-01-01`;
-        const yearEnd = `${currentYear}-12-31`;
+      // คำนวณ leave balance จาก yearly data
+      const usedDays = { sick_used: 0, personal_used: 0, annual_used: 0 };
+      (yearlyLeaveRes.data || []).forEach((leave: LeaveRecord) => {
+        const start = new Date(leave.start_date);
+        const end = new Date(leave.end_date);
+        const days = leave.is_half_day
+          ? 0.5
+          : Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-        const { data: yearlyLeave } = await supabase
-          .from("leave_requests")
-          .select("leave_type, start_date, end_date, is_half_day")
-          .eq("employee_id", employeeId)
-          .eq("status", "approved")
-          .gte("start_date", yearStart)
-          .lte("start_date", yearEnd);
-
-        // Calculate used days per type
-        const usedDays = { sick_used: 0, personal_used: 0, annual_used: 0 };
-        (yearlyLeave || []).forEach((leave: LeaveRecord) => {
-          const start = new Date(leave.start_date);
-          const end = new Date(leave.end_date);
-          const days = leave.is_half_day
-            ? 0.5
-            : Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-
-          if (leave.leave_type === "sick") usedDays.sick_used += days;
-          else if (leave.leave_type === "personal") usedDays.personal_used += days;
-          else if (leave.leave_type === "annual") usedDays.annual_used += days;
-        });
-        setLeaveBalance(usedDays);
-      } else if (activeTab === "wfh") {
-        const { data } = await supabase
-          .from("wfh_requests")
-          .select("*")
-          .eq("employee_id", employeeId)
-          .gte("date", startDate)
-          .lte("date", endDate)
-          .order("date", { ascending: false });
-        setWfhData(data || []);
-      } else if (activeTab === "late") {
-        const { data } = await supabase
-          .from("late_requests")
-          .select("*")
-          .eq("employee_id", employeeId)
-          .gte("request_date", startDate)
-          .lte("request_date", endDate)
-          .order("request_date", { ascending: false });
-        setLateData(data || []);
-      }
+        if (leave.leave_type === "sick") usedDays.sick_used += days;
+        else if (leave.leave_type === "personal") usedDays.personal_used += days;
+        else if (leave.leave_type === "annual") usedDays.annual_used += days;
+      });
+      setLeaveBalance(usedDays);
     } catch (error) {
       console.error("Error fetching tab data:", error);
     }
-  }, [employeeId, activeTab, currentMonth]);
+  }, [employeeId, currentMonth]);
 
   // Effects
   useEffect(() => {
@@ -199,10 +191,8 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
   }, [fetchEmployee]);
 
   useEffect(() => {
-    if (activeTab !== "info") {
-      fetchTabData();
-    }
-  }, [activeTab, currentMonth, fetchTabData]);
+    fetchTabData();
+  }, [currentMonth, fetchTabData]);
 
   // Monthly stats
   const monthlyStats = useMemo((): MonthlyStats => {
