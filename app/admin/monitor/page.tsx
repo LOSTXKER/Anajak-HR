@@ -30,6 +30,7 @@ function MonitorContent() {
     recentActivity,
     currentTime,
     otTimes,
+    approvedLateIds,
     fetchRealtimeData,
     anomalies,
     anomalyFilter,
@@ -128,6 +129,7 @@ function MonitorContent() {
             activeOTs={activeOTs}
             recentActivity={recentActivity}
             otTimes={otTimes}
+            approvedLateIds={approvedLateIds}
             loading={loading}
           />
         </>

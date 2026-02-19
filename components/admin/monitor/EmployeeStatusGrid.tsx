@@ -12,6 +12,7 @@ interface EmployeeStatusGridProps {
   activeOTs: ActiveOT[];
   recentActivity: RecentActivity[];
   otTimes: Record<string, string>;
+  approvedLateIds?: Set<string>;
   loading?: boolean;
 }
 
@@ -19,6 +20,7 @@ export function EmployeeStatusGrid({
   activeOTs,
   recentActivity,
   otTimes,
+  approvedLateIds = new Set(),
   loading,
 }: EmployeeStatusGridProps) {
   if (loading) {
@@ -122,11 +124,16 @@ export function EmployeeStatusGrid({
                   key={activity.id}
                   className="flex items-center gap-3 p-3 hover:bg-[#f5f5f7] rounded-xl transition-colors"
                 >
+                  {(() => {
+                    const isApprovedLate = activity.is_late && approvedLateIds.has((activity as any).employee_id || "");
+                    const isUnapprovedLate = activity.is_late && !isApprovedLate;
+                    return (
+                      <>
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center ${
                       activity.clock_out_time
                         ? "bg-[#34c759]/10"
-                        : activity.is_late
+                        : isUnapprovedLate
                           ? "bg-[#ff9500]/10"
                           : "bg-[#0071e3]/10"
                     }`}
@@ -136,7 +143,7 @@ export function EmployeeStatusGrid({
                     ) : (
                       <CheckCircle
                         className={`w-5 h-5 ${
-                          activity.is_late ? "text-[#ff9500]" : "text-[#0071e3]"
+                          isUnapprovedLate ? "text-[#ff9500]" : "text-[#0071e3]"
                         }`}
                       />
                     )}
@@ -149,8 +156,11 @@ export function EmployeeStatusGrid({
                       {activity.clock_out_time
                         ? `เช็คเอาท์ ${format(new Date(activity.clock_out_time), "HH:mm")} น.`
                         : `เช็คอิน ${format(new Date(activity.clock_in_time), "HH:mm")} น.`}
-                      {activity.is_late && !activity.clock_out_time && (
+                      {isUnapprovedLate && !activity.clock_out_time && (
                         <span className="text-[#ff9500]"> (สาย)</span>
+                      )}
+                      {isApprovedLate && !activity.clock_out_time && (
+                        <span className="text-[#34c759]"> (สาย - อนุมัติ)</span>
                       )}
                       {(activity as any).work_mode === "wfh" && (
                         <span className="ml-1 px-1.5 py-0.5 bg-[#0071e3]/10 text-[#0071e3] text-[11px] rounded-full">🏠 WFH</span>
@@ -160,6 +170,9 @@ export function EmployeeStatusGrid({
                       )}
                     </p>
                   </div>
+                      </>
+                    );
+                  })()}
                 </div>
               ))}
             </div>

@@ -82,6 +82,7 @@ export function useMonitor() {
   });
   const [activeOTs, setActiveOTs] = useState<ActiveOT[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [approvedLateIds, setApprovedLateIds] = useState<Set<string>>(new Set());
   const [currentTime, setCurrentTime] = useState(new Date());
   const [otTimes, setOtTimes] = useState<Record<string, string>>({});
 
@@ -112,6 +113,7 @@ export function useMonitor() {
         recentResult,
         holidayResult,
         anomalyCountResult,
+        approvedLateResult,
       ] = await Promise.all([
         supabase
           .from("employees")
@@ -143,6 +145,11 @@ export function useMonitor() {
           .from("attendance_anomalies")
           .select("id", { count: "exact" })
           .eq("status", "pending"),
+        supabase
+          .from("late_requests")
+          .select("employee_id")
+          .eq("request_date", today)
+          .eq("status", "approved"),
       ]);
 
       setPendingAnomaliesCount(anomalyCountResult.count || 0);
@@ -156,7 +163,13 @@ export function useMonitor() {
       );
       const checkedIn = attendance.filter((a: any) => a.clock_in_time).length;
       const checkedOut = attendance.filter((a: any) => a.clock_out_time).length;
-      const late = attendance.filter((a: any) => a.is_late).length;
+
+      const approvedLateEmployeeIds = new Set<string>(
+        (approvedLateResult.data || []).map((r: any) => r.employee_id as string)
+      );
+      const late = attendance.filter(
+        (a: any) => a.is_late && !approvedLateEmployeeIds.has(a.employee_id)
+      ).length;
       const activeOTFiltered = (activeOTResult.data || []).filter(
         (ot: any) => !ot.employee?.is_system_account
       );
@@ -184,6 +197,7 @@ export function useMonitor() {
       });
       setActiveOTs(activeOTFiltered);
       setRecentActivity(recentFiltered);
+      setApprovedLateIds(approvedLateEmployeeIds);
     } catch (err) {
       console.error("Error fetching monitor data:", err);
       setError(err instanceof Error ? err.message : "ไม่สามารถโหลดข้อมูลได้");
@@ -310,6 +324,7 @@ export function useMonitor() {
     recentActivity,
     currentTime,
     otTimes,
+    approvedLateIds,
     fetchRealtimeData,
 
     // Anomalies
