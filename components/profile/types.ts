@@ -59,7 +59,7 @@ export interface LeaveQuota {
   color: string;
 }
 
-export type TabType = "overview" | "attendance" | "ot" | "leave" | "wfh";
+export type TabType = "overview" | "attendance" | "ot" | "leave" | "wfh" | "late";
 
 export interface MonthlyStats {
   workDays: number;

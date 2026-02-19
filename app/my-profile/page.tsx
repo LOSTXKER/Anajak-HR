@@ -18,6 +18,7 @@ import { AttendanceTab } from "@/components/profile/AttendanceTab";
 import { OTTab } from "@/components/profile/OTTab";
 import { LeaveTab } from "@/components/profile/LeaveTab";
 import { WFHTab } from "@/components/profile/WFHTab";
+import { LateTab } from "@/components/profile/LateTab";
 import type { TabType, AttendanceRecord, OTRecord, LeaveRecord, WFHRecord, LateRequestRecord, LeaveQuota } from "@/components/profile/types";
 
 export default function MyProfilePage() {
@@ -150,6 +151,7 @@ export default function MyProfilePage() {
     { id: "ot", label: "OT" },
     { id: "leave", label: "ลา" },
     { id: "wfh", label: "WFH" },
+    { id: "late", label: "ขอสาย" },
   ];
 
   return (
@@ -223,6 +225,7 @@ export default function MyProfilePage() {
             {activeTab === "ot" && <OTTab data={otData} />}
             {activeTab === "leave" && <LeaveTab data={leaveData} canceling={canceling} onCancel={handleCancel} />}
             {activeTab === "wfh" && <WFHTab data={wfhData} canceling={canceling} onCancel={handleCancel} />}
+            {activeTab === "late" && <LateTab data={lateData} />}
           </>
         )}
       </main>
