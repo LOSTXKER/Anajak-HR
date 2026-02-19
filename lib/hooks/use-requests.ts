@@ -31,7 +31,7 @@ interface DateRange {
 }
 
 interface UseRequestsOptions {
-  dateRange?: DateRange;
+  dateRange?: DateRange | null;
   initialType?: RequestType | "all";
 }
 
@@ -90,15 +90,10 @@ interface PendingStats {
   total: number;
 }
 
-const defaultDateRange: DateRange = {
-  start: format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), "yyyy-MM-dd"),
-  end: format(new Date(), "yyyy-MM-dd"),
-};
-
 // ─── Hook Implementation ─────────────────────────────────
 
 export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn {
-  const { dateRange = defaultDateRange, initialType = "all" } = options;
+  const { dateRange = null, initialType = "all" } = options;
 
   // ── State ────────────────────────────────────────────
   const [pendingRequests, setPendingRequests] = useState<RequestItem[]>([]);
@@ -150,18 +145,27 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
     }
   }, []);
 
-  // ── Fetch All Requests (date-ranged) ─────────────────
+  // ── Fetch All Requests ──────────────────────────────
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
       const selectQuery = "*, employee:employees!employee_id(id, name, email)";
+
+      const buildQuery = (table: string, dateCol: string) => {
+        let q = supabase.from(table).select(selectQuery);
+        if (dateRange) {
+          q = q.gte(dateCol, dateRange.start).lte(dateCol, dateRange.end);
+        }
+        return q.order("created_at", { ascending: false });
+      };
+
       const [otRes, leaveRes, wfhRes, lateRes, fieldWorkRes] = await Promise.all([
-        supabase.from("ot_requests").select(selectQuery).gte("request_date", dateRange.start).lte("request_date", dateRange.end).order("created_at", { ascending: false }),
-        supabase.from("leave_requests").select(selectQuery).gte("start_date", dateRange.start).lte("start_date", dateRange.end).order("created_at", { ascending: false }),
-        supabase.from("wfh_requests").select(selectQuery).gte("date", dateRange.start).lte("date", dateRange.end).order("created_at", { ascending: false }),
-        supabase.from("late_requests").select(selectQuery).gte("request_date", dateRange.start).lte("request_date", dateRange.end).order("created_at", { ascending: false }),
-        supabase.from("field_work_requests").select(selectQuery).gte("date", dateRange.start).lte("date", dateRange.end).order("created_at", { ascending: false }),
+        buildQuery("ot_requests", "request_date"),
+        buildQuery("leave_requests", "start_date"),
+        buildQuery("wfh_requests", "date"),
+        buildQuery("late_requests", "request_date"),
+        buildQuery("field_work_requests", "date"),
       ]);
 
       const items = processAllRequests(

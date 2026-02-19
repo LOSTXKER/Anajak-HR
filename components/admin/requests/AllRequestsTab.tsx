@@ -20,14 +20,14 @@ interface AllRequestsTabProps {
   stats: RequestStats;
   loading: boolean;
   processing: boolean;
-  dateRange: { start: string; end: string };
+  dateRange: { start: string; end: string } | null;
   activeType: RequestType | "all";
   activeStatus: RequestStatus;
   searchTerm: string;
   onTypeChange: (type: RequestType | "all") => void;
   onStatusChange: (status: RequestStatus) => void;
   onSearchChange: (term: string) => void;
-  onDateRangeChange: (range: { start: string; end: string }) => void;
+  onDateRangeChange: (range: { start: string; end: string } | null) => void;
   onRefresh: () => void;
   onViewDetail: (request: RequestItem) => void;
   onApprove: (request: RequestItem) => void;
@@ -133,17 +133,34 @@ export function AllRequestsTab({
         <div className="flex items-center gap-2">
           <input
             type="date"
-            value={dateRange.start}
-            onChange={(e) => onDateRangeChange({ ...dateRange, start: e.target.value })}
+            value={dateRange?.start || ""}
+            onChange={(e) => {
+              const start = e.target.value;
+              if (!start) { onDateRangeChange(null); return; }
+              onDateRangeChange({ start, end: dateRange?.end || start });
+            }}
             className="px-3 py-2.5 bg-[#f5f5f7] border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0071e3]"
           />
           <span className="text-[#86868b]">-</span>
           <input
             type="date"
-            value={dateRange.end}
-            onChange={(e) => onDateRangeChange({ ...dateRange, end: e.target.value })}
+            value={dateRange?.end || ""}
+            onChange={(e) => {
+              const end = e.target.value;
+              if (!end) { onDateRangeChange(null); return; }
+              onDateRangeChange({ start: dateRange?.start || end, end });
+            }}
             className="px-3 py-2.5 bg-[#f5f5f7] border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0071e3]"
           />
+          {dateRange && (
+            <button
+              onClick={() => onDateRangeChange(null)}
+              className="px-2 py-2.5 text-xs text-[#ff3b30] hover:bg-red-50 rounded-xl transition-colors"
+              title="ล้างตัวกรองวันที่"
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         <Button variant="secondary" size="sm" onClick={onRefresh} disabled={loading}>

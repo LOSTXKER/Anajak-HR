@@ -2,7 +2,6 @@
 
 import React, { useState, useCallback, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { format } from "date-fns";
 import { FileText, History, Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -36,11 +35,8 @@ function RequestsPageContent() {
   const typeParam = searchParams.get("type") as RequestType | null;
   const [activeTab, setActiveTab] = useState<TabId>(tabParam || "pending");
 
-  // Date range for "all" tab — include future dates to catch advance requests
-  const [dateRange, setDateRange] = useState({
-    start: format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), "yyyy-MM-dd"),
-    end: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), "yyyy-MM-dd"),
-  });
+  // Date range for "all" tab — null = show all, set values to filter
+  const [dateRange, setDateRange] = useState<{ start: string; end: string } | null>(null);
 
   // Unified hook
   const {
