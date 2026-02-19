@@ -45,7 +45,7 @@ export interface WFHRecord {
 export interface LateRequestRecord {
   id: string;
   request_date: string;
-  actual_clock_in_time: string;
+  actual_late_minutes: number | null;
   reason: string;
   status: string;
 }

@@ -33,7 +33,7 @@ export function LateTab({ data }: LateTabProps) {
                 วันที่
               </th>
               <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase">
-                เวลาเข้างาน
+                สาย (นาที)
               </th>
               <th className="text-left px-3 py-3 text-xs font-semibold text-[#86868b] uppercase">
                 เหตุผล
@@ -52,8 +52,8 @@ export function LateTab({ data }: LateTabProps) {
                   })}
                 </td>
                 <td className="text-center px-3 py-3 text-sm text-[#ff9500] font-medium">
-                  {late.actual_clock_in_time
-                    ? format(new Date(late.actual_clock_in_time), "HH:mm")
+                  {late.actual_late_minutes != null
+                    ? `${late.actual_late_minutes} นาที`
                     : "-"}
                 </td>
                 <td className="px-3 py-3 text-sm text-[#86868b] max-w-[200px] truncate">
