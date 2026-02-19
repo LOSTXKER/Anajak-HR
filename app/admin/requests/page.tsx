@@ -36,10 +36,10 @@ function RequestsPageContent() {
   const typeParam = searchParams.get("type") as RequestType | null;
   const [activeTab, setActiveTab] = useState<TabId>(tabParam || "pending");
 
-  // Date range for "all" tab
+  // Date range for "all" tab — include future dates to catch advance requests
   const [dateRange, setDateRange] = useState({
     start: format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), "yyyy-MM-dd"),
-    end: format(new Date(), "yyyy-MM-dd"),
+    end: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), "yyyy-MM-dd"),
   });
 
   // Unified hook
