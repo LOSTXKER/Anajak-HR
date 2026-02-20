@@ -1,97 +1,91 @@
 /**
- * Request Filters Hook
+ * use-request-filters
  * =============================================
- * Hook for filtering and searching requests
+ * Responsible only for client-side filtering, searching and stats aggregation
+ * over a list of RequestItems. Extracted from use-requests.ts.
  */
 
 import { useState, useMemo } from "react";
-import {
-  RequestItem,
-  RequestType,
-  RequestStatus,
-  RequestStats,
-} from "@/lib/types/request";
+import { RequestItem, RequestType, RequestStatus, RequestStats } from "@/lib/types/request";
 
-interface UseRequestFiltersOptions {
-  requests: RequestItem[];
+interface PendingStats {
+  ot: number;
+  leave: number;
+  wfh: number;
+  late: number;
+  field_work: number;
+  total: number;
 }
 
 interface UseRequestFiltersReturn {
-  // Filter state
+  // Pending filters
+  pendingType: RequestType | "all";
+  setPendingType: (type: RequestType | "all") => void;
+  filteredPending: RequestItem[];
+  pendingStats: PendingStats;
+
+  // All-requests filters
   activeType: RequestType | "all";
   activeStatus: RequestStatus;
   searchTerm: string;
-
-  // Setters
   setActiveType: (type: RequestType | "all") => void;
   setActiveStatus: (status: RequestStatus) => void;
   setSearchTerm: (term: string) => void;
-
-  // Computed
-  filteredRequests: RequestItem[];
-  stats: RequestStats;
+  filteredAll: RequestItem[];
+  allStats: RequestStats;
 }
 
 export function useRequestFilters(
-  options: UseRequestFiltersOptions
+  pendingRequests: RequestItem[],
+  allRequests: RequestItem[],
+  initialType: RequestType | "all" = "all"
 ): UseRequestFiltersReturn {
-  const { requests } = options;
-
-  // Filter state
+  const [pendingType, setPendingType] = useState<RequestType | "all">(initialType);
   const [activeType, setActiveType] = useState<RequestType | "all">("all");
   const [activeStatus, setActiveStatus] = useState<RequestStatus>("all");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Filtered requests
-  const filteredRequests = useMemo(() => {
-    return requests.filter((r) => {
-      if (activeType !== "all" && r.type !== activeType) return false;
-      if (activeStatus !== "all" && r.status !== activeStatus) return false;
-      if (
-        searchTerm &&
-        !r.employeeName.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-        return false;
-      return true;
+  const pendingStats = useMemo<PendingStats>(() => {
+    const counts: PendingStats = { ot: 0, leave: 0, wfh: 0, late: 0, field_work: 0, total: 0 };
+    pendingRequests.forEach((r) => {
+      counts[r.type]++;
     });
-  }, [requests, activeType, activeStatus, searchTerm]);
+    counts.total = pendingRequests.length;
+    return counts;
+  }, [pendingRequests]);
 
-  // Stats
-  const stats = useMemo<RequestStats>(() => {
+  const filteredPending = useMemo(
+    () => (pendingType === "all" ? pendingRequests : pendingRequests.filter((r) => r.type === pendingType)),
+    [pendingRequests, pendingType]
+  );
+
+  const allStats = useMemo<RequestStats>(() => {
     const counts: RequestStats = {
-      ot: 0,
-      leave: 0,
-      wfh: 0,
-      late: 0,
-      field_work: 0,
-      pending: 0,
-      approved: 0,
-      completed: 0,
-      rejected: 0,
-      cancelled: 0,
+      ot: 0, leave: 0, wfh: 0, late: 0, field_work: 0,
+      pending: 0, approved: 0, completed: 0, rejected: 0, cancelled: 0,
     };
-
-    requests.forEach((r) => {
+    allRequests.forEach((r) => {
       counts[r.type]++;
       if (r.status in counts) (counts as any)[r.status]++;
     });
-
     return counts;
-  }, [requests]);
+  }, [allRequests]);
+
+  const filteredAll = useMemo(
+    () =>
+      allRequests.filter((r) => {
+        if (activeType !== "all" && r.type !== activeType) return false;
+        if (activeStatus !== "all" && r.status !== activeStatus) return false;
+        if (searchTerm && !r.employeeName.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+        return true;
+      }),
+    [allRequests, activeType, activeStatus, searchTerm]
+  );
 
   return {
-    // Filter state
-    activeType,
-    activeStatus,
-    searchTerm,
-
-    // Setters
-    setActiveType,
-    setActiveStatus,
-    setSearchTerm,
-
-    // Computed
-    filteredRequests,
-    stats,
+    pendingType, setPendingType, filteredPending, pendingStats,
+    activeType, activeStatus, searchTerm,
+    setActiveType, setActiveStatus, setSearchTerm,
+    filteredAll, allStats,
   };
 }

@@ -6,6 +6,8 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { checkAutoApprove, applyAutoApproveFields, AUTO_APPROVE_SETTINGS } from "@/lib/utils/auto-approve";
+import { useFormSubmit } from "@/lib/hooks/use-form-submit";
+import { notifyNewWFHRequest } from "@/lib/utils/notify-request";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -16,16 +18,7 @@ import { format } from "date-fns";
 function WFHRequestContent() {
   const { employee } = useAuth();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
-
-  // Admin is system account - redirect to admin panel
-  useEffect(() => {
-    if (employee?.role === "admin") {
-      router.replace("/admin");
-    }
-  }, [employee, router]);
+  const { loading, error, success, handleSubmit } = useFormSubmit({ redirectTo: "/" });
 
   const [formData, setFormData] = useState({
     date: "",
@@ -33,25 +26,23 @@ function WFHRequestContent() {
     reason: "",
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Redirect admin accounts to admin panel
+  useEffect(() => {
+    if (employee?.role === "admin") {
+      router.replace("/admin");
+    }
+  }, [employee, router]);
+
+  const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!employee) return;
 
-    // ตรวจสอบว่าไม่ใช่วันในอดีต
-    const requestDate = new Date(formData.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    handleSubmit(async () => {
+      const requestDate = new Date(formData.date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (requestDate < today) throw new Error("ไม่สามารถขอ WFH ย้อนหลังได้");
 
-    if (requestDate < today) {
-      setError("ไม่สามารถขอ WFH ย้อนหลังได้");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    try {
-      // ตรวจสอบว่ามีคำขอ WFH ในวันเดียวกันหรือไม่
       const { data: existingWFH } = await supabase
         .from("wfh_requests")
         .select("id")
@@ -60,53 +51,23 @@ function WFHRequestContent() {
         .in("status", ["pending", "approved"]);
 
       if (existingWFH && existingWFH.length > 0) {
-        setError("คุณมีคำขอ WFH ในวันนี้แล้ว");
-        setLoading(false);
-        return;
+        throw new Error("คุณมีคำขอ WFH ในวันนี้แล้ว");
       }
 
-      // Check auto approve setting
       const isAutoApprove = await checkAutoApprove(AUTO_APPROVE_SETTINGS.WFH);
-
-      // Build insert data with auto-approve fields
       const baseData = {
         employee_id: employee.id,
         date: formData.date,
         is_half_day: formData.isHalfDay,
         reason: formData.reason,
       };
-
       const insertData = await applyAutoApproveFields(baseData, isAutoApprove);
 
       const { error: insertError } = await supabase.from("wfh_requests").insert(insertData);
-
       if (insertError) throw insertError;
 
-      // Send LINE notification for new WFH request
-      try {
-        await fetch("/api/notifications", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "new_wfh_request",
-            data: {
-              employeeName: employee.name,
-              date: formData.date,
-              reason: formData.reason,
-            },
-          }),
-        });
-      } catch (notifError) {
-        console.error("Error sending notification:", notifError);
-      }
-
-      setSuccess(true);
-      setTimeout(() => router.push("/"), 2000);
-    } catch (err: any) {
-      setError(err.message || "เกิดข้อผิดพลาด");
-    } finally {
-      setLoading(false);
-    }
+      notifyNewWFHRequest({ employeeName: employee.name, date: formData.date, reason: formData.reason });
+    });
   };
 
   if (success) {
@@ -116,12 +77,8 @@ function WFHRequestContent() {
           <div className="w-20 h-20 bg-[#0071e3] rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-10 h-10 text-white" strokeWidth={2.5} />
           </div>
-          <h2 className="text-[28px] font-semibold text-[#1d1d1f] mb-2">
-            ส่งคำขอสำเร็จ
-          </h2>
-          <p className="text-[17px] text-[#86868b]">
-            รอการอนุมัติจากหัวหน้างาน
-          </p>
+          <h2 className="text-[28px] font-semibold text-[#1d1d1f] mb-2">ส่งคำขอสำเร็จ</h2>
+          <p className="text-[17px] text-[#86868b]">รอการอนุมัติจากหัวหน้างาน</p>
         </div>
       </div>
     );
@@ -149,7 +106,7 @@ function WFHRequestContent() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={onSubmit}>
           <Card elevated>
             <div className="space-y-5">
               {/* Date */}
@@ -168,28 +125,16 @@ function WFHRequestContent() {
               {/* Half Day */}
               <div className="flex items-center justify-between px-4 py-3 bg-[#f5f5f7] rounded-xl">
                 <div>
-                  <span className="text-[15px] font-medium text-[#1d1d1f] block mb-1">
-                    WFH ครึ่งวัน
-                  </span>
-                  <span className="text-[13px] text-[#86868b]">
-                    เช้าหรือบ่าย
-                  </span>
+                  <span className="text-[15px] font-medium text-[#1d1d1f] block mb-1">WFH ครึ่งวัน</span>
+                  <span className="text-[13px] text-[#86868b]">เช้าหรือบ่าย</span>
                 </div>
                 <button
                   type="button"
-                  onClick={() =>
-                    setFormData({ ...formData, isHalfDay: !formData.isHalfDay })
-                  }
-                  className={`
-                    relative w-12 h-7 rounded-full transition-colors
-                    ${formData.isHalfDay ? "bg-[#0071e3]" : "bg-[#d2d2d7]"}
-                  `}
+                  onClick={() => setFormData({ ...formData, isHalfDay: !formData.isHalfDay })}
+                  className={`relative w-12 h-7 rounded-full transition-colors ${formData.isHalfDay ? "bg-[#0071e3]" : "bg-[#d2d2d7]"}`}
                 >
                   <span
-                    className={`
-                      absolute top-1 w-5 h-5 bg-white rounded-full transition-transform
-                      ${formData.isHalfDay ? "right-1" : "left-1"}
-                    `}
+                    className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-transform ${formData.isHalfDay ? "right-1" : "left-1"}`}
                   />
                 </button>
               </div>
@@ -202,9 +147,7 @@ function WFHRequestContent() {
                 </label>
                 <textarea
                   value={formData.reason}
-                  onChange={(e) =>
-                    setFormData({ ...formData, reason: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                   rows={4}
                   className="w-full px-4 py-3.5 text-[17px] bg-[#f5f5f7] rounded-xl border-0 focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all resize-none"
                   placeholder="ระบุเหตุผลการขอ WFH"
@@ -231,12 +174,7 @@ function WFHRequestContent() {
 
           {/* Submit */}
           <div className="mt-6">
-            <Button
-              type="submit"
-              fullWidth
-              loading={loading}
-              size="lg"
-            >
+            <Button type="submit" fullWidth loading={loading} size="lg">
               ส่งคำขอ WFH
             </Button>
           </div>
@@ -253,4 +191,3 @@ export default function WFHRequestPage() {
     </ProtectedRoute>
   );
 }
-

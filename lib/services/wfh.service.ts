@@ -6,6 +6,7 @@
 
 import { supabase } from "@/lib/supabase/client";
 import { format } from "date-fns";
+import { Result, success, error as resultError } from "@/lib/types/result";
 import type { WFHRequest } from "@/lib/types";
 
 /**
@@ -17,7 +18,7 @@ export async function requestWFH(
         date: string;
         reason: string;
     }
-): Promise<{ success: boolean; data?: WFHRequest; error?: string }> {
+): Promise<Result<WFHRequest>> {
     try {
         const { data: result, error } = await supabase
             .from("wfh_requests")
@@ -31,11 +32,10 @@ export async function requestWFH(
             .single();
 
         if (error) throw error;
-
-        return { success: true, data: result as WFHRequest };
-    } catch (error) {
-        console.error("Error requesting WFH:", error);
-        return { success: false, error: "Failed to submit WFH request" };
+        return success(result as WFHRequest);
+    } catch (err: any) {
+        console.error("Error requesting WFH:", err);
+        return resultError(err.message || "Failed to submit WFH request");
     }
 }
 

@@ -44,27 +44,23 @@ export { useDashboard } from "./use-dashboard";
 export { useAdminRedirect } from "./use-admin-redirect";
 export { usePendingCounts } from "./use-pending-counts";
 
-// Camera Hooks
-export { useCameraCapture } from "./use-camera-capture";
+// Camera & Location Hooks
+export { useCamera } from "./use-camera";
+export { useLocation } from "./use-location";
+
+// Form Hooks
+export { useFormSubmit } from "./use-form-submit";
 
 // Announcement Hooks
 export { useUnreadAnnouncements } from "./use-unread-announcements";
 
-// Admin Request Hooks (unified)
+// Admin Request Hooks
 export { useRequests } from "./use-requests";
-// Legacy hooks (kept for backward compatibility)
-export { useAdminRequests } from "./use-admin-requests";
-export { useRequestFetching } from "./use-request-fetching";
-export { useRequestActions } from "./use-request-actions";
+export { useRequestsQuery } from "./use-requests-query";
 export { useRequestFilters } from "./use-request-filters";
 
 // Admin Employee Hooks
 export { useEmployees } from "./use-employees";
-
-// Admin Approval Hooks (deprecated, redirects to /admin/requests)
-export { useApprovals } from "./use-approvals";
-
-// Admin Employee Detail Hook
 export { useEmployeeDetail } from "./use-employee-detail";
 
 // Admin Report Data Hook

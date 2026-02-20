@@ -10,6 +10,7 @@ import {
   applyAutoApproveFields,
   AUTO_APPROVE_SETTINGS,
 } from "@/lib/utils/auto-approve";
+import { Result, success, error as resultError } from "@/lib/types/result";
 
 // Types
 export interface FieldWorkRequest {
@@ -33,19 +34,13 @@ export interface CreateFieldWorkRequestData {
   location: string;
 }
 
-// Result types
-interface ServiceResult<T> {
-  data: T | null;
-  error: string | null;
-}
-
 /**
  * Get field work requests for an employee
  */
 export async function getFieldWorkRequests(
   employeeId: string,
   limit = 20
-): Promise<ServiceResult<FieldWorkRequest[]>> {
+): Promise<Result<FieldWorkRequest[]>> {
   try {
     const { data, error } = await supabase
       .from("field_work_requests")
@@ -55,11 +50,9 @@ export async function getFieldWorkRequests(
       .limit(limit);
 
     if (error) throw error;
-    return { data: data || [], error: null };
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to fetch field work requests";
-    return { data: null, error: message };
+    return success(data || []);
+  } catch (err: any) {
+    return resultError(err.message || "Failed to fetch field work requests");
   }
 }
 
@@ -69,7 +62,7 @@ export async function getFieldWorkRequests(
 export async function checkExistingFieldWorkRequest(
   employeeId: string,
   date: string
-): Promise<ServiceResult<boolean>> {
+): Promise<Result<boolean>> {
   try {
     const { data, error } = await supabase
       .from("field_work_requests")
@@ -79,11 +72,9 @@ export async function checkExistingFieldWorkRequest(
       .in("status", ["pending", "approved"]);
 
     if (error) throw error;
-    return { data: (data?.length || 0) > 0, error: null };
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to check existing request";
-    return { data: null, error: message };
+    return success((data?.length || 0) > 0);
+  } catch (err: any) {
+    return resultError(err.message || "Failed to check existing request");
   }
 }
 
@@ -92,21 +83,14 @@ export async function checkExistingFieldWorkRequest(
  */
 export async function createFieldWorkRequest(
   data: CreateFieldWorkRequestData
-): Promise<ServiceResult<FieldWorkRequest>> {
+): Promise<Result<FieldWorkRequest>> {
   try {
-    // Check for existing request
-    const existingResult = await checkExistingFieldWorkRequest(
-      data.employee_id,
-      data.date
-    );
-    if (existingResult.data) {
-      return { data: null, error: "มีคำขอปฏิบัติงานนอกสถานที่ในวันนี้แล้ว" };
+    const existingResult = await checkExistingFieldWorkRequest(data.employee_id, data.date);
+    if (existingResult.success && existingResult.data) {
+      return resultError("มีคำขอปฏิบัติงานนอกสถานที่ในวันนี้แล้ว");
     }
 
-    // Check auto approve setting
     const isAutoApprove = await checkAutoApprove(AUTO_APPROVE_SETTINGS.FIELD_WORK);
-
-    // Build insert data with auto-approve fields
     const baseData = {
       employee_id: data.employee_id,
       date: data.date,
@@ -124,11 +108,9 @@ export async function createFieldWorkRequest(
       .single();
 
     if (error) throw error;
-    return { data: result, error: null };
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to create field work request";
-    return { data: null, error: message };
+    return success(result as FieldWorkRequest);
+  } catch (err: any) {
+    return resultError(err.message || "Failed to create field work request");
   }
 }
 
@@ -138,7 +120,7 @@ export async function createFieldWorkRequest(
 export async function cancelFieldWorkRequest(
   requestId: string,
   employeeId: string
-): Promise<ServiceResult<boolean>> {
+): Promise<Result<true>> {
   try {
     const { error } = await supabase
       .from("field_work_requests")
@@ -147,11 +129,9 @@ export async function cancelFieldWorkRequest(
       .eq("employee_id", employeeId);
 
     if (error) throw error;
-    return { data: true, error: null };
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to cancel field work request";
-    return { data: null, error: message };
+    return success(true as const);
+  } catch (err: any) {
+    return resultError(err.message || "Failed to cancel field work request");
   }
 }
 
@@ -161,7 +141,7 @@ export async function cancelFieldWorkRequest(
 export async function approveFieldWorkRequest(
   requestId: string,
   adminId: string
-): Promise<ServiceResult<boolean>> {
+): Promise<Result<true>> {
   try {
     const { error } = await supabase
       .from("field_work_requests")
@@ -173,11 +153,9 @@ export async function approveFieldWorkRequest(
       .eq("id", requestId);
 
     if (error) throw error;
-    return { data: true, error: null };
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to approve field work request";
-    return { data: null, error: message };
+    return success(true as const);
+  } catch (err: any) {
+    return resultError(err.message || "Failed to approve field work request");
   }
 }
 
@@ -187,7 +165,7 @@ export async function approveFieldWorkRequest(
 export async function rejectFieldWorkRequest(
   requestId: string,
   adminId: string
-): Promise<ServiceResult<boolean>> {
+): Promise<Result<true>> {
   try {
     const { error } = await supabase
       .from("field_work_requests")
@@ -199,10 +177,8 @@ export async function rejectFieldWorkRequest(
       .eq("id", requestId);
 
     if (error) throw error;
-    return { data: true, error: null };
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to reject field work request";
-    return { data: null, error: message };
+    return success(true as const);
+  } catch (err: any) {
+    return resultError(err.message || "Failed to reject field work request");
   }
 }

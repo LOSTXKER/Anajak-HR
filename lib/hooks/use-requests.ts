@@ -1,18 +1,21 @@
 /**
  * Unified Requests Hook
  * =============================================
- * Single hook for all request management: fetching, filtering, actions.
- * Replaces: use-approvals, use-request-actions, use-request-fetching, use-request-filters, use-admin-requests
+ * Orchestration layer that composes:
+ *   - useRequestsQuery  → data fetching
+ *   - useRequestFilters → filtering / stats
+ *
+ * All CRUD actions (approve, reject, cancel, create, edit) remain here
+ * because they touch both data and filter state simultaneously.
  */
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
-import { format, getDay } from "date-fns";
+import { getDay } from "date-fns";
 import {
   RequestItem,
   RequestType,
   RequestStatus,
-  HistoryStatus,
   RequestStats,
   Employee,
   Holiday,
@@ -21,7 +24,9 @@ import {
   CreateFormData,
   tableMap,
 } from "@/lib/types/request";
-import { processAllRequests } from "@/lib/utils/request-processor";
+import { useRequestsQuery } from "./use-requests-query";
+import { useRequestFilters } from "./use-request-filters";
+import { TIME_CONSTANTS } from "@/lib/constants";
 
 // ─── Options & Return Types ──────────────────────────────
 
@@ -35,33 +40,36 @@ interface UseRequestsOptions {
   initialType?: RequestType | "all";
 }
 
+interface PendingStats {
+  ot: number;
+  leave: number;
+  wfh: number;
+  late: number;
+  field_work: number;
+  total: number;
+}
+
 interface UseRequestsReturn {
-  // Pending data
   pendingRequests: RequestItem[];
   filteredPending: RequestItem[];
   pendingStats: PendingStats;
 
-  // All requests data (date-ranged)
   allRequests: RequestItem[];
   filteredAll: RequestItem[];
   allStats: RequestStats;
 
-  // Supporting data
   employees: Employee[];
   holidays: Holiday[];
   otSettings: OTSettings;
   detectedOTInfo: OTRateInfo | null;
 
-  // Loading/Processing state
   loading: boolean;
   processing: boolean;
   processingIds: Set<string>;
 
-  // Pending filters
   pendingType: RequestType | "all";
   setPendingType: (type: RequestType | "all") => void;
 
-  // All-requests filters
   activeType: RequestType | "all";
   activeStatus: RequestStatus;
   searchTerm: string;
@@ -69,7 +77,6 @@ interface UseRequestsReturn {
   setActiveStatus: (status: RequestStatus) => void;
   setSearchTerm: (term: string) => void;
 
-  // Actions
   fetchPending: () => Promise<void>;
   fetchAll: () => Promise<void>;
   handleApprove: (request: RequestItem, adminId: string) => Promise<boolean>;
@@ -81,176 +88,18 @@ interface UseRequestsReturn {
   fetchEmployees: () => Promise<void>;
 }
 
-interface PendingStats {
-  ot: number;
-  leave: number;
-  wfh: number;
-  late: number;
-  field_work: number;
-  total: number;
-}
-
 // ─── Hook Implementation ─────────────────────────────────
 
 export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn {
   const { dateRange = null, initialType = "all" } = options;
 
-  // ── State ────────────────────────────────────────────
-  const [pendingRequests, setPendingRequests] = useState<RequestItem[]>([]);
-  const [allRequests, setAllRequests] = useState<RequestItem[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [holidays, setHolidays] = useState<Holiday[]>([]);
-  const [otSettings, setOtSettings] = useState<OTSettings>({ workday: 1.5, weekend: 1.5, holiday: 2 });
-  const [workingDays, setWorkingDays] = useState<number[]>([1, 2, 3, 4, 5]);
-  const [detectedOTInfo, setDetectedOTInfo] = useState<OTRateInfo | null>(null);
+  // Sub-hooks
+  const query = useRequestsQuery();
+  const filters = useRequestFilters(query.pendingRequests, query.allRequests, initialType);
 
-  const [loading, setLoading] = useState(true);
+  const [detectedOTInfo, setDetectedOTInfo] = useState<OTRateInfo | null>(null);
   const [processing, setProcessing] = useState(false);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
-
-  // Pending filters
-  const [pendingType, setPendingType] = useState<RequestType | "all">(initialType);
-
-  // All-requests filters
-  const [activeType, setActiveType] = useState<RequestType | "all">("all");
-  const [activeStatus, setActiveStatus] = useState<RequestStatus>("all");
-  const [searchTerm, setSearchTerm] = useState("");
-
-  // ── Fetch Pending Requests ───────────────────────────
-
-  const fetchPending = useCallback(async () => {
-    setLoading(true);
-    try {
-      const selectQuery = "*, employee:employees!employee_id(id, name, email)";
-      const [otRes, leaveRes, wfhRes, lateRes, fieldWorkRes] = await Promise.all([
-        supabase.from("ot_requests").select(selectQuery).eq("status", "pending").order("created_at", { ascending: false }),
-        supabase.from("leave_requests").select(selectQuery).eq("status", "pending").order("created_at", { ascending: false }),
-        supabase.from("wfh_requests").select(selectQuery).eq("status", "pending").order("created_at", { ascending: false }),
-        supabase.from("late_requests").select(selectQuery).eq("status", "pending").order("created_at", { ascending: false }),
-        supabase.from("field_work_requests").select(selectQuery).eq("status", "pending").order("created_at", { ascending: false }),
-      ]);
-
-      const items = processAllRequests(
-        otRes.data || [],
-        leaveRes.data || [],
-        wfhRes.data || [],
-        lateRes.data || [],
-        fieldWorkRes.data || []
-      );
-      setPendingRequests(items);
-    } catch (error) {
-      console.error("Error fetching pending:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // ── Fetch All Requests ──────────────────────────────
-
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    try {
-      const selectQuery = "*, employee:employees!employee_id(id, name, email)";
-
-      const buildQuery = (table: string, dateCol: string) => {
-        let q = supabase.from(table).select(selectQuery);
-        if (dateRange) {
-          q = q.gte(dateCol, dateRange.start).lte(dateCol, dateRange.end);
-        }
-        return q.order("created_at", { ascending: false });
-      };
-
-      const [otRes, leaveRes, wfhRes, lateRes, fieldWorkRes] = await Promise.all([
-        buildQuery("ot_requests", "request_date"),
-        buildQuery("leave_requests", "start_date"),
-        buildQuery("wfh_requests", "date"),
-        buildQuery("late_requests", "request_date"),
-        buildQuery("field_work_requests", "date"),
-      ]);
-
-      const items = processAllRequests(
-        otRes.data || [],
-        leaveRes.data || [],
-        wfhRes.data || [],
-        lateRes.data || [],
-        fieldWorkRes.data || []
-      );
-      setAllRequests(items);
-    } catch (error) {
-      console.error("Error fetching all requests:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [dateRange]);
-
-  // ── Fetch Supporting Data ────────────────────────────
-
-  const fetchEmployees = useCallback(async () => {
-    const { data } = await supabase
-      .from("employees")
-      .select("id, name, email, base_salary")
-      .is("deleted_at", null)
-      .neq("role", "admin")
-      .order("name");
-    setEmployees(data || []);
-  }, []);
-
-  const fetchSettings = useCallback(async () => {
-    try {
-      const { data: holidaysData } = await supabase.from("holidays").select("date, name");
-      setHolidays(holidaysData || []);
-
-      const { data: settingsData } = await supabase
-        .from("system_settings")
-        .select("setting_key, setting_value")
-        .in("setting_key", ["ot_rate_workday", "ot_rate_weekend", "ot_rate_holiday", "working_days"]);
-
-      const settings: Record<string, string> = {};
-      settingsData?.forEach((item: any) => {
-        settings[item.setting_key] = item.setting_value;
-      });
-
-      setOtSettings({
-        workday: parseFloat(settings.ot_rate_workday) || 1.5,
-        weekend: parseFloat(settings.ot_rate_weekend) || 1.5,
-        holiday: parseFloat(settings.ot_rate_holiday) || 2,
-      });
-
-      if (settings.working_days) {
-        setWorkingDays(settings.working_days.split(",").map(Number));
-      }
-    } catch (error) {
-      console.error("Error fetching settings:", error);
-    }
-  }, []);
-
-  // ── Detect OT Rate ──────────────────────────────────
-
-  const detectOTRate = useCallback(
-    (dateStr: string): OTRateInfo => {
-      const date = new Date(dateStr);
-      const dayOfWeek = getDay(date);
-      const dayOfWeekISO = dayOfWeek === 0 ? 7 : dayOfWeek;
-
-      const holiday = holidays.find((h) => h.date === dateStr);
-      if (holiday) {
-        const info: OTRateInfo = { rate: otSettings.holiday, type: "holiday", typeName: `วันหยุดนักขัตฤกษ์ (${holiday.name})`, holidayName: holiday.name };
-        setDetectedOTInfo(info);
-        return info;
-      }
-
-      if (!workingDays.includes(dayOfWeekISO)) {
-        const info: OTRateInfo = { rate: otSettings.weekend, type: "weekend", typeName: "วันหยุดสุดสัปดาห์" };
-        setDetectedOTInfo(info);
-        return info;
-      }
-
-      const info: OTRateInfo = { rate: otSettings.workday, type: "workday", typeName: "วันทำงานปกติ" };
-      setDetectedOTInfo(info);
-      return info;
-    },
-    [holidays, otSettings, workingDays]
-  );
 
   // ── Notification Helper ─────────────────────────────
 
@@ -287,6 +136,34 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
     }
   };
 
+  // ── Detect OT Rate ──────────────────────────────────
+
+  const detectOTRate = useCallback(
+    (dateStr: string): OTRateInfo => {
+      const date = new Date(dateStr);
+      const dayOfWeek = getDay(date);
+      const dayOfWeekISO = dayOfWeek === 0 ? 7 : dayOfWeek;
+
+      const holiday = query.holidays.find((h) => h.date === dateStr);
+      if (holiday) {
+        const info: OTRateInfo = { rate: query.otSettings.holiday, type: "holiday", typeName: `วันหยุดนักขัตฤกษ์ (${holiday.name})`, holidayName: holiday.name };
+        setDetectedOTInfo(info);
+        return info;
+      }
+
+      if (!query.workingDays.includes(dayOfWeekISO)) {
+        const info: OTRateInfo = { rate: query.otSettings.weekend, type: "weekend", typeName: "วันหยุดสุดสัปดาห์" };
+        setDetectedOTInfo(info);
+        return info;
+      }
+
+      const info: OTRateInfo = { rate: query.otSettings.workday, type: "workday", typeName: "วันทำงานปกติ" };
+      setDetectedOTInfo(info);
+      return info;
+    },
+    [query.holidays, query.otSettings, query.workingDays]
+  );
+
   // ── Actions ─────────────────────────────────────────
 
   const handleApprove = useCallback(
@@ -306,13 +183,13 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
           updateData.approved_end_time = request.rawData.requested_end_time;
           const start = new Date(request.rawData.requested_start_time);
           const end = new Date(request.rawData.requested_end_time);
-          updateData.approved_ot_hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+          updateData.approved_ot_hours = (end.getTime() - start.getTime()) / TIME_CONSTANTS.MS_PER_HOUR;
         }
 
         const { error } = await supabase.from(tableMap[request.type]).update(updateData).eq("id", request.id);
         if (error) throw error;
 
-        setPendingRequests((prev) => prev.filter((r) => !(r.type === request.type && r.id === request.id)));
+        query.setPendingRequests((prev) => prev.filter((r) => !(r.type === request.type && r.id === request.id)));
         sendRequestNotification(request, true);
         return true;
       } catch (error) {
@@ -323,6 +200,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
         setProcessing(false);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
@@ -336,16 +214,13 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
           status: "rejected",
           approved_by: adminId,
           approved_at: new Date().toISOString(),
+          ...(reason ? { admin_note: reason } : {}),
         };
-
-        if (reason) {
-          updateData.admin_note = reason;
-        }
 
         const { error } = await supabase.from(tableMap[request.type]).update(updateData).eq("id", request.id);
         if (error) throw error;
 
-        setPendingRequests((prev) => prev.filter((r) => !(r.type === request.type && r.id === request.id)));
+        query.setPendingRequests((prev) => prev.filter((r) => !(r.type === request.type && r.id === request.id)));
         sendRequestNotification(request, false);
         return true;
       } catch (error) {
@@ -356,6 +231,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
         setProcessing(false);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
@@ -376,7 +252,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
 
         if (error) throw error;
 
-        // Restore leave balance if cancelling an approved leave
+        // Restore leave balance when cancelling an approved leave
         if (request.type === "leave" && request.status === "approved") {
           const raw = request.rawData;
           const leaveType = raw.leave_type as string;
@@ -387,7 +263,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
           } else {
             const start = new Date(raw.start_date);
             const end = new Date(raw.end_date);
-            daysToRestore = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+            daysToRestore = Math.ceil((end.getTime() - start.getTime()) / TIME_CONSTANTS.MS_PER_DAY) + 1;
           }
 
           const columnMap: Record<string, { used: string; remaining: string }> = {
@@ -420,9 +296,8 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
           }
         }
 
-        // Remove from both lists
-        setPendingRequests((prev) => prev.filter((r) => !(r.type === request.type && r.id === request.id)));
-        setAllRequests((prev) =>
+        query.setPendingRequests((prev) => prev.filter((r) => !(r.type === request.type && r.id === request.id)));
+        query.setAllRequests((prev) =>
           prev.map((r) =>
             r.type === request.type && r.id === request.id
               ? { ...r, status: "cancelled", cancelReason: cancelReason.trim() }
@@ -437,6 +312,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
         setProcessing(false);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
@@ -451,12 +327,12 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
           case "ot": {
             const startDateTime = new Date(`${formData.otDate}T${formData.otStartTime}:00`);
             const endDateTime = new Date(`${formData.otDate}T${formData.otEndTime}:00`);
-            const otHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
-            const emp = employees.find((e) => e.id === formData.employeeId);
+            const otHours = (endDateTime.getTime() - startDateTime.getTime()) / TIME_CONSTANTS.MS_PER_HOUR;
+            const emp = query.employees.find((e) => e.id === formData.employeeId);
             const baseSalary = emp?.base_salary || 0;
             let otAmount = null;
             if (baseSalary > 0) {
-              const hourlyRate = baseSalary / 30 / 8;
+              const hourlyRate = baseSalary / query.daysPerMonth / query.hoursPerDay;
               otAmount = Math.round(otHours * hourlyRate * formData.otRate * 100) / 100;
             }
 
@@ -536,7 +412,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
         setProcessing(false);
       }
     },
-    [employees]
+    [query.employees, query.daysPerMonth, query.hoursPerDay]
   );
 
   const handleEditRequest = useCallback(
@@ -579,58 +455,52 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
     []
   );
 
-  // ── Computed Data ───────────────────────────────────
-
-  const pendingStats = useMemo<PendingStats>(() => {
-    const counts: PendingStats = { ot: 0, leave: 0, wfh: 0, late: 0, field_work: 0, total: 0 };
-    pendingRequests.forEach((r) => counts[r.type]++);
-    counts.total = pendingRequests.length;
-    return counts;
-  }, [pendingRequests]);
-
-  const filteredPending = useMemo(() => {
-    return pendingType === "all" ? pendingRequests : pendingRequests.filter((r) => r.type === pendingType);
-  }, [pendingRequests, pendingType]);
-
-  const allStats = useMemo<RequestStats>(() => {
-    const counts: RequestStats = { ot: 0, leave: 0, wfh: 0, late: 0, field_work: 0, pending: 0, approved: 0, completed: 0, rejected: 0, cancelled: 0 };
-    allRequests.forEach((r) => {
-      counts[r.type]++;
-      if (r.status in counts) (counts as any)[r.status]++;
-    });
-    return counts;
-  }, [allRequests]);
-
-  const filteredAll = useMemo(() => {
-    return allRequests.filter((r) => {
-      if (activeType !== "all" && r.type !== activeType) return false;
-      if (activeStatus !== "all" && r.status !== activeStatus) return false;
-      if (searchTerm && !r.employeeName.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-      return true;
-    });
-  }, [allRequests, activeType, activeStatus, searchTerm]);
+  // ── Bound fetchAll with captured dateRange ──────────
+  const fetchAll = useCallback(async () => {
+    await query.fetchAll(dateRange);
+  }, [query.fetchAll, dateRange]);
 
   // ── Initial Fetch ───────────────────────────────────
-
   useEffect(() => {
-    fetchPending();
-    fetchEmployees();
-    fetchSettings();
-  }, [fetchPending, fetchEmployees, fetchSettings]);
+    query.fetchPending();
+    query.fetchEmployees();
+    query.fetchSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Return ──────────────────────────────────────────
-
   return {
-    pendingRequests, filteredPending, pendingStats,
-    allRequests, filteredAll, allStats,
-    employees, holidays, otSettings, detectedOTInfo,
-    loading, processing, processingIds,
-    pendingType, setPendingType,
-    activeType, activeStatus, searchTerm,
-    setActiveType, setActiveStatus, setSearchTerm,
-    fetchPending, fetchAll,
+    pendingRequests: query.pendingRequests,
+    filteredPending: filters.filteredPending,
+    pendingStats: filters.pendingStats,
+
+    allRequests: query.allRequests,
+    filteredAll: filters.filteredAll,
+    allStats: filters.allStats,
+
+    employees: query.employees,
+    holidays: query.holidays,
+    otSettings: query.otSettings,
+    detectedOTInfo,
+
+    loading: query.loading,
+    processing,
+    processingIds,
+
+    pendingType: filters.pendingType,
+    setPendingType: filters.setPendingType,
+
+    activeType: filters.activeType,
+    activeStatus: filters.activeStatus,
+    searchTerm: filters.searchTerm,
+    setActiveType: filters.setActiveType,
+    setActiveStatus: filters.setActiveStatus,
+    setSearchTerm: filters.setSearchTerm,
+
+    fetchPending: query.fetchPending,
+    fetchAll,
     handleApprove, handleReject, handleCancel,
     handleCreateRequest, handleEditRequest,
-    detectOTRate, fetchEmployees,
+    detectOTRate, fetchEmployees: query.fetchEmployees,
   };
 }

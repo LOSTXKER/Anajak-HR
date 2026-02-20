@@ -204,22 +204,26 @@ function OTEndContent({ id }: { id: string }) {
       // ot_rate is the actual multiplier (1, 1.5, 2, etc.)
       let otRate = otRequest.ot_rate || 1.5; // Use stored rate from start OT
 
-      // ดึงข้อมูลเงินเดือนและ hours_per_day
+      // ดึงข้อมูลเงินเดือนและ settings
       const { data: empData } = await supabase
         .from("employees")
         .select("base_salary")
         .eq("id", employee.id)
         .maybeSingle();
 
-      const { data: settingsData } = await supabase
+      const { data: payrollSettingsData } = await supabase
         .from("system_settings")
-        .select("setting_value")
-        .eq("setting_key", "hours_per_day")
-        .maybeSingle();
+        .select("setting_key, setting_value")
+        .in("setting_key", ["hours_per_day", "days_per_month"]);
+
+      const payrollSettings: Record<string, string> = {};
+      (payrollSettingsData || []).forEach((s: { setting_key: string; setting_value: string }) => {
+        payrollSettings[s.setting_key] = s.setting_value;
+      });
 
       const baseSalary = empData?.base_salary || 0;
-      const hoursPerDay = parseFloat(settingsData?.setting_value || "8");
-      const daysPerMonth = 30; // สมมติ 30 วัน
+      const hoursPerDay = parseFloat(payrollSettings.hours_per_day || "8");
+      const daysPerMonth = parseFloat(payrollSettings.days_per_month || "26");
 
       // Calculate OT amount
       let otAmount = null;

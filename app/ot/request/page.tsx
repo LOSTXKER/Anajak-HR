@@ -6,6 +6,8 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { checkAutoApprove, applyAutoApproveFields, AUTO_APPROVE_SETTINGS } from "@/lib/utils/auto-approve";
+import { useFormSubmit } from "@/lib/hooks/use-form-submit";
+import { notifyNewOTRequest } from "@/lib/utils/notify-request";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -20,9 +22,7 @@ import { getOTRateForDate } from "@/lib/utils/holiday";
 function OTRequestContent() {
   const { employee } = useAuth();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+  const { loading, error, success, handleSubmit } = useFormSubmit({ redirectTo: "/" });
   const [isAutoApproved, setIsAutoApproved] = useState(false);
 
   // Admin is system account - redirect to admin panel
@@ -59,35 +59,20 @@ function OTRequestContent() {
     setDayInfo(info);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!employee) return;
 
-    setLoading(true);
-    setError("");
-
-    try {
+    handleSubmit(async () => {
       const requestDate = new Date(formData.date);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-
-      // ตรวจสอบว่าไม่ใช่วันในอดีต
-      if (requestDate < today) {
-        setError("ไม่สามารถขอ OT ย้อนหลังได้");
-        setLoading(false);
-        return;
-      }
+      if (requestDate < today) throw new Error("ไม่สามารถขอ OT ย้อนหลังได้");
 
       const startDateTime = new Date(`${formData.date}T${formData.startTime}:00`);
       const endDateTime = new Date(`${formData.date}T${formData.endTime}:00`);
+      if (endDateTime <= startDateTime) throw new Error("เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น");
 
-      if (endDateTime <= startDateTime) {
-        setError("เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น");
-        setLoading(false);
-        return;
-      }
-
-      // ตรวจสอบ OT ที่ซ้ำซ้อน (pending หรือ approved)
       const { data: existingOT } = await supabase
         .from("ot_requests")
         .select("id")
@@ -95,16 +80,9 @@ function OTRequestContent() {
         .eq("request_date", formData.date)
         .in("status", ["pending", "approved"]);
 
-      if (existingOT && existingOT.length > 0) {
-        setError("คุณมีคำขอ OT ในวันนี้แล้ว");
-        setLoading(false);
-        return;
-      }
+      if (existingOT && existingOT.length > 0) throw new Error("คุณมีคำขอ OT ในวันนี้แล้ว");
 
-      // Check auto approve setting
       const isAutoApprove = await checkAutoApprove(AUTO_APPROVE_SETTINGS.OT);
-
-      // Build base insert data
       const baseData: Record<string, unknown> = {
         employee_id: employee.id,
         request_date: formData.date,
@@ -112,47 +90,25 @@ function OTRequestContent() {
         requested_end_time: endDateTime.toISOString(),
         reason: formData.reason,
       };
-
-      // If auto approve, also set approved times
       if (isAutoApprove) {
         baseData.approved_start_time = startDateTime.toISOString();
         baseData.approved_end_time = endDateTime.toISOString();
       }
 
       const insertData = await applyAutoApproveFields(baseData, isAutoApprove);
-
       const { error: insertError } = await supabase.from("ot_requests").insert(insertData);
-
       if (insertError) throw insertError;
 
-      // Send LINE notification for new OT request
-      try {
-        await fetch("/api/notifications", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "new_ot_request",
-            data: {
-              employeeName: employee.name,
-              date: formData.date,
-              startTime: formData.startTime,
-              endTime: formData.endTime,
-              reason: formData.reason,
-            },
-          }),
-        });
-      } catch (notifError) {
-        console.error("Error sending notification:", notifError);
-      }
+      notifyNewOTRequest({
+        employeeName: employee.name,
+        date: formData.date,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        reason: formData.reason,
+      });
 
       setIsAutoApproved(isAutoApprove);
-      setSuccess(true);
-      setTimeout(() => router.push("/"), 2000);
-    } catch (err: any) {
-      setError(err.message || "เกิดข้อผิดพลาด");
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   if (success) {
@@ -192,7 +148,7 @@ function OTRequestContent() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={onSubmit}>
           <Card elevated>
             <div className="space-y-5">
               {/* Date */}

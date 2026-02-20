@@ -10,6 +10,7 @@ import {
   applyAutoApproveFields,
   AUTO_APPROVE_SETTINGS,
 } from "@/lib/utils/auto-approve";
+import { Result, success, error as resultError } from "@/lib/types/result";
 import { format, subDays } from "date-fns";
 
 // Types
@@ -41,19 +42,13 @@ export interface CreateLateRequestData {
   actual_late_minutes?: number | null;
 }
 
-// Result types
-interface ServiceResult<T> {
-  data: T | null;
-  error: string | null;
-}
-
 /**
  * Get late requests for an employee
  */
 export async function getLateRequests(
   employeeId: string,
   limit = 20
-): Promise<ServiceResult<LateRequest[]>> {
+): Promise<Result<LateRequest[]>> {
   try {
     const { data, error } = await supabase
       .from("late_requests")
@@ -63,10 +58,9 @@ export async function getLateRequests(
       .limit(limit);
 
     if (error) throw error;
-    return { data: data || [], error: null };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to fetch late requests";
-    return { data: null, error: message };
+    return success(data || []);
+  } catch (err: any) {
+    return resultError(err.message || "Failed to fetch late requests");
   }
 }
 
@@ -76,11 +70,10 @@ export async function getLateRequests(
 export async function getLateAttendances(
   employeeId: string,
   daysBack = 30
-): Promise<ServiceResult<LateAttendance[]>> {
+): Promise<Result<LateAttendance[]>> {
   try {
     const startDate = format(subDays(new Date(), daysBack), "yyyy-MM-dd");
 
-    // Get late attendances
     const { data: attendanceData, error: attendanceError } = await supabase
       .from("attendance_logs")
       .select("id, work_date, clock_in_time, is_late, late_minutes")
@@ -91,7 +84,6 @@ export async function getLateAttendances(
 
     if (attendanceError) throw attendanceError;
 
-    // Get existing pending/approved late requests
     const { data: existingRequests, error: requestsError } = await supabase
       .from("late_requests")
       .select("request_date")
@@ -100,19 +92,15 @@ export async function getLateAttendances(
 
     if (requestsError) throw requestsError;
 
-    // Filter out dates that already have a request
     const approvedDates = new Set(
       (existingRequests || []).map((r: { request_date: string }) => r.request_date)
     );
 
-    const filteredAttendances = (attendanceData || []).filter(
-      (a: LateAttendance) => !approvedDates.has(a.work_date)
+    return success(
+      (attendanceData || []).filter((a: LateAttendance) => !approvedDates.has(a.work_date))
     );
-
-    return { data: filteredAttendances, error: null };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to fetch late attendances";
-    return { data: null, error: message };
+  } catch (err: any) {
+    return resultError(err.message || "Failed to fetch late attendances");
   }
 }
 
@@ -121,12 +109,10 @@ export async function getLateAttendances(
  */
 export async function createLateRequest(
   data: CreateLateRequestData
-): Promise<ServiceResult<LateRequest>> {
+): Promise<Result<LateRequest>> {
   try {
-    // Check auto approve setting
     const isAutoApprove = await checkAutoApprove(AUTO_APPROVE_SETTINGS.LATE);
 
-    // Build insert data with auto-approve fields
     const baseData = {
       employee_id: data.employee_id,
       request_date: data.request_date,
@@ -143,10 +129,9 @@ export async function createLateRequest(
       .single();
 
     if (error) throw error;
-    return { data: result, error: null };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to create late request";
-    return { data: null, error: message };
+    return success(result as LateRequest);
+  } catch (err: any) {
+    return resultError(err.message || "Failed to create late request");
   }
 }
 
@@ -156,7 +141,7 @@ export async function createLateRequest(
 export async function cancelLateRequest(
   requestId: string,
   employeeId: string
-): Promise<ServiceResult<boolean>> {
+): Promise<Result<true>> {
   try {
     const { error } = await supabase
       .from("late_requests")
@@ -166,10 +151,9 @@ export async function cancelLateRequest(
       .eq("status", "pending");
 
     if (error) throw error;
-    return { data: true, error: null };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to cancel late request";
-    return { data: null, error: message };
+    return success(true as const);
+  } catch (err: any) {
+    return resultError(err.message || "Failed to cancel late request");
   }
 }
 
@@ -180,17 +164,14 @@ export async function approveLateRequest(
   requestId: string,
   adminId: string,
   note?: string
-): Promise<ServiceResult<boolean>> {
+): Promise<Result<true>> {
   try {
     const updateData: Record<string, unknown> = {
       status: "approved",
       approved_by: adminId,
       approved_at: new Date().toISOString(),
+      ...(note ? { admin_note: note } : {}),
     };
-
-    if (note) {
-      updateData.admin_note = note;
-    }
 
     const { error } = await supabase
       .from("late_requests")
@@ -198,10 +179,9 @@ export async function approveLateRequest(
       .eq("id", requestId);
 
     if (error) throw error;
-    return { data: true, error: null };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to approve late request";
-    return { data: null, error: message };
+    return success(true as const);
+  } catch (err: any) {
+    return resultError(err.message || "Failed to approve late request");
   }
 }
 
@@ -212,17 +192,14 @@ export async function rejectLateRequest(
   requestId: string,
   adminId: string,
   note?: string
-): Promise<ServiceResult<boolean>> {
+): Promise<Result<true>> {
   try {
     const updateData: Record<string, unknown> = {
       status: "rejected",
       approved_by: adminId,
       approved_at: new Date().toISOString(),
+      ...(note ? { admin_note: note } : {}),
     };
-
-    if (note) {
-      updateData.admin_note = note;
-    }
 
     const { error } = await supabase
       .from("late_requests")
@@ -230,9 +207,8 @@ export async function rejectLateRequest(
       .eq("id", requestId);
 
     if (error) throw error;
-    return { data: true, error: null };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to reject late request";
-    return { data: null, error: message };
+    return success(true as const);
+  } catch (err: any) {
+    return resultError(err.message || "Failed to reject late request");
   }
 }

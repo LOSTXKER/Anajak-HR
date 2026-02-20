@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase/client";
 import { format, differenceInCalendarDays, parseISO, eachDayOfInterval, isWeekend } from "date-fns";
 import { isHoliday, getWorkingDays } from "./holiday.service";
 import { checkAutoApprove, applyAutoApproveFields, AUTO_APPROVE_SETTINGS } from "@/lib/utils/auto-approve";
+import { Result, success, error as resultError } from "@/lib/types/result";
 import type { LeaveRequest } from "@/lib/types";
 
 /**
@@ -22,7 +23,7 @@ export async function requestLeave(
         isHalfDay: boolean;
         reason: string;
     }
-): Promise<{ success: boolean; data?: LeaveRequest; error?: string }> {
+): Promise<Result<LeaveRequest>> {
     try {
         const { data: result, error } = await supabase
             .from("leave_requests")
@@ -39,11 +40,10 @@ export async function requestLeave(
             .single();
 
         if (error) throw error;
-
-        return { success: true, data: result as LeaveRequest };
-    } catch (error) {
-        console.error("Error requesting leave:", error);
-        return { success: false, error: "Failed to submit leave request" };
+        return success(result as LeaveRequest);
+    } catch (err: any) {
+        console.error("Error requesting leave:", err);
+        return resultError(err.message || "Failed to submit leave request");
     }
 }
 
@@ -60,12 +60,10 @@ export async function createLeaveRequest(
         reason: string;
         attachmentUrl?: string | null;
     }
-): Promise<{ success: boolean; data?: LeaveRequest; error?: string; isAutoApproved?: boolean }> {
+): Promise<Result<LeaveRequest & { isAutoApproved: boolean }>> {
     try {
-        // Check auto-approve setting
         const isAutoApprove = await checkAutoApprove(AUTO_APPROVE_SETTINGS.LEAVE);
 
-        // Build base insert data
         const baseData = {
             employee_id: employeeId,
             leave_type: data.leaveType,
@@ -76,7 +74,6 @@ export async function createLeaveRequest(
             attachment_url: data.attachmentUrl || null,
         };
 
-        // Apply auto-approve fields if enabled
         const insertData = await applyAutoApproveFields(baseData, isAutoApprove);
 
         const { data: result, error } = await supabase
@@ -86,15 +83,10 @@ export async function createLeaveRequest(
             .single();
 
         if (error) throw error;
-
-        return { 
-            success: true, 
-            data: result as LeaveRequest,
-            isAutoApproved: isAutoApprove,
-        };
-    } catch (error) {
-        console.error("Error creating leave request:", error);
-        return { success: false, error: "Failed to submit leave request" };
+        return success({ ...(result as LeaveRequest), isAutoApproved: isAutoApprove });
+    } catch (err: any) {
+        console.error("Error creating leave request:", err);
+        return resultError(err.message || "Failed to submit leave request");
     }
 }
 
@@ -171,23 +163,18 @@ export async function getPendingLeave(employeeId: string): Promise<LeaveRequest[
 export async function approveLeave(
     leaveId: string,
     adminId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<Result<true>> {
     try {
         const { error } = await supabase
             .from("leave_requests")
-            .update({
-                status: "approved",
-                approved_by: adminId,
-                approved_at: new Date().toISOString(),
-            })
+            .update({ status: "approved", approved_by: adminId, approved_at: new Date().toISOString() })
             .eq("id", leaveId);
 
         if (error) throw error;
-
-        return { success: true };
-    } catch (error) {
-        console.error("Error approving leave:", error);
-        return { success: false, error: "Failed to approve leave" };
+        return success(true as const);
+    } catch (err: any) {
+        console.error("Error approving leave:", err);
+        return resultError(err.message || "Failed to approve leave");
     }
 }
 
@@ -197,23 +184,18 @@ export async function approveLeave(
 export async function rejectLeave(
     leaveId: string,
     adminId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<Result<true>> {
     try {
         const { error } = await supabase
             .from("leave_requests")
-            .update({
-                status: "rejected",
-                approved_by: adminId,
-                approved_at: new Date().toISOString(),
-            })
+            .update({ status: "rejected", approved_by: adminId, approved_at: new Date().toISOString() })
             .eq("id", leaveId);
 
         if (error) throw error;
-
-        return { success: true };
-    } catch (error) {
-        console.error("Error rejecting leave:", error);
-        return { success: false, error: "Failed to reject leave" };
+        return success(true as const);
+    } catch (err: any) {
+        console.error("Error rejecting leave:", err);
+        return resultError(err.message || "Failed to reject leave");
     }
 }
 
@@ -294,7 +276,7 @@ export async function getAllLeaveRequests(
 /**
  * Cancel leave request
  */
-export async function cancelLeave(leaveId: string): Promise<{ success: boolean; error?: string }> {
+export async function cancelLeave(leaveId: string): Promise<Result<true>> {
     try {
         const { error } = await supabase
             .from("leave_requests")
@@ -302,10 +284,9 @@ export async function cancelLeave(leaveId: string): Promise<{ success: boolean; 
             .eq("id", leaveId);
 
         if (error) throw error;
-
-        return { success: true };
-    } catch (error) {
-        console.error("Error cancelling leave:", error);
-        return { success: false, error: "Failed to cancel leave" };
+        return success(true as const);
+    } catch (err: any) {
+        console.error("Error cancelling leave:", err);
+        return resultError(err.message || "Failed to cancel leave");
     }
 }

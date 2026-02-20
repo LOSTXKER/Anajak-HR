@@ -6,6 +6,8 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { checkAutoApprove, applyAutoApproveFields, AUTO_APPROVE_SETTINGS } from "@/lib/utils/auto-approve";
+import { useFormSubmit } from "@/lib/hooks/use-form-submit";
+import { notifyNewLeaveRequest } from "@/lib/utils/notify-request";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -26,11 +28,10 @@ const leaveTypes = [
 function LeaveRequestContent() {
   const { employee } = useAuth();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+  const { loading, error, success, handleSubmit } = useFormSubmit({ redirectTo: "/" });
   const [isAutoApproved, setIsAutoApproved] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [fileError, setFileError] = useState("");
 
   // Admin is system account - redirect to admin panel
   useEffect(() => {
@@ -100,11 +101,11 @@ function LeaveRequestContent() {
     if (file) {
       // Check file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        setError("ไฟล์ใหญ่เกิน 5MB");
+        setFileError("ไฟล์ใหญ่เกิน 5MB");
         return;
       }
       setFormData({ ...formData, attachmentFile: file });
-      setError("");
+      setFileError("");
     }
   };
 
@@ -126,32 +127,20 @@ function LeaveRequestContent() {
     return data.publicUrl;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!employee) return;
 
-    // Validate dates - use local timezone parsing
-    const startDate = new Date(formData.startDate + "T00:00:00");
-    const endDate = new Date(formData.endDate + "T00:00:00");
-    
-    if (endDate < startDate) {
-      setError("วันสิ้นสุดต้องมากกว่าหรือเท่ากับวันเริ่มต้น");
-      return;
-    }
+    handleSubmit(async () => {
+      const startDate = new Date(formData.startDate + "T00:00:00");
+      const endDate = new Date(formData.endDate + "T00:00:00");
 
-    // ตรวจสอบว่าไม่ใช่วันในอดีต
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (startDate < today) {
-      setError("ไม่สามารถขอลาย้อนหลังได้");
-      return;
-    }
+      if (endDate < startDate) throw new Error("วันสิ้นสุดต้องมากกว่าหรือเท่ากับวันเริ่มต้น");
 
-    setLoading(true);
-    setError("");
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (startDate < today) throw new Error("ไม่สามารถขอลาย้อนหลังได้");
 
-    try {
-      // ตรวจสอบว่ามีคำขอลาในช่วงวันเดียวกันหรือไม่
       const { data: existingLeave } = await supabase
         .from("leave_requests")
         .select("id")
@@ -160,24 +149,17 @@ function LeaveRequestContent() {
         .or(`start_date.lte.${formData.endDate},end_date.gte.${formData.startDate}`);
 
       if (existingLeave && existingLeave.length > 0) {
-        setError("คุณมีคำขอลาในช่วงวันนี้แล้ว");
-        setLoading(false);
-        return;
+        throw new Error("คุณมีคำขอลาในช่วงวันนี้แล้ว");
       }
 
       let attachmentUrl = null;
-
-      // Upload attachment if exists
       if (formData.attachmentFile) {
         setUploading(true);
         attachmentUrl = await uploadAttachment(formData.attachmentFile);
         setUploading(false);
       }
 
-      // Check auto approve setting
       const isAutoApprove = await checkAutoApprove(AUTO_APPROVE_SETTINGS.LEAVE);
-
-      // Build insert data with auto-approve fields
       const baseData = {
         employee_id: employee.id,
         leave_type: formData.leaveType,
@@ -187,43 +169,21 @@ function LeaveRequestContent() {
         reason: formData.reason,
         attachment_url: attachmentUrl,
       };
-
       const insertData = await applyAutoApproveFields(baseData, isAutoApprove);
 
-      // Insert leave request
       const { error: insertError } = await supabase.from("leave_requests").insert(insertData);
-
       if (insertError) throw insertError;
 
-      // Send LINE notification for new leave request
-      try {
-        await fetch("/api/notifications", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "new_leave_request",
-            data: {
-              employeeName: employee.name,
-              leaveType: formData.leaveType,
-              startDate: formData.startDate,
-              endDate: formData.endDate,
-              reason: formData.reason,
-            },
-          }),
-        });
-      } catch (notifError) {
-        console.error("Error sending notification:", notifError);
-      }
+      notifyNewLeaveRequest({
+        employeeName: employee.name,
+        leaveType: formData.leaveType,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        reason: formData.reason,
+      });
 
       setIsAutoApproved(isAutoApprove);
-      setSuccess(true);
-      setTimeout(() => router.push("/"), 2000);
-    } catch (err: any) {
-      setError(err.message || "เกิดข้อผิดพลาด");
-    } finally {
-      setLoading(false);
-      setUploading(false);
-    }
+    });
   };
 
   if (success) {
@@ -305,7 +265,7 @@ function LeaveRequestContent() {
           </p>
         </Card>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={onSubmit}>
           <Card elevated>
             <div className="space-y-5">
               {/* Leave Type */}
@@ -428,10 +388,10 @@ function LeaveRequestContent() {
           </Card>
 
           {/* Error */}
-          {error && (
+          {(error || fileError) && (
             <div className="flex items-center gap-3 p-4 bg-[#ff3b30]/10 rounded-xl mt-6">
               <AlertCircle className="w-5 h-5 text-[#ff3b30]" />
-              <span className="text-[15px] text-[#ff3b30]">{error}</span>
+              <span className="text-[15px] text-[#ff3b30]">{fileError || error}</span>
             </div>
           )}
 

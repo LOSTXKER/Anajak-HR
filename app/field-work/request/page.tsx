@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth/auth-context";
 import { createFieldWorkRequest } from "@/lib/services/field-work.service";
+import { useFormSubmit } from "@/lib/hooks/use-form-submit";
+import { notifyNewFieldWorkRequest } from "@/lib/utils/notify-request";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -23,9 +25,7 @@ import { format } from "date-fns";
 function FieldWorkRequestContent() {
   const { employee } = useAuth();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+  const { loading, error, success, handleSubmit } = useFormSubmit({ redirectTo: "/" });
 
   // Admin is system account - redirect to admin panel
   useEffect(() => {
@@ -41,36 +41,20 @@ function FieldWorkRequestContent() {
     reason: "",
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!employee) return;
 
-    // Validation
-    if (!formData.location.trim()) {
-      setError("กรุณาระบุสถานที่");
-      return;
-    }
+    handleSubmit(async () => {
+      if (!formData.location.trim()) throw new Error("กรุณาระบุสถานที่");
+      if (!formData.reason.trim()) throw new Error("กรุณาระบุเหตุผล");
 
-    if (!formData.reason.trim()) {
-      setError("กรุณาระบุเหตุผล");
-      return;
-    }
+      const requestDate = new Date(formData.date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (requestDate < today) throw new Error("ไม่สามารถขอทำงานนอกสถานที่ย้อนหลังได้");
 
-    // ตรวจสอบว่าไม่ใช่วันในอดีต
-    const requestDate = new Date(formData.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (requestDate < today) {
-      setError("ไม่สามารถขอทำงานนอกสถานที่ย้อนหลังได้");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    try {
-      const { error: createError } = await createFieldWorkRequest({
+      const result = await createFieldWorkRequest({
         employee_id: employee.id,
         date: formData.date,
         is_half_day: formData.isHalfDay,
@@ -78,35 +62,15 @@ function FieldWorkRequestContent() {
         reason: formData.reason.trim(),
       });
 
-      if (createError) throw new Error(createError);
+      if (!result.success) throw new Error(result.error);
 
-      // Send LINE notification for new field work request
-      try {
-        await fetch("/api/notifications", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "field_work_request",
-            data: {
-              employeeName: employee.name,
-              date: formData.date,
-              location: formData.location.trim(),
-              reason: formData.reason.trim(),
-            },
-          }),
-        });
-      } catch (notifError) {
-        console.error("Error sending notification:", notifError);
-      }
-
-      setSuccess(true);
-      setTimeout(() => router.push("/"), 2000);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "เกิดข้อผิดพลาด";
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
+      notifyNewFieldWorkRequest({
+        employeeName: employee.name,
+        date: formData.date,
+        location: formData.location.trim(),
+        reason: formData.reason.trim(),
+      });
+    });
   };
 
   if (success) {
@@ -166,7 +130,7 @@ function FieldWorkRequestContent() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={onSubmit} className="space-y-6">
             {/* Date */}
             <div>
               <label className="flex items-center gap-2 text-[15px] font-medium text-[#1d1d1f] mb-2">

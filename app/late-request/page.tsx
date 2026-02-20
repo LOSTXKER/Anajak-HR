@@ -12,6 +12,7 @@ import {
   type LateRequest,
   type LateAttendance,
 } from "@/lib/services/late-request.service";
+import { notifyNewLateRequest } from "@/lib/utils/notify-request";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -61,18 +62,13 @@ function LateRequestContent() {
     if (!employee) return;
     setLoading(true);
     try {
-      // ดึงคำขอมาสายของตัวเอง
-      const { data: requestsData, error: requestsError } = await getLateRequests(
-        employee.id
-      );
-      if (requestsError) throw new Error(requestsError);
-      setRequests(requestsData || []);
+      const requestsResult = await getLateRequests(employee.id);
+      if (!requestsResult.success) throw new Error(requestsResult.error);
+      setRequests(requestsResult.data);
 
-      // ดึงวันที่มาสายใน 30 วันที่ผ่านมา (ที่ยังไม่มี approved late request)
-      const { data: attendanceData, error: attendanceError } =
-        await getLateAttendances(employee.id);
-      if (attendanceError) throw new Error(attendanceError);
-      setLateAttendances(attendanceData || []);
+      const attendanceResult = await getLateAttendances(employee.id);
+      if (!attendanceResult.success) throw new Error(attendanceResult.error);
+      setLateAttendances(attendanceResult.data);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -96,33 +92,21 @@ function LateRequestContent() {
         (a) => a.work_date === selectedDate
       );
 
-      const { error: createError } = await createLateRequest({
+      const createResult = await createLateRequest({
         employee_id: employee!.id,
         request_date: selectedDate,
         reason: reason.trim(),
         actual_late_minutes: attendance?.late_minutes || null,
       });
 
-      if (createError) throw new Error(createError);
+      if (!createResult.success) throw new Error(createResult.error);
 
-      // Send LINE notification for new late request
-      try {
-        await fetch("/api/notifications", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "late_request",
-            data: {
-              employeeName: employee!.name,
-              date: selectedDate,
-              lateMinutes: attendance?.late_minutes || 0,
-              reason: reason.trim(),
-            },
-          }),
-        });
-      } catch (notifError) {
-        console.error("Error sending notification:", notifError);
-      }
+      notifyNewLateRequest({
+        employeeName: employee!.name,
+        date: selectedDate,
+        lateMinutes: attendance?.late_minutes || 0,
+        reason: reason.trim(),
+      });
 
       setSuccess(true);
       setSelectedDate("");
@@ -140,8 +124,8 @@ function LateRequestContent() {
 
   const handleCancel = async (id: string) => {
     try {
-      const { error } = await cancelLateRequest(id, employee!.id);
-      if (error) throw new Error(error);
+      const result = await cancelLateRequest(id, employee!.id);
+      if (!result.success) throw new Error(result.error);
       fetchData();
     } catch (error) {
       console.error("Error cancelling:", error);

@@ -13,6 +13,7 @@ export interface Employee {
   branch_id: string | null;
   hire_date: string | null;
   base_salary: number | null;
+  commission: number | null;
   account_status: string;
   created_at: string;
   sick_leave_quota: number;

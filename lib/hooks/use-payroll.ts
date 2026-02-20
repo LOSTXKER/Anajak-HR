@@ -138,6 +138,27 @@ export function usePayroll() {
         );
       }
 
+      // Fetch salary history for all employees in one query
+      // to find the salary effective at or before end of the selected month
+      const empIds = employeesToProcess.map((e) => e.id);
+      const { data: salaryHistoryData } = await supabase
+        .from("salary_history")
+        .select("employee_id, base_salary, commission, effective_date")
+        .in("employee_id", empIds)
+        .lte("effective_date", endDate)
+        .order("effective_date", { ascending: false });
+
+      // Build a map: employee_id -> most recent salary record up to endDate
+      const salaryAtMonth: Record<string, { base_salary: number; commission: number }> = {};
+      (salaryHistoryData || []).forEach((row: { employee_id: string; base_salary: number; commission: number; effective_date: string }) => {
+        if (!salaryAtMonth[row.employee_id]) {
+          salaryAtMonth[row.employee_id] = {
+            base_salary: Number(row.base_salary),
+            commission: Number(row.commission),
+          };
+        }
+      });
+
       const payrollPromises = employeesToProcess.map(async (emp) => {
         const [attendanceRes, otRes, leaveRes, lateReqRes] = await Promise.all([
           supabase
@@ -292,9 +313,11 @@ export function usePayroll() {
         );
 
         const otTotalAmount = ot1xAmount + ot15xAmount + ot2xAmount;
-        const baseSalary = emp.base_salary || 0;
+        // Use historical salary if available, otherwise fall back to current employee salary
+        const historicalSalary = salaryAtMonth[emp.id];
+        const baseSalary = historicalSalary ? historicalSalary.base_salary : (emp.base_salary || 0);
         const basePay = baseSalary;
-        const commission = emp.commission || 0;
+        const commission = historicalSalary ? historicalSalary.commission : (emp.commission || 0);
         const latePenalty = lateMinutes * settings.late_deduction_per_minute;
         const totalPay = basePay + commission + otTotalAmount - latePenalty;
 

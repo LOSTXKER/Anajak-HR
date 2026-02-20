@@ -5,6 +5,7 @@
  */
 
 import { supabase } from "@/lib/supabase/client";
+import { Result, success, error as resultError } from "@/lib/types/result";
 import type { AllSettings, WorkSettings, OTSettings, SystemSetting } from "@/lib/types";
 
 // Default settings values
@@ -134,8 +135,7 @@ export async function getSystemSettings(): Promise<AllSettings> {
         cacheTimestamp = now;
 
         return settings;
-    } catch (error) {
-        console.error("Error fetching settings:", error);
+    } catch {
         return DEFAULT_SETTINGS;
     }
 }
@@ -176,32 +176,26 @@ export async function getOTSettings(): Promise<OTSettings> {
 /**
  * Update a single setting
  */
-export async function updateSetting(key: string, value: string): Promise<boolean> {
+export async function updateSetting(key: string, value: string): Promise<Result<true>> {
     try {
         const { error } = await supabase
             .from("system_settings")
-            .upsert(
-                { setting_key: key, setting_value: value },
-                { onConflict: "setting_key" }
-            );
+            .upsert({ setting_key: key, setting_value: value }, { onConflict: "setting_key" });
 
         if (error) throw error;
 
-        // Invalidate cache
         settingsCache = null;
         cacheTimestamp = 0;
-
-        return true;
-    } catch (error) {
-        console.error("Error updating setting:", error);
-        return false;
+        return success(true as const);
+    } catch (err: any) {
+        return resultError(err.message || "Failed to update setting");
     }
 }
 
 /**
  * Update multiple settings at once
  */
-export async function updateSettings(settings: Record<string, string>): Promise<boolean> {
+export async function updateSettings(settings: Record<string, string>): Promise<Result<true>> {
     try {
         const updates = Object.entries(settings).map(([key, value]) => ({
             setting_key: key,
@@ -214,14 +208,11 @@ export async function updateSettings(settings: Record<string, string>): Promise<
 
         if (error) throw error;
 
-        // Invalidate cache
         settingsCache = null;
         cacheTimestamp = 0;
-
-        return true;
-    } catch (error) {
-        console.error("Error updating settings:", error);
-        return false;
+        return success(true as const);
+    } catch (err: any) {
+        return resultError(err.message || "Failed to update settings");
     }
 }
 
@@ -259,8 +250,7 @@ export async function getSetting<T>(key: string, defaultValue: T): Promise<T> {
         }
 
         return defaultValue;
-    } catch (error) {
-        console.error(`Error getting setting ${key}:`, error);
+    } catch {
         return defaultValue;
     }
 }

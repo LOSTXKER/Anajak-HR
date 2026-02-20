@@ -67,14 +67,9 @@ export async function isHoliday(date: string, branchId?: string): Promise<Holida
             .limit(1)
             .maybeSingle();
 
-        if (error) {
-            console.error("Error checking holiday:", error);
-            return null;
-        }
-
+        if (error) return null;
         return data || null;
-    } catch (error) {
-        console.error("Error checking holiday:", error);
+    } catch {
         return null;
     }
 }
@@ -169,10 +164,8 @@ export async function getHolidaysInRange(
         const { data, error } = await query;
 
         if (error) throw error;
-
         return (data || []) as Holiday[];
-    } catch (error) {
-        console.error("Error fetching holidays:", error);
+    } catch {
         return [];
     }
 }
@@ -223,10 +216,8 @@ export async function getUpcomingHolidays(
         const { data, error } = await query;
 
         if (error) throw error;
-
         return (data || []) as Holiday[];
-    } catch (error) {
-        console.error("Error fetching upcoming holidays:", error);
+    } catch {
         return [];
     }
 }

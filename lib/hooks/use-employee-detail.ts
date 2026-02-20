@@ -238,6 +238,21 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
 
       if (error) throw error;
 
+      // If salary or commission changed, record a new salary history entry
+      const salaryChanged =
+        Number(editForm.base_salary ?? 0) !== Number(employee.base_salary ?? 0) ||
+        Number(editForm.commission ?? 0) !== Number(employee.commission ?? 0);
+
+      if (salaryChanged) {
+        const today = new Date().toISOString().split("T")[0];
+        await supabase.from("salary_history").insert({
+          employee_id: employee.id,
+          base_salary: editForm.base_salary ?? 0,
+          commission: editForm.commission ?? 0,
+          effective_date: today,
+        });
+      }
+
       toast.success("บันทึกสำเร็จ", "อัปเดตข้อมูลพนักงานเรียบร้อย");
       setEditMode(false);
       fetchEmployee();

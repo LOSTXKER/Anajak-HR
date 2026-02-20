@@ -179,6 +179,7 @@ model employees {
   wfh_requests_wfh_requests_approved_byToemployees                 wfh_requests[]         @relation("wfh_requests_approved_byToemployees")
   wfh_requests_wfh_requests_cancelled_byToemployees                wfh_requests[]         @relation("wfh_requests_cancelled_byToemployees")
   wfh_requests_wfh_requests_employee_idToemployees                 wfh_requests[]         @relation("wfh_requests_employee_idToemployees")
+  salary_history                                                   salary_history[]
 
   @@index([account_status], map: "idx_employees_account_status")
   @@index([branch_id], map: "idx_employees_branch")
@@ -397,4 +398,16 @@ model wfh_requests {
   employees_wfh_requests_employee_idToemployees  employees  @relation("wfh_requests_employee_idToemployees", fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([cancelled_by], map: "idx_wfh_requests_cancelled_by")
+}
+
+model salary_history {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  employee_id    String    @db.Uuid
+  base_salary    Decimal   @default(0) @db.Decimal(12, 2)
+  commission     Decimal   @default(0) @db.Decimal(12, 2)
+  effective_date DateTime  @db.Date
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  employees      employees @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+
+  @@index([employee_id, effective_date(sort: Desc)], map: "idx_salary_history_employee_date")
 }

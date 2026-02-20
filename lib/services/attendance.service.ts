@@ -7,6 +7,7 @@
 import { supabase } from "@/lib/supabase/client";
 import { format, differenceInMinutes, parseISO } from "date-fns";
 import { getSystemSettings } from "./settings.service";
+import { Result, success, error as resultError } from "@/lib/types/result";
 import type { AttendanceLog, Location } from "@/lib/types";
 
 /**
@@ -94,26 +95,26 @@ export async function getAttendanceForRange(
  * @param location - GPS location (optional)
  * @param photoUrl - Photo URL (optional)
  */
+interface CheckInData {
+    attendance: AttendanceLog;
+    isLate: boolean;
+}
+
 export async function checkIn(
     employeeId: string,
     location?: Location | null,
     photoUrl?: string | null
-): Promise<{ success: boolean; data?: AttendanceLog; error?: string; isLate?: boolean }> {
+): Promise<Result<CheckInData>> {
     const today = format(new Date(), "yyyy-MM-dd");
     const nowTime = new Date().toISOString();
 
     try {
-        // Check if late
         const settings = await getSystemSettings();
-        const workStartTime = settings.workStartTime;
-        const lateThreshold = settings.lateThreshold;
-
-        const workStart = new Date(`${today}T${workStartTime}:00`);
+        const workStart = new Date(`${today}T${settings.workStartTime}:00`);
         const now = new Date();
-        const lateMinutes = Math.max(0, differenceInMinutes(now, workStart) - lateThreshold);
+        const lateMinutes = Math.max(0, differenceInMinutes(now, workStart) - settings.lateThreshold);
         const isLate = lateMinutes > 0;
 
-        // Use atomic RPC to prevent race conditions
         const { data: result, error } = await supabase.rpc("atomic_checkin", {
             p_employee_id: employeeId,
             p_work_date: today,
@@ -125,16 +126,12 @@ export async function checkIn(
         });
 
         if (error) throw error;
+        if (!result.success) return resultError(result.error);
 
-        // Parse the result from the RPC
-        if (!result.success) {
-            return { success: false, error: result.error };
-        }
-
-        return { success: true, data: result.data as AttendanceLog, isLate };
-    } catch (error) {
-        console.error("Error checking in:", error);
-        return { success: false, error: "Failed to check in" };
+        return success({ attendance: result.data as AttendanceLog, isLate });
+    } catch (err: any) {
+        console.error("Error checking in:", err);
+        return resultError(err.message || "Failed to check in");
     }
 }
 
@@ -148,12 +145,11 @@ export async function checkOut(
     employeeId: string,
     location?: Location | null,
     photoUrl?: string | null
-): Promise<{ success: boolean; data?: AttendanceLog; error?: string }> {
+): Promise<Result<AttendanceLog>> {
     const today = format(new Date(), "yyyy-MM-dd");
     const nowTime = new Date().toISOString();
 
     try {
-        // Use atomic RPC to prevent race conditions
         const { data: result, error } = await supabase.rpc("atomic_checkout", {
             p_employee_id: employeeId,
             p_work_date: today,
@@ -163,16 +159,12 @@ export async function checkOut(
         });
 
         if (error) throw error;
+        if (!result.success) return resultError(result.error);
 
-        // Parse the result from the RPC
-        if (!result.success) {
-            return { success: false, error: result.error };
-        }
-
-        return { success: true, data: result.data as AttendanceLog };
-    } catch (error) {
-        console.error("Error checking out:", error);
-        return { success: false, error: "Failed to check out" };
+        return success(result.data as AttendanceLog);
+    } catch (err: any) {
+        console.error("Error checking out:", err);
+        return resultError(err.message || "Failed to check out");
     }
 }
 
