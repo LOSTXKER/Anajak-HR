@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
 ✅ ระบบทำงานปกติ
 📱 Anajak HR System
-🕐 ${new Date().toLocaleString("th-TH")}
+🕐 ${new Date().toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}
 
 หากคุณเห็นข้อความนี้ แสดงว่าการตั้งค่า LINE Messaging API สำเร็จแล้ว!`;
 
