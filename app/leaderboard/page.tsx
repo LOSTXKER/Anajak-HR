@@ -6,9 +6,9 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { BottomNav } from "@/components/BottomNav";
 import { Avatar } from "@/components/ui/Avatar";
-import { useLeaderboard, useGameProfile } from "@/lib/hooks/use-gamification";
+import { useLeaderboard } from "@/lib/hooks/use-gamification";
 import { supabase } from "@/lib/supabase/client";
-import { LEVELS, RANK_TIERS, getEmployeeGameProfile, getBadgesWithProgress, calculateRankTier } from "@/lib/services/gamification.service";
+import { LEVELS, RANK_TIERS, getEmployeeGameProfile, getBadgesWithProgress, calculateRankTier, getCurrentQuarter } from "@/lib/services/gamification.service";
 import {
   ArrowLeft,
   Trophy,
@@ -26,7 +26,6 @@ import {
   Zap,
   Target,
   Award,
-  RotateCcw,
 } from "lucide-react";
 
 // ─── Rank Visual Config ───────────────────────────────────────────────────────
@@ -234,10 +233,7 @@ function LeaderboardContent() {
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
   const [playerProfile, setPlayerProfile] = useState<PlayerProfile | null>(null);
   const [playerLoading, setPlayerLoading] = useState(false);
-  const daysLeft = getDaysUntilQuarterEnd();
-
   const { leaderboard, isLoading } = useLeaderboard(period, branchId);
-  const { profile } = useGameProfile();
 
   useEffect(() => {
     fetchBranches();
@@ -279,8 +275,6 @@ function LeaderboardContent() {
 
   const top3 = leaderboard.slice(0, 3);
   const rest = leaderboard.slice(3);
-  const myRankTier = profile?.rankTier || "Unranked";
-  const myCfg = RANK_VISUAL[myRankTier];
 
   return (
     <div className="min-h-screen bg-[#fbfbfd] pb-20 pt-safe">
@@ -366,99 +360,6 @@ function LeaderboardContent() {
           </div>
         )}
 
-        {/* My Stats Card – Dynamic per Rank */}
-        {profile && (
-          <div
-            className={`bg-gradient-to-br ${myCfg.cardBg} rounded-2xl p-4 mb-3 text-white ${myCfg.glow} transition-all`}
-          >
-            {/* Top row */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <Avatar name={employee?.name || ""} size="md" />
-                <div>
-                  <p className="text-[15px] font-semibold">{employee?.name}</p>
-                  <p className="text-[12px] text-white/60">Lv.{profile.level} · {profile.levelName}</p>
-                </div>
-              </div>
-              {profile.rank && (
-                <span className="text-[14px] font-bold bg-white/20 px-2.5 py-1 rounded-xl">#{profile.rank}</span>
-              )}
-            </div>
-
-            {/* Rank badge - big and prominent */}
-            <div className="flex items-center justify-between mb-3">
-              <RankBadge tier={myRankTier} size="lg" />
-              <span className="flex items-center gap-1 text-[11px] text-white/60">
-                <RotateCcw className="w-3 h-3" />
-                รีเซตใน {daysLeft} วัน
-              </span>
-            </div>
-
-            {/* Rank Journey */}
-            <div className="mb-2.5">
-              <p className="text-[11px] text-white/60 mb-2">Rank Journey</p>
-              <RankJourneyBar quarterlyPoints={profile.quarterlyPoints} />
-            </div>
-
-            {/* Rank progress bar */}
-            <div className="mb-3">
-              <div className="flex justify-between text-[11px] text-white/60 mb-1.5">
-                <span className="font-medium text-white/80">{profile.quarterlyPoints} pts ไตรมาสนี้</span>
-                {profile.nextRankPoints > 0 && (
-                  <span>อีก {profile.nextRankPoints - profile.quarterlyPoints} pts</span>
-                )}
-              </div>
-              <div className="h-2.5 bg-white/15 rounded-full overflow-hidden">
-                <div
-                  className={`h-full ${myCfg.barStyle} rounded-full transition-all duration-700`}
-                  style={{ width: `${profile.progressToNextRank}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Stats mini row */}
-            <div className="flex items-center gap-3 text-[11px] text-white/50">
-              <span>สะสม {profile.totalPoints.toLocaleString()} pts</span>
-              {profile.currentStreak > 0 && (
-                <span className="flex items-center gap-0.5">
-                  <Flame className="w-3 h-3 text-[#ff9500]" />
-                  Streak {profile.currentStreak}
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Rank Tier Guide (quarterly only) */}
-        {period === "quarterly" && (
-          <div className="mb-4 bg-white rounded-2xl border border-[#e8e8ed] p-4">
-            <p className="text-[12px] font-semibold text-[#86868b] mb-3">เกณฑ์ Rank ไตรมาสนี้</p>
-            <div className="flex items-stretch gap-2">
-              {RANK_TIERS.slice(1).map((t) => {
-                const cfg = RANK_VISUAL[t.tier];
-                const isReached = (profile?.quarterlyPoints || 0) >= t.minPoints;
-                return (
-                  <div
-                    key={t.tier}
-                    className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 px-1 rounded-xl border transition-all ${
-                      isReached
-                        ? `${cfg.badgeSolid} border-transparent`
-                        : "bg-[#f5f5f7] border-[#e8e8ed] opacity-50"
-                    }`}
-                  >
-                    <span className="text-[20px] leading-none">{t.icon}</span>
-                    <span className={`text-[10px] font-bold ${isReached ? cfg.badgeText : "text-[#6e6e73]"}`}>
-                      {t.tier}
-                    </span>
-                    <span className={`text-[9px] ${isReached ? cfg.badgeText + " opacity-80" : "text-[#86868b]"}`}>
-                      {t.minPoints}+
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Leaderboard List */}
         {isLoading ? (
