@@ -17,6 +17,7 @@ import {
   LeaveTab,
   WFHTab,
   LateTab,
+  GamificationTab,
   DeleteModal,
 } from "@/components/admin/employee-detail";
 
@@ -151,6 +152,8 @@ function EmployeeProfileContent() {
       )}
 
       {activeTab === "late" && <LateTab data={lateData} />}
+
+      {activeTab === "gamification" && <GamificationTab employeeId={employeeId} />}
 
       {/* Delete Modal */}
       <DeleteModal

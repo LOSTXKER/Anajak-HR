@@ -7,6 +7,7 @@ import {
   Calendar,
   Home,
   AlertTriangle,
+  Trophy,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -28,6 +29,7 @@ const tabs = [
   { id: "leave" as TabType, label: "ลา", icon: Calendar },
   { id: "wfh" as TabType, label: "WFH", icon: Home },
   { id: "late" as TabType, label: "สาย", icon: AlertTriangle },
+  { id: "gamification" as TabType, label: "Game", icon: Trophy },
 ];
 
 export function TabNavigation({
@@ -56,8 +58,8 @@ export function TabNavigation({
         ))}
       </div>
 
-      {/* Month Navigation (for tabs except info) */}
-      {activeTab !== "info" && (
+      {/* Month Navigation (for tabs except info and gamification) */}
+      {activeTab !== "info" && activeTab !== "gamification" && (
         <div className="flex items-center gap-2 mb-4">
           <button
             onClick={() => onMonthChange(subMonths(currentMonth, 1))}

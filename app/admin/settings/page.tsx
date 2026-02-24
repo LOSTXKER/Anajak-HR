@@ -11,6 +11,7 @@ import {
   MessageCircle,
   UserCheck,
   Zap,
+  Trophy,
   ChevronRight,
   Settings,
 } from "lucide-react";
@@ -53,6 +54,14 @@ const settingsMenuItems = [
         iconBg: "bg-[#ff9500]/10",
         title: "อนุมัติอัตโนมัติ",
         description: "OT, ลา, WFH, มาสาย",
+      },
+      {
+        href: "/admin/settings/gamification",
+        icon: Trophy,
+        iconColor: "text-[#ffd700]",
+        iconBg: "bg-[#ffd700]/10",
+        title: "Gamification",
+        description: "แต้ม, เหรียญ, Leaderboard",
       },
     ],
   },

@@ -100,7 +100,7 @@ export interface MonthlyStats {
   wfhDays: number;
 }
 
-export type TabType = "info" | "attendance" | "ot" | "leave" | "wfh" | "late";
+export type TabType = "info" | "attendance" | "ot" | "leave" | "wfh" | "late" | "gamification";
 
 // Helper functions
 export function getStatusBadgeVariant(status: string): "success" | "warning" | "danger" | "info" | "default" {

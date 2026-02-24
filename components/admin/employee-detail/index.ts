@@ -13,4 +13,5 @@ export { OTTab } from "./OTTab";
 export { LeaveTab } from "./LeaveTab";
 export { WFHTab } from "./WFHTab";
 export { LateTab } from "./LateTab";
+export { GamificationTab } from "./GamificationTab";
 export { DeleteModal } from "./DeleteModal";
