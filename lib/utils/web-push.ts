@@ -64,7 +64,7 @@ export async function subscribeToPushNotifications(): Promise<PushSubscription |
         applicationServerKey: convertedVapidKey as BufferSource,
       });
 
-      console.log('Push notification subscription created:', subscription);
+      console.debug('Push notification subscription created:', subscription);
 
       // Send subscription to backend
       await sendSubscriptionToBackend(subscription);
@@ -95,7 +95,7 @@ export async function unsubscribeFromPushNotifications(): Promise<boolean> {
       // Remove subscription from backend
       await removeSubscriptionFromBackend(subscription);
       
-      console.log('Unsubscribed from push notifications');
+      console.debug('Unsubscribed from push notifications');
       return true;
     }
 
@@ -153,7 +153,7 @@ async function sendSubscriptionToBackend(subscription: PushSubscription): Promis
       throw new Error('Failed to send subscription to backend');
     }
 
-    console.log('Subscription sent to backend successfully');
+    console.debug('Subscription sent to backend successfully');
   } catch (error) {
     console.error('Error sending subscription to backend:', error);
   }
@@ -186,7 +186,7 @@ async function removeSubscriptionFromBackend(subscription: PushSubscription): Pr
       throw new Error('Failed to remove subscription from backend');
     }
 
-    console.log('Subscription removed from backend successfully');
+    console.debug('Subscription removed from backend successfully');
   } catch (error) {
     console.error('Error removing subscription from backend:', error);
   }

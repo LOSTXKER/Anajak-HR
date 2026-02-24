@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { employeeName, time, totalHours, location } = body;
 
-    console.log("[Check-out Notification] Request:", { employeeName, time, totalHours });
+    console.debug("[Check-out Notification] Request:", { employeeName, time, totalHours });
 
     // เช็คว่าเปิดการแจ้งเตือนหรือไม่
     const { data: settings } = await supabaseServer
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       .in("setting_key", ["enable_checkout_notifications", "enable_notifications"]);
 
     if (!settings || settings.length === 0) {
-      return Response.json({ success: false, message: "Settings not found" });
+      return Response.json({ error: "Settings not found" }, { status: 500 });
     }
 
     const settingsMap: Record<string, string> = {};
@@ -34,23 +34,23 @@ export async function POST(request: NextRequest) {
 
     if (settingsMap.enable_checkout_notifications !== "true" || 
         settingsMap.enable_notifications !== "true") {
-      console.log("[Check-out Notification] Notifications disabled");
-      return Response.json({ success: false, message: "Notifications disabled" });
+      console.debug("[Check-out Notification] Notifications disabled");
+      return Response.json({ error: "Notifications disabled" }, { status: 503 });
     }
 
     // Format และส่งข้อความ
     const message = await formatCheckOutMessage(employeeName, time, totalHours, location);
     const success = await sendLineMessage(message);
 
-    return Response.json({ 
-      success, 
-      message: success ? "Notification sent" : "Failed to send notification" 
-    });
+    if (!success) {
+      return Response.json({ error: "Failed to send notification" }, { status: 500 });
+    }
+    return Response.json({ success, message: "Notification sent" });
 
   } catch (error: any) {
     console.error("[Check-out Notification] Error:", error);
     return Response.json(
-      { success: false, error: error.message || "Failed to send notification" },
+      { error: error.message || "Failed to send notification" },
       { status: 500 }
     );
   }

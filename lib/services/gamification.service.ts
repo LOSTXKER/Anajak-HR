@@ -5,8 +5,101 @@
  */
 
 import { supabase } from "@/lib/supabase/client";
-import { format, subDays, startOfMonth, endOfMonth, isWeekend } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, getDay } from "date-fns";
+import { getTodayTH } from "@/lib/utils/date";
 import { sendBadgeNotification } from "./notification.service";
+
+interface BadgeDefinitionRow {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  icon: string;
+  category: string;
+  tier: string;
+  condition_type: string;
+  condition_value: number;
+  points_reward: number;
+  is_active: boolean;
+}
+
+interface EmployeeBadgeRow {
+  id: string;
+  badge_id: string;
+  earned_at: string;
+  month_context: string | null;
+  badge_definitions: BadgeDefinitionRow;
+}
+
+interface EmployeePointsRow {
+  id: string;
+  employee_id: string;
+  total_points: number;
+  monthly_points: number;
+  current_month: string;
+  level: number;
+  level_name: string;
+  current_streak: number;
+  longest_streak: number;
+  last_streak_date: string | null;
+}
+
+interface SystemSettingRow {
+  setting_key: string;
+  setting_value: string;
+}
+
+interface EmployeeBadgePartialRow {
+  badge_id: string;
+  month_context: string | null;
+}
+
+interface EmployeeBadgeEarnedAtRow {
+  badge_id: string;
+  earned_at: string;
+  month_context: string | null;
+}
+
+interface AttendanceLogRow {
+  work_date: string;
+  is_late: boolean;
+}
+
+interface AttendanceLogLateOnlyRow {
+  is_late: boolean;
+}
+
+interface LeaderboardEntryRow {
+  employee_id: string;
+  total_points: number;
+  monthly_points: number;
+  level: number;
+  level_name: string;
+  current_streak: number;
+  employees: {
+    id: string;
+    name: string;
+    branch_id: string;
+    account_status: string;
+    deleted_at: string | null;
+    is_system_account: boolean;
+  };
+}
+
+interface EmployeeBadgeCountRow {
+  employee_id: string;
+}
+
+interface AttendanceLogFullRow {
+  id: string;
+  work_date: string;
+  is_late: boolean;
+  clock_out_time: string | null;
+}
+
+interface OTRequestRow {
+  id: string;
+}
 
 // Level definitions
 export const LEVELS = [
@@ -126,11 +219,12 @@ export async function getGamificationSettings(): Promise<Record<string, string>>
       .like("setting_key", "gamify_%");
 
     const settings: Record<string, string> = {};
-    data?.forEach((s: any) => {
+    (data as SystemSettingRow[] | null)?.forEach((s: SystemSettingRow) => {
       settings[s.setting_key] = s.setting_value;
     });
     return settings;
-  } catch {
+  } catch (err) {
+    console.error("Error fetching gamification settings:", err);
     return {};
   }
 }
@@ -202,22 +296,26 @@ export async function awardPoints(
       reference_type: referenceType || null,
     });
 
-    const ep = await ensureEmployeePoints(employeeId);
-    if (!ep) return false;
+    await ensureEmployeePoints(employeeId);
 
-    const newTotal = ep.total_points + points;
-    const newMonthly = ep.monthly_points + points;
-    const { level, name } = calculateLevel(newTotal);
+    // Atomic increment to avoid race conditions
+    const { data: updated } = await supabase.rpc("increment_employee_points", {
+      p_employee_id: employeeId,
+      p_points: points,
+    });
 
-    await supabase
-      .from("employee_points")
-      .update({
-        total_points: newTotal,
-        monthly_points: newMonthly,
-        level,
-        level_name: name,
-      })
-      .eq("id", ep.id);
+    // If RPC doesn't exist yet, fall back to read-then-write
+    if (!updated) {
+      const ep = await ensureEmployeePoints(employeeId);
+      if (!ep) return false;
+      const newTotal = Math.max(0, ep.total_points + points);
+      const newMonthly = Math.max(0, ep.monthly_points + points);
+      const { level, name } = calculateLevel(newTotal);
+      await supabase
+        .from("employee_points")
+        .update({ total_points: newTotal, monthly_points: newMonthly, level, level_name: name })
+        .eq("id", ep.id);
+    }
 
     return true;
   } catch (err) {
@@ -236,12 +334,13 @@ export async function updateStreak(employeeId: string, date: string): Promise<nu
 
     const today = new Date(date);
     const lastStreakDate = ep.last_streak_date ? new Date(ep.last_streak_date) : null;
+    const workingDays = await getWorkingDays();
 
     let newStreak = 1;
 
     if (lastStreakDate) {
       let expectedPrev = subDays(today, 1);
-      while (isWeekend(expectedPrev)) {
+      while (isOffDay(expectedPrev, workingDays)) {
         expectedPrev = subDays(expectedPrev, 1);
       }
 
@@ -299,7 +398,7 @@ export async function processCheckinGamification(
 
   let totalPointsEarned = 0;
   const newBadges: string[] = [];
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = getTodayTH();
 
   // On-time check-in
   if (!isLate) {
@@ -312,22 +411,27 @@ export async function processCheckinGamification(
     totalPointsEarned += penalty;
   }
 
-  // Early check-in bonus
-  const earlyMinutes = parseInt(settings.gamify_early_minutes || "15");
-  const workStartSetting = await getWorkStartTime();
-  if (workStartSetting) {
-    const [h, m] = workStartSetting.split(":").map(Number);
-    const workStartMinutes = h * 60 + m;
-    const checkinMinutes = clockInTime.getHours() * 60 + clockInTime.getMinutes();
-    if (workStartMinutes - checkinMinutes >= earlyMinutes) {
-      const pts = parseInt(settings.gamify_points_early || "5");
-      await awardPoints(employeeId, "early_checkin", pts, `เข้างานก่อนเวลา ${earlyMinutes} นาที`, attendanceId, "attendance");
-      totalPointsEarned += pts;
+  if (!isLate) {
+    // Early check-in bonus (only for on-time arrivals)
+    const earlyMinutes = parseInt(settings.gamify_early_minutes || "15");
+    const workStartSetting = await getWorkStartTime();
+    if (workStartSetting) {
+      const [h, m] = workStartSetting.split(":").map(Number);
+      const workStartMinutes = h * 60 + m;
+      const checkinMinutes = clockInTime.getHours() * 60 + clockInTime.getMinutes();
+      if (workStartMinutes - checkinMinutes >= earlyMinutes) {
+        const pts = parseInt(settings.gamify_points_early || "5");
+        await awardPoints(employeeId, "early_checkin", pts, `เข้างานก่อนเวลา ${earlyMinutes} นาที`, attendanceId, "attendance");
+        totalPointsEarned += pts;
+      }
     }
-  }
 
-  // Update streak
-  await updateStreak(employeeId, today);
+    // Update streak (only on on-time days)
+    await updateStreak(employeeId, today);
+  } else {
+    // Late arrival resets streak
+    await resetStreak(employeeId);
+  }
 
   // Check badges
   const earned = await checkAndAwardBadges(employeeId);
@@ -390,13 +494,13 @@ export async function checkAndAwardBadges(employeeId: string): Promise<string[]>
       .eq("employee_id", employeeId);
 
     const earnedSet = new Set(
-      (earnedBadges || []).map((b: any) => `${b.badge_id}:${b.month_context || "all"}`)
+      (earnedBadges || []).map((b: EmployeeBadgePartialRow) => `${b.badge_id}:${b.month_context || "all"}`)
     );
 
     const currentMonth = format(new Date(), "yyyy-MM");
     const newlyEarned: string[] = [];
 
-    for (const badge of badges) {
+    for (const badge of badges as BadgeDefinitionRow[]) {
       const monthContext = isMonthlyBadge(badge.condition_type) ? currentMonth : null;
       const key = `${badge.id}:${monthContext || "all"}`;
 
@@ -443,7 +547,7 @@ function isMonthlyBadge(conditionType: string): boolean {
   return ["on_time_month", "no_leave_month"].includes(conditionType);
 }
 
-async function checkBadgeCondition(employeeId: string, badge: any): Promise<boolean> {
+async function checkBadgeCondition(employeeId: string, badge: BadgeDefinitionRow): Promise<boolean> {
   switch (badge.condition_type) {
     case "first_checkin":
       return checkFirstCheckin(employeeId);
@@ -479,10 +583,13 @@ async function checkOnTimeStreak(employeeId: string, days: number): Promise<bool
     .from("attendance_logs")
     .select("work_date, is_late")
     .eq("employee_id", employeeId)
-    .eq("is_late", false)
     .order("work_date", { ascending: false })
     .limit(days);
-  return (data?.length || 0) >= days;
+
+  if (!data || data.length < days) return false;
+
+  // All of the last N records must be on-time
+  return data.every((log: AttendanceLogRow) => !log.is_late);
 }
 
 async function checkOnTimeMonth(employeeId: string): Promise<boolean> {
@@ -498,7 +605,7 @@ async function checkOnTimeMonth(employeeId: string): Promise<boolean> {
     .lte("work_date", monthEnd);
 
   if (!logs || logs.length < 15) return false;
-  return logs.every((l: any) => !l.is_late);
+  return logs.every((l: AttendanceLogLateOnlyRow) => !l.is_late);
 }
 
 async function checkEarlyCount(employeeId: string, count: number): Promise<boolean> {
@@ -565,8 +672,44 @@ async function getWorkStartTime(): Promise<string | null> {
       .eq("setting_key", "work_start_time")
       .maybeSingle();
     return data?.setting_value || "09:00";
-  } catch {
+  } catch (err) {
+    console.error("Error fetching work start time:", err);
     return "09:00";
+  }
+}
+
+async function getWorkingDays(): Promise<number[]> {
+  try {
+    const { data } = await supabase
+      .from("system_settings")
+      .select("setting_value")
+      .eq("setting_key", "working_days")
+      .maybeSingle();
+    if (data?.setting_value) {
+      return data.setting_value.split(",").map(Number);
+    }
+    return [1, 2, 3, 4, 5];
+  } catch (err) {
+    console.error("Error fetching working days:", err);
+    return [1, 2, 3, 4, 5];
+  }
+}
+
+function isOffDay(date: Date, workingDays: number[]): boolean {
+  return !workingDays.includes(getDay(date));
+}
+
+async function resetStreak(employeeId: string): Promise<void> {
+  try {
+    const ep = await ensureEmployeePoints(employeeId);
+    if (!ep || ep.current_streak === 0) return;
+
+    await supabase
+      .from("employee_points")
+      .update({ current_streak: 0 })
+      .eq("id", ep.id);
+  } catch (err) {
+    console.error("Error resetting streak:", err);
   }
 }
 
@@ -584,7 +727,7 @@ export async function getEmployeeGameProfile(employeeId: string): Promise<GamePr
     .order("earned_at", { ascending: false })
     .limit(5);
 
-  const recentBadges: EarnedBadge[] = (recentBadgeData || []).map((b: any) => ({
+  const recentBadges: EarnedBadge[] = (recentBadgeData || []).map((b: EmployeeBadgeRow) => ({
     id: b.id,
     code: b.badge_definitions.code,
     name: b.badge_definitions.name,
@@ -632,13 +775,13 @@ export async function getBadgesWithProgress(employeeId: string): Promise<BadgeWi
     .eq("employee_id", employeeId);
 
   const earnedMap = new Map<string, string>();
-  (earnedBadges || []).forEach((b: any) => {
+  (earnedBadges || []).forEach((b: EmployeeBadgeEarnedAtRow) => {
     earnedMap.set(b.badge_id, b.earned_at);
   });
 
   const progress = await getBadgeProgress(employeeId);
 
-  return (allBadges || []).map((badge: any) => ({
+  return (allBadges || []).map((badge: BadgeDefinitionRow) => ({
     id: badge.id,
     code: badge.code,
     name: badge.name,
@@ -705,18 +848,18 @@ export async function getLeaderboard(
 
     if (!data) return [];
 
-    let entries = data.filter((d: any) => {
+    let entries = (data as LeaderboardEntryRow[]).filter((d: LeaderboardEntryRow) => {
       const emp = d.employees;
       return emp.account_status === "approved" && !emp.deleted_at && !emp.is_system_account;
     });
 
     if (branchId) {
-      entries = entries.filter((d: any) => d.employees.branch_id === branchId);
+      entries = entries.filter((d: LeaderboardEntryRow) => d.employees.branch_id === branchId);
     }
 
-    const badgeCounts = await getBadgeCounts(entries.map((e: any) => e.employee_id));
+    const badgeCounts = await getBadgeCounts(entries.map((e: LeaderboardEntryRow) => e.employee_id));
 
-    return entries.map((entry: any, index: number) => ({
+    return entries.map((entry: LeaderboardEntryRow, index: number) => ({
       rank: index + 1,
       employeeId: entry.employee_id,
       employeeName: entry.employees.name,
@@ -742,7 +885,7 @@ async function getBadgeCounts(employeeIds: string[]): Promise<Record<string, num
     .in("employee_id", employeeIds);
 
   const counts: Record<string, number> = {};
-  (data || []).forEach((b: any) => {
+  (data || []).forEach((b: EmployeeBadgeCountRow) => {
     counts[b.employee_id] = (counts[b.employee_id] || 0) + 1;
   });
   return counts;
@@ -766,7 +909,7 @@ export async function recalculateEmployeePoints(employeeId: string): Promise<voi
     .eq("employee_id", employeeId)
     .order("work_date", { ascending: true });
 
-  for (const log of attendanceLogs || []) {
+  for (const log of (attendanceLogs || []) as AttendanceLogFullRow[]) {
     if (!log.is_late) {
       const pts = parseInt(settings.gamify_points_on_time || "10");
       await awardPoints(employeeId, "on_time_checkin", pts, "เช็กอินตรงเวลา", log.id, "attendance");
@@ -789,7 +932,7 @@ export async function recalculateEmployeePoints(employeeId: string): Promise<voi
     .eq("employee_id", employeeId)
     .eq("status", "completed");
 
-  for (const ot of otRequests || []) {
+  for (const ot of (otRequests || []) as OTRequestRow[]) {
     const pts = parseInt(settings.gamify_points_ot || "15");
     await awardPoints(employeeId, "ot_completed", pts, "ทำ OT สำเร็จ", ot.id, "ot");
   }

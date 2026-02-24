@@ -11,6 +11,7 @@ import {
   AUTO_APPROVE_SETTINGS,
 } from "@/lib/utils/auto-approve";
 import { Result, success, error as resultError } from "@/lib/types/result";
+import { updateRequestStatus } from "./request-status.service";
 
 // Types
 export interface FieldWorkRequest {
@@ -142,21 +143,7 @@ export async function approveFieldWorkRequest(
   requestId: string,
   adminId: string
 ): Promise<Result<true>> {
-  try {
-    const { error } = await supabase
-      .from("field_work_requests")
-      .update({
-        status: "approved",
-        approved_by: adminId,
-        approved_at: new Date().toISOString(),
-      })
-      .eq("id", requestId);
-
-    if (error) throw error;
-    return success(true as const);
-  } catch (err: any) {
-    return resultError(err.message || "Failed to approve field work request");
-  }
+  return updateRequestStatus("field_work_requests", requestId, "approved", adminId);
 }
 
 /**
@@ -166,19 +153,5 @@ export async function rejectFieldWorkRequest(
   requestId: string,
   adminId: string
 ): Promise<Result<true>> {
-  try {
-    const { error } = await supabase
-      .from("field_work_requests")
-      .update({
-        status: "rejected",
-        approved_by: adminId,
-        approved_at: new Date().toISOString(),
-      })
-      .eq("id", requestId);
-
-    if (error) throw error;
-    return success(true as const);
-  } catch (err: any) {
-    return resultError(err.message || "Failed to reject field work request");
-  }
+  return updateRequestStatus("field_work_requests", requestId, "rejected", adminId);
 }

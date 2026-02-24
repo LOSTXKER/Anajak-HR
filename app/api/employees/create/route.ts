@@ -5,9 +5,21 @@ import {
   handleAuthError,
   AuthResult,
 } from "@/lib/auth/api-middleware";
+import { z } from "zod";
+
+const createEmployeeSchema = z.object({
+  name: z.string().min(1, "กรุณากรอกชื่อ"),
+  email: z.string().email("รูปแบบอีเมลไม่ถูกต้อง"),
+  phone: z.string().min(9, "เบอร์โทรต้องมีอย่างน้อย 9 หลัก").max(15),
+  password: z.string().min(6, "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"),
+  role: z.enum(["staff", "admin", "supervisor"], { message: "ตำแหน่งไม่ถูกต้อง" }),
+  branch_id: z.string().uuid().nullable().optional(),
+  base_salary: z.number().min(0).optional().default(0),
+  commission: z.number().min(0).optional().default(0),
+  is_system_account: z.boolean().optional().default(false),
+});
 
 export async function POST(request: NextRequest) {
-  // Verify admin authorization
   let auth: AuthResult;
   try {
     auth = await requireAdmin(request);
@@ -17,22 +29,14 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, email, phone, password, role, branch_id, base_salary, commission, is_system_account } = body;
+    const parsed = createEmployeeSchema.safeParse(body);
 
-    // Validate input
-    if (!name || !email || !phone || !password || !role) {
-      return NextResponse.json(
-        { error: "กรุณากรอกข้อมูลให้ครบถ้วน" },
-        { status: 400 }
-      );
+    if (!parsed.success) {
+      const firstError = parsed.error.issues[0]?.message || "ข้อมูลไม่ถูกต้อง";
+      return NextResponse.json({ error: firstError }, { status: 400 });
     }
 
-    if (password.length < 6) {
-      return NextResponse.json(
-        { error: "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร" },
-        { status: 400 }
-      );
-    }
+    const { name, email, phone, password, role, branch_id, base_salary, commission, is_system_account } = parsed.data;
 
     // 1. สร้าง user ใน Auth (ใช้ Admin Client)
     const { data: authData, error: authError } =

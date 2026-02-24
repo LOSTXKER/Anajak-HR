@@ -5,7 +5,8 @@
  */
 
 import { supabase } from "@/lib/supabase/client";
-import { format, differenceInMinutes, parseISO } from "date-fns";
+import { differenceInMinutes } from "date-fns";
+import { getTodayTH, getNowTH } from "@/lib/utils/date";
 import { getSystemSettings } from "./settings.service";
 import { Result, success, error as resultError } from "@/lib/types/result";
 import type { AttendanceLog, Location } from "@/lib/types";
@@ -15,7 +16,7 @@ import type { AttendanceLog, Location } from "@/lib/types";
  * @param employeeId - Employee ID
  */
 export async function getTodayAttendance(employeeId: string): Promise<AttendanceLog | null> {
-    const today = format(new Date(), "yyyy-MM-dd");
+    const today = getTodayTH();
 
     try {
         const { data, error } = await supabase
@@ -105,14 +106,16 @@ export async function checkIn(
     location?: Location | null,
     photoUrl?: string | null
 ): Promise<Result<CheckInData>> {
-    const today = format(new Date(), "yyyy-MM-dd");
+    const today = getTodayTH();
     const nowTime = new Date().toISOString();
 
     try {
         const settings = await getSystemSettings();
-        const workStart = new Date(`${today}T${settings.workStartTime}:00`);
-        const now = new Date();
-        const lateMinutes = Math.max(0, differenceInMinutes(now, workStart) - settings.lateThreshold);
+        const nowTH = getNowTH();
+        const [wsH, wsM] = settings.workStartTime.split(":").map(Number);
+        const workStartMinutes = wsH * 60 + wsM;
+        const nowMinutes = nowTH.getHours() * 60 + nowTH.getMinutes();
+        const lateMinutes = Math.max(0, nowMinutes - workStartMinutes - settings.lateThreshold);
         const isLate = lateMinutes > 0;
 
         const { data: result, error } = await supabase.rpc("atomic_checkin", {
@@ -146,7 +149,7 @@ export async function checkOut(
     location?: Location | null,
     photoUrl?: string | null
 ): Promise<Result<AttendanceLog>> {
-    const today = format(new Date(), "yyyy-MM-dd");
+    const today = getTodayTH();
     const nowTime = new Date().toISOString();
 
     try {

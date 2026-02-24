@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Failed to store subscription" }, { status: 500 });
     }
 
-    console.log(`Push subscription saved for employee ${employeeId}`);
+    console.debug(`Push subscription saved for employee ${employeeId}`);
 
     return Response.json({ 
       success: true,

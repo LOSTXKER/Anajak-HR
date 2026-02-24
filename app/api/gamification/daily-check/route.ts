@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { checkAndAwardBadges, ensureEmployeePoints, getGamificationSettings, awardPoints } from "@/lib/services/gamification.service";
-import { format, startOfWeek, endOfWeek, subDays } from "date-fns";
+import { format, startOfWeek, endOfWeek } from "date-fns";
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET) {
+    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
+  }
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -35,8 +38,18 @@ export async function GET(request: NextRequest) {
     const dayOfWeek = today.getDay();
     const isEndOfWeek = dayOfWeek === 0; // Sunday
 
+    // Get working days to calculate required attendance
+    const { data: wdSetting } = await supabaseServer
+      .from("system_settings")
+      .select("setting_value")
+      .eq("setting_key", "working_days")
+      .maybeSingle();
+    const workingDays = wdSetting?.setting_value
+      ? wdSetting.setting_value.split(",").map(Number)
+      : [1, 2, 3, 4, 5];
+    const requiredDays = workingDays.length;
+
     for (const emp of employees) {
-      // Check and award badges
       const newBadges = await checkAndAwardBadges(emp.id);
       badgesAwarded += newBadges.length;
 
@@ -61,7 +74,7 @@ export async function GET(request: NextRequest) {
             .gte("work_date", weekStart)
             .lte("work_date", weekEnd);
 
-          if ((attCount || 0) >= 5) {
+          if ((attCount || 0) >= requiredDays) {
             const pts = parseInt(settings.gamify_points_no_leave_week || "20");
             await awardPoints(emp.id, "no_leave_week", pts, "ไม่ลางานตลอดสัปดาห์");
             weeklyBonuses++;

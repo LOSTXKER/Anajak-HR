@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
         enableEmployeeRegistrationNotifications = settingsMap.enable_employee_registration_notifications === "true";
       }
     } catch (e) {
-      console.log("Could not fetch settings, using defaults");
+      console.debug("Could not fetch settings, using defaults");
     }
 
     // 1. สร้าง user ใน Auth (ใช้ Admin Client)

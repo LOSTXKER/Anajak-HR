@@ -202,7 +202,7 @@ function CheckinContent() {
       const isLate = minutesLate > lateThresholdMinutes;
       const lateMinutes = isLate ? Math.max(0, minutesLate - lateThresholdMinutes) : 0;
 
-      const { error: insertError } = await supabase
+      const { data: insertedLog, error: insertError } = await supabase
         .from("attendance_logs")
         .insert({
           employee_id: employee.id,
@@ -215,7 +215,9 @@ function CheckinContent() {
           late_minutes: lateMinutes,
           work_mode: hasFieldWork ? "field" : hasWFH ? "wfh" : "onsite",
           status: "present",
-        });
+        })
+        .select("id")
+        .single();
 
       if (insertError) {
         if (insertError.code === "23505") {
@@ -246,7 +248,7 @@ function CheckinContent() {
       }
 
       // Gamification (fire-and-forget)
-      processCheckinGamification(employee.id, isLate, now)
+      processCheckinGamification(employee.id, isLate, now, insertedLog?.id)
         .catch((err) => console.error("Gamification error:", err));
 
       setSuccess(true);

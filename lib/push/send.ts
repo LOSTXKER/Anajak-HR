@@ -62,7 +62,7 @@ export async function sendPushToEmployee(
       .single();
 
     if (error || !subscription) {
-      console.log(`No push subscription found for employee ${employeeId}`);
+      console.debug(`No push subscription found for employee ${employeeId}`);
       return false;
     }
 
@@ -85,7 +85,7 @@ export async function sendPushToEmployee(
       pushPayload
     );
 
-    console.log(`Push notification sent to employee ${employeeId}`);
+    console.debug(`Push notification sent to employee ${employeeId}`);
     return true;
 
   } catch (error: any) {
@@ -93,7 +93,7 @@ export async function sendPushToEmployee(
     
     // If subscription is invalid, delete it
     if (error.statusCode === 410 || error.statusCode === 404) {
-      console.log(`Removing invalid subscription for employee ${employeeId}`);
+      console.debug(`Removing invalid subscription for employee ${employeeId}`);
       await supabaseServer
         .from('push_subscriptions')
         .delete()
@@ -118,7 +118,7 @@ export async function sendPushToEmployees(
   const sent = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
   const failed = results.length - sent;
 
-  console.log(`Bulk push sent: ${sent} succeeded, ${failed} failed`);
+  console.debug(`Bulk push sent: ${sent} succeeded, ${failed} failed`);
   
   return { sent, failed };
 }
@@ -136,7 +136,7 @@ export async function sendPushToAllEmployees(
       .select('employee_id');
 
     if (error || !subscriptions || subscriptions.length === 0) {
-      console.log('No active push subscriptions found');
+      console.debug('No active push subscriptions found');
       return { sent: 0, failed: 0 };
     }
 

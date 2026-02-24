@@ -139,7 +139,7 @@ export function scheduleDailyNotifications(settings: NotificationSettings): void
       scheduleDailyNotifications(settings);
     }, timeUntilCheckin);
     
-    console.log(`Check-in reminder scheduled for: ${checkinTime.toLocaleString('th-TH')}`);
+    console.debug(`Check-in reminder scheduled for: ${checkinTime.toLocaleString('th-TH')}`);
   }
   
   // Schedule check-out reminder
@@ -167,7 +167,7 @@ export function scheduleDailyNotifications(settings: NotificationSettings): void
       scheduleDailyNotifications(settings);
     }, timeUntilCheckout);
     
-    console.log(`Check-out reminder scheduled for: ${checkoutTime.toLocaleString('th-TH')}`);
+    console.debug(`Check-out reminder scheduled for: ${checkoutTime.toLocaleString('th-TH')}`);
   }
 }
 

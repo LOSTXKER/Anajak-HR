@@ -11,6 +11,7 @@ import {
   AUTO_APPROVE_SETTINGS,
 } from "@/lib/utils/auto-approve";
 import { Result, success, error as resultError } from "@/lib/types/result";
+import { updateRequestStatus } from "./request-status.service";
 import { format, subDays } from "date-fns";
 
 // Types
@@ -165,24 +166,8 @@ export async function approveLateRequest(
   adminId: string,
   note?: string
 ): Promise<Result<true>> {
-  try {
-    const updateData: Record<string, unknown> = {
-      status: "approved",
-      approved_by: adminId,
-      approved_at: new Date().toISOString(),
-      ...(note ? { admin_note: note } : {}),
-    };
-
-    const { error } = await supabase
-      .from("late_requests")
-      .update(updateData)
-      .eq("id", requestId);
-
-    if (error) throw error;
-    return success(true as const);
-  } catch (err: any) {
-    return resultError(err.message || "Failed to approve late request");
-  }
+  const extraFields = note ? { admin_note: note } : undefined;
+  return updateRequestStatus("late_requests", requestId, "approved", adminId, extraFields);
 }
 
 /**
@@ -193,22 +178,6 @@ export async function rejectLateRequest(
   adminId: string,
   note?: string
 ): Promise<Result<true>> {
-  try {
-    const updateData: Record<string, unknown> = {
-      status: "rejected",
-      approved_by: adminId,
-      approved_at: new Date().toISOString(),
-      ...(note ? { admin_note: note } : {}),
-    };
-
-    const { error } = await supabase
-      .from("late_requests")
-      .update(updateData)
-      .eq("id", requestId);
-
-    if (error) throw error;
-    return success(true as const);
-  } catch (err: any) {
-    return resultError(err.message || "Failed to reject late request");
-  }
+  const extraFields = note ? { admin_note: note } : undefined;
+  return updateRequestStatus("late_requests", requestId, "rejected", adminId, extraFields);
 }

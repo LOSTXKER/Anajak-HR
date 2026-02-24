@@ -31,9 +31,12 @@ ON CONFLICT DO NOTHING;
 ALTER TABLE salary_history ENABLE ROW LEVEL SECURITY;
 
 -- Allow authenticated users to read salary_history
-CREATE POLICY "salary_history_select" ON salary_history
-  FOR SELECT TO authenticated USING (true);
-
--- Allow authenticated users to insert salary_history
-CREATE POLICY "salary_history_insert" ON salary_history
-  FOR INSERT TO authenticated WITH CHECK (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'salary_history_select' AND tablename = 'salary_history') THEN
+    CREATE POLICY "salary_history_select" ON salary_history FOR SELECT TO authenticated USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'salary_history_insert' AND tablename = 'salary_history') THEN
+    CREATE POLICY "salary_history_insert" ON salary_history FOR INSERT TO authenticated WITH CHECK (true);
+  END IF;
+END $$;

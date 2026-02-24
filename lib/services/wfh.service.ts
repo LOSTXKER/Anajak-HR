@@ -5,8 +5,9 @@
  */
 
 import { supabase } from "@/lib/supabase/client";
-import { format } from "date-fns";
+import { getTodayTH } from "@/lib/utils/date";
 import { Result, success, error as resultError } from "@/lib/types/result";
+import { updateRequestStatus } from "./request-status.service";
 import type { WFHRequest } from "@/lib/types";
 
 /**
@@ -90,7 +91,7 @@ export async function getWFHHistory(
  */
 export async function getPendingWFH(employeeId: string): Promise<WFHRequest[]> {
     try {
-        const today = format(new Date(), "yyyy-MM-dd");
+        const today = getTodayTH();
 
         const { data, error } = await supabase
             .from("wfh_requests")
@@ -112,53 +113,15 @@ export async function getPendingWFH(employeeId: string): Promise<WFHRequest[]> {
 /**
  * Approve WFH request (admin)
  */
-export async function approveWFH(
-    wfhId: string,
-    adminId: string
-): Promise<{ success: boolean; error?: string }> {
-    try {
-        const { error } = await supabase
-            .from("wfh_requests")
-            .update({
-                status: "approved",
-                approved_by: adminId,
-                approved_at: new Date().toISOString(),
-            })
-            .eq("id", wfhId);
-
-        if (error) throw error;
-
-        return { success: true };
-    } catch (error) {
-        console.error("Error approving WFH:", error);
-        return { success: false, error: "Failed to approve WFH" };
-    }
+export async function approveWFH(wfhId: string, adminId: string): Promise<Result<true>> {
+    return updateRequestStatus("wfh_requests", wfhId, "approved", adminId);
 }
 
 /**
  * Reject WFH request (admin)
  */
-export async function rejectWFH(
-    wfhId: string,
-    adminId: string
-): Promise<{ success: boolean; error?: string }> {
-    try {
-        const { error } = await supabase
-            .from("wfh_requests")
-            .update({
-                status: "rejected",
-                approved_by: adminId,
-                approved_at: new Date().toISOString(),
-            })
-            .eq("id", wfhId);
-
-        if (error) throw error;
-
-        return { success: true };
-    } catch (error) {
-        console.error("Error rejecting WFH:", error);
-        return { success: false, error: "Failed to reject WFH" };
-    }
+export async function rejectWFH(wfhId: string, adminId: string): Promise<Result<true>> {
+    return updateRequestStatus("wfh_requests", wfhId, "rejected", adminId);
 }
 
 /**
@@ -195,20 +158,8 @@ export async function getAllWFHRequests(
 /**
  * Cancel WFH request
  */
-export async function cancelWFH(wfhId: string): Promise<{ success: boolean; error?: string }> {
-    try {
-        const { error } = await supabase
-            .from("wfh_requests")
-            .update({ status: "cancelled" })
-            .eq("id", wfhId);
-
-        if (error) throw error;
-
-        return { success: true };
-    } catch (error) {
-        console.error("Error cancelling WFH:", error);
-        return { success: false, error: "Failed to cancel WFH" };
-    }
+export async function cancelWFH(wfhId: string): Promise<Result<true>> {
+    return updateRequestStatus("wfh_requests", wfhId, "cancelled");
 }
 
 /**
@@ -216,7 +167,7 @@ export async function cancelWFH(wfhId: string): Promise<{ success: boolean; erro
  */
 export async function isTodayWFH(employeeId: string): Promise<boolean> {
     try {
-        const today = format(new Date(), "yyyy-MM-dd");
+        const today = getTodayTH();
 
         const { data, error } = await supabase
             .from("wfh_requests")

@@ -193,11 +193,17 @@ export function withAuth(
   handler: (request: NextRequest, auth: AuthResult) => Promise<Response>
 ) {
   return async (request: NextRequest): Promise<Response> => {
+    let auth: AuthResult;
     try {
-      const auth = await requireAuth(request);
-      return await handler(request, auth);
+      auth = await requireAuth(request);
     } catch (error) {
       return handleAuthError(error);
+    }
+    try {
+      return await handler(request, auth);
+    } catch (err) {
+      console.error("Unhandled API error:", err);
+      return Response.json({ error: "Internal server error" }, { status: 500 });
     }
   };
 }
@@ -209,11 +215,17 @@ export function withAdmin(
   handler: (request: NextRequest, auth: AuthResult) => Promise<Response>
 ) {
   return async (request: NextRequest): Promise<Response> => {
+    let auth: AuthResult;
     try {
-      const auth = await requireAdmin(request);
-      return await handler(request, auth);
+      auth = await requireAdmin(request);
     } catch (error) {
       return handleAuthError(error);
+    }
+    try {
+      return await handler(request, auth);
+    } catch (err) {
+      console.error("Unhandled API error:", err);
+      return Response.json({ error: "Internal server error" }, { status: 500 });
     }
   };
 }
@@ -225,11 +237,17 @@ export function withStrictAdmin(
   handler: (request: NextRequest, auth: AuthResult) => Promise<Response>
 ) {
   return async (request: NextRequest): Promise<Response> => {
+    let auth: AuthResult;
     try {
-      const auth = await requireStrictAdmin(request);
-      return await handler(request, auth);
+      auth = await requireStrictAdmin(request);
     } catch (error) {
       return handleAuthError(error);
+    }
+    try {
+      return await handler(request, auth);
+    } catch (err) {
+      console.error("Unhandled API error:", err);
+      return Response.json({ error: "Internal server error" }, { status: 500 });
     }
   };
 }

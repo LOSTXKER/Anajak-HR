@@ -5,19 +5,21 @@
  */
 
 import { supabase } from "@/lib/supabase/client";
-import { format, differenceInMinutes } from "date-fns";
+import { differenceInMinutes } from "date-fns";
+import { getTodayTH } from "@/lib/utils/date";
 import { getOTRateForDate } from "./holiday.service";
 import { createOrUpdateAttendance } from "./attendance.service";
 import { getSystemSettings } from "./settings.service";
 import { checkAutoApprove, applyAutoApproveFields, AUTO_APPROVE_SETTINGS } from "@/lib/utils/auto-approve";
 import { Result, success, error as resultError } from "@/lib/types/result";
+import { updateRequestStatus } from "./request-status.service";
 import type { OTRequest, Location } from "@/lib/types";
 
 /**
  * Get active OT session for an employee
  */
 export async function getActiveOT(employeeId: string): Promise<OTRequest | null> {
-    const today = format(new Date(), "yyyy-MM-dd");
+    const today = getTodayTH();
     try {
         const { data, error } = await supabase
             .from("ot_requests")
@@ -31,7 +33,8 @@ export async function getActiveOT(employeeId: string): Promise<OTRequest | null>
 
         if (error) throw error;
         return data as OTRequest | null;
-    } catch {
+    } catch (err) {
+        console.error("Error fetching active OT:", err);
         return null;
     }
 }
@@ -40,7 +43,7 @@ export async function getActiveOT(employeeId: string): Promise<OTRequest | null>
  * Get pending OT requests ready to start (approved, not yet started)
  */
 export async function getPendingOT(employeeId: string, date?: string): Promise<OTRequest[]> {
-    const targetDate = date || format(new Date(), "yyyy-MM-dd");
+    const targetDate = date || getTodayTH();
     try {
         const { data, error } = await supabase
             .from("ot_requests")
@@ -53,7 +56,8 @@ export async function getPendingOT(employeeId: string, date?: string): Promise<O
 
         if (error) throw error;
         return (data || []) as OTRequest[];
-    } catch {
+    } catch (err) {
+        console.error("Error fetching pending OT:", err);
         return [];
     }
 }
@@ -71,7 +75,8 @@ export async function getOTRequest(otId: string): Promise<OTRequest | null> {
 
         if (error) throw error;
         return data as OTRequest | null;
-    } catch {
+    } catch (err) {
+        console.error("Error fetching OT request:", err);
         return null;
     }
 }
@@ -247,43 +252,17 @@ export async function approveOT(
     adminId: string,
     modifications?: { approvedStartTime?: string; approvedEndTime?: string }
 ): Promise<Result<true>> {
-    try {
-        const updateData: any = {
-            status: "approved",
-            approved_by: adminId,
-            approved_at: new Date().toISOString(),
-            ...(modifications?.approvedStartTime ? { approved_start_time: modifications.approvedStartTime } : {}),
-            ...(modifications?.approvedEndTime ? { approved_end_time: modifications.approvedEndTime } : {}),
-        };
-
-        const { error } = await supabase.from("ot_requests").update(updateData).eq("id", otId);
-        if (error) throw error;
-
-        return success(true as const);
-    } catch (err: any) {
-        return resultError(err.message || "Failed to approve OT");
-    }
+    const extraFields: Record<string, unknown> = {};
+    if (modifications?.approvedStartTime) extraFields.approved_start_time = modifications.approvedStartTime;
+    if (modifications?.approvedEndTime) extraFields.approved_end_time = modifications.approvedEndTime;
+    return updateRequestStatus("ot_requests", otId, "approved", adminId, Object.keys(extraFields).length ? extraFields : undefined);
 }
 
 /**
  * Reject an OT request (admin)
  */
-export async function rejectOT(otId: string, adminId: string, reason?: string): Promise<Result<true>> {
-    try {
-        const { error } = await supabase
-            .from("ot_requests")
-            .update({
-                status: "rejected",
-                approved_by: adminId,
-                approved_at: new Date().toISOString(),
-            })
-            .eq("id", otId);
-
-        if (error) throw error;
-        return success(true as const);
-    } catch (err: any) {
-        return resultError(err.message || "Failed to reject OT");
-    }
+export async function rejectOT(otId: string, adminId: string): Promise<Result<true>> {
+    return updateRequestStatus("ot_requests", otId, "rejected", adminId);
 }
 
 /**
@@ -305,7 +284,8 @@ export async function getOTHistory(
 
         if (error) throw error;
         return (data || []) as OTRequest[];
-    } catch {
+    } catch (err) {
+        console.error("Error fetching OT history:", err);
         return [];
     }
 }
@@ -332,7 +312,8 @@ export async function getAllOTRequests(
         if (error) throw error;
 
         return (data || []) as OTRequest[];
-    } catch {
+    } catch (err) {
+        console.error("Error fetching all OT requests:", err);
         return [];
     }
 }
@@ -358,7 +339,8 @@ export async function getCompletedOTForPayroll(
 
         if (error) throw error;
         return (data || []) as OTRequest[];
-    } catch {
+    } catch (err) {
+        console.error("Error fetching employee OT:", err);
         return [];
     }
 }

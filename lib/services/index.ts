@@ -4,6 +4,9 @@
  * Re-export all services for easy importing
  */
 
+// Request Status Service (generic approve/reject helper)
+export { updateRequestStatus } from "./request-status.service";
+
 // Settings Service
 export {
     getSystemSettings,

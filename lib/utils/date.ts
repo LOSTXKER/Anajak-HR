@@ -10,6 +10,8 @@
 
 import { format } from "date-fns";
 
+const TH_TIMEZONE = "Asia/Bangkok";
+
 /**
  * Parse a date string as local timezone
  * Fixes the issue where "YYYY-MM-DD" is parsed as UTC by default
@@ -54,12 +56,27 @@ export function getLocalDayOfWeek(dateStr: string): number {
 }
 
 /**
- * Get today's date as a string in local timezone
- * 
- * @returns Today's date in format 'YYYY-MM-DD'
+ * Get today's date in Thailand timezone (UTC+7).
+ * Safe for server-side use regardless of system timezone.
+ */
+export function getTodayTH(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: TH_TIMEZONE });
+}
+
+/**
+ * Get the current Date object adjusted to Thailand timezone components.
+ * Useful when you need hours/minutes in Thai time.
+ */
+export function getNowTH(): Date {
+  const str = new Date().toLocaleString("en-US", { timeZone: TH_TIMEZONE });
+  return new Date(str);
+}
+
+/**
+ * @deprecated Use getTodayTH() for explicit timezone safety
  */
 export function getLocalToday(): string {
-  return format(new Date(), "yyyy-MM-dd");
+  return getTodayTH();
 }
 
 /**

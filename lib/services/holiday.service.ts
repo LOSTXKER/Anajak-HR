@@ -69,7 +69,8 @@ export async function isHoliday(date: string, branchId?: string): Promise<Holida
 
         if (error) return null;
         return data || null;
-    } catch {
+    } catch (err) {
+        console.error("Error checking holiday:", err);
         return null;
     }
 }
@@ -165,7 +166,8 @@ export async function getHolidaysInRange(
 
         if (error) throw error;
         return (data || []) as Holiday[];
-    } catch {
+    } catch (err) {
+        console.error("Error fetching holidays in range:", err);
         return [];
     }
 }
@@ -217,7 +219,8 @@ export async function getUpcomingHolidays(
 
         if (error) throw error;
         return (data || []) as Holiday[];
-    } catch {
+    } catch (err) {
+        console.error("Error fetching upcoming holidays:", err);
         return [];
     }
 }

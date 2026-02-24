@@ -5,10 +5,11 @@
  */
 
 import { supabase } from "@/lib/supabase/client";
-import { format, differenceInCalendarDays, parseISO, eachDayOfInterval, isWeekend } from "date-fns";
-import { isHoliday, getWorkingDays } from "./holiday.service";
+import { format, parseISO, eachDayOfInterval } from "date-fns";
+import { getWorkingDays, getHolidaysInRange } from "./holiday.service";
 import { checkAutoApprove, applyAutoApproveFields, AUTO_APPROVE_SETTINGS } from "@/lib/utils/auto-approve";
 import { Result, success, error as resultError } from "@/lib/types/result";
+import { updateRequestStatus } from "./request-status.service";
 import type { LeaveRequest } from "@/lib/types";
 
 /**
@@ -160,43 +161,15 @@ export async function getPendingLeave(employeeId: string): Promise<LeaveRequest[
 /**
  * Approve leave request (admin)
  */
-export async function approveLeave(
-    leaveId: string,
-    adminId: string
-): Promise<Result<true>> {
-    try {
-        const { error } = await supabase
-            .from("leave_requests")
-            .update({ status: "approved", approved_by: adminId, approved_at: new Date().toISOString() })
-            .eq("id", leaveId);
-
-        if (error) throw error;
-        return success(true as const);
-    } catch (err: any) {
-        console.error("Error approving leave:", err);
-        return resultError(err.message || "Failed to approve leave");
-    }
+export async function approveLeave(leaveId: string, adminId: string): Promise<Result<true>> {
+    return updateRequestStatus("leave_requests", leaveId, "approved", adminId);
 }
 
 /**
  * Reject leave request (admin)
  */
-export async function rejectLeave(
-    leaveId: string,
-    adminId: string
-): Promise<Result<true>> {
-    try {
-        const { error } = await supabase
-            .from("leave_requests")
-            .update({ status: "rejected", approved_by: adminId, approved_at: new Date().toISOString() })
-            .eq("id", leaveId);
-
-        if (error) throw error;
-        return success(true as const);
-    } catch (err: any) {
-        console.error("Error rejecting leave:", err);
-        return resultError(err.message || "Failed to reject leave");
-    }
+export async function rejectLeave(leaveId: string, adminId: string): Promise<Result<true>> {
+    return updateRequestStatus("leave_requests", leaveId, "rejected", adminId);
 }
 
 /**
@@ -214,9 +187,13 @@ export async function calculateLeaveDays(
 
     const start = parseISO(startDate);
     const end = parseISO(endDate);
-    const workingDays = await getWorkingDays();
 
-    // Get all days in range
+    const [workingDays, holidays] = await Promise.all([
+        getWorkingDays(),
+        getHolidaysInRange(startDate, endDate, branchId),
+    ]);
+
+    const holidayDates = new Set(holidays.map((h) => h.date));
     const days = eachDayOfInterval({ start, end });
 
     let count = 0;
@@ -224,17 +201,10 @@ export async function calculateLeaveDays(
         const dayOfWeek = day.getDay();
         const ourDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
 
-        // Skip if not a working day
-        if (!workingDays.includes(ourDayOfWeek)) {
-            continue;
-        }
+        if (!workingDays.includes(ourDayOfWeek)) continue;
 
-        // Skip if holiday
         const dateStr = format(day, "yyyy-MM-dd");
-        const holiday = await isHoliday(dateStr, branchId);
-        if (holiday) {
-            continue;
-        }
+        if (holidayDates.has(dateStr)) continue;
 
         count++;
     }

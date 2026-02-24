@@ -135,7 +135,8 @@ export async function getSystemSettings(): Promise<AllSettings> {
         cacheTimestamp = now;
 
         return settings;
-    } catch {
+    } catch (err) {
+        console.error("Error fetching system settings:", err);
         return DEFAULT_SETTINGS;
     }
 }
@@ -250,7 +251,8 @@ export async function getSetting<T>(key: string, defaultValue: T): Promise<T> {
         }
 
         return defaultValue;
-    } catch {
+    } catch (err) {
+        console.error("Error fetching setting:", err);
         return defaultValue;
     }
 }

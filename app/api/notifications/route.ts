@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { type, data } = body;
 
-    console.log("[Notifications API] Received request:", { type, data });
+    console.debug("[Notifications API] Received request:", { type, data });
 
     // Get notification settings
     const { data: settingsData } = await supabaseServer
@@ -54,8 +54,8 @@ export async function POST(request: NextRequest) {
 
     // Check global notification toggle
     if (settingsMap.enable_notifications !== "true") {
-      console.log("[Notifications API] Global notifications disabled");
-      return Response.json({ success: false, message: "Notifications disabled" });
+      console.debug("[Notifications API] Global notifications disabled");
+      return Response.json({ error: "Notifications disabled" }, { status: 503 });
     }
 
     let message = "";
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
 
       case "ot_approval":
         if (settingsMap.ot_notify_on_approval !== "false") {
-          console.log("[Notifications API] Processing OT approval...");
+          console.debug("[Notifications API] Processing OT approval...");
           try {
             const dateStr = data.date ? format(new Date(data.date), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
             const startTimeStr = data.startTime ? format(new Date(data.startTime), "HH:mm") : "ไม่ระบุ";
@@ -335,7 +335,10 @@ ${data.isPinned ? "📍 ปักหมุดประกาศนี้" : ""}`
         return Response.json({ error: "Invalid notification type" }, { status: 400 });
     }
 
-    return Response.json({ success, message: success ? "Notification sent" : "Notification skipped" });
+    if (!success) {
+      return Response.json({ success: false, message: "Notification skipped" });
+    }
+    return Response.json({ success, message: "Notification sent" });
   } catch (error: unknown) {
     console.error("Error sending notification:", error);
     const errorMessage = error instanceof Error ? error.message : "Failed to send notification";

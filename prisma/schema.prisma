@@ -98,7 +98,6 @@ model attendance_logs {
   employees_attendance_logs_employee_idToemployees employees              @relation("attendance_logs_employee_idToemployees", fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([employee_id, work_date], map: "attendance_logs_employee_date_unique")
-  @@unique([employee_id, work_date])
   @@index([employee_id, work_date], map: "idx_attendance_employee_date")
   @@index([work_date], map: "idx_attendance_work_date")
 }
@@ -308,7 +307,11 @@ model leave_requests {
   employees_leave_requests_cancelled_byToemployees employees? @relation("leave_requests_cancelled_byToemployees", fields: [cancelled_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_leave_requests_employee_idToemployees  employees  @relation("leave_requests_employee_idToemployees", fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@index([employee_id], map: "idx_leave_requests_employee")
+  @@index([status], map: "idx_leave_requests_status")
+  @@index([approved_by], map: "idx_leave_requests_approved_by")
   @@index([cancelled_by], map: "idx_leave_requests_cancelled_by")
+  @@index([start_date, end_date], map: "idx_leave_requests_dates")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -400,7 +403,11 @@ model wfh_requests {
   employees_wfh_requests_cancelled_byToemployees employees? @relation("wfh_requests_cancelled_byToemployees", fields: [cancelled_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_wfh_requests_employee_idToemployees  employees  @relation("wfh_requests_employee_idToemployees", fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@index([employee_id], map: "idx_wfh_requests_employee")
+  @@index([status], map: "idx_wfh_requests_status")
+  @@index([approved_by], map: "idx_wfh_requests_approved_by")
   @@index([cancelled_by], map: "idx_wfh_requests_cancelled_by")
+  @@index([date], map: "idx_wfh_requests_date")
 }
 
 model salary_history {

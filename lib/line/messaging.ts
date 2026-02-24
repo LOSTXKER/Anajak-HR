@@ -19,7 +19,7 @@ interface LineMessage {
  */
 export async function getLineSettings() {
   try {
-    console.log("[LINE] Fetching settings from database...");
+    console.debug("[LINE] Fetching settings from database...");
     
     const { data, error } = await supabaseServer
       .from("system_settings")
@@ -45,7 +45,7 @@ export async function getLineSettings() {
       settings[item.setting_key] = item.setting_value;
     });
 
-    console.log("[LINE] Settings loaded:", {
+    console.debug("[LINE] Settings loaded:", {
       enable_notifications: settings.enable_notifications,
       hasToken: !!settings.line_channel_access_token,
       hasRecipient: !!settings.line_recipient_id,
@@ -71,7 +71,7 @@ export async function sendLineMessage(
   accessToken?: string
 ): Promise<boolean> {
   try {
-    console.log("[LINE] Attempting to send message...");
+    console.debug("[LINE] Attempting to send message...");
     
     // Get settings from database if not provided
     const settings = await getLineSettings();
@@ -82,7 +82,7 @@ export async function sendLineMessage(
     }
 
     if (settings.enable_notifications !== "true") {
-      console.log("[LINE] Notifications are disabled in settings");
+      console.debug("[LINE] Notifications are disabled in settings");
       return false;
     }
 
@@ -99,7 +99,7 @@ export async function sendLineMessage(
       return false;
     }
 
-    console.log("[LINE] Sending to:", recipient.substring(0, 10) + "...");
+    console.debug("[LINE] Sending to:", recipient.substring(0, 10) + "...");
 
     const messages: LineMessage[] = [
       {
@@ -126,7 +126,7 @@ export async function sendLineMessage(
       throw new Error(`LINE Messaging API error: ${JSON.stringify(error)}`);
     }
 
-    console.log("[LINE] Message sent successfully!");
+    console.debug("[LINE] Message sent successfully!");
     return true;
   } catch (error) {
     console.error("[LINE] Error sending message:", error);
@@ -151,7 +151,7 @@ export async function sendLineMulticast(
     const settings = await getLineSettings();
 
     if (!settings || settings.enable_notifications !== "true") {
-      console.log("LINE notifications are disabled");
+      console.debug("LINE notifications are disabled");
       return false;
     }
 
