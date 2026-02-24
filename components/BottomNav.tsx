@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Home, User, Bell, Settings, Target } from "lucide-react";
+import { Home, User, Bell, Settings, Target, Trophy } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -58,6 +58,12 @@ export function BottomNav() {
       isActive: pathname === "/",
     },
     {
+      name: "อันดับ",
+      href: "/leaderboard",
+      icon: Trophy,
+      isActive: pathname?.startsWith("/leaderboard"),
+    },
+    {
       name: "KPI",
       href: "/kpi",
       icon: Target,
@@ -71,7 +77,7 @@ export function BottomNav() {
       badge: unreadCount,
     },
     {
-      name: "ประวัติ",
+      name: "โปรไฟล์",
       href: "/my-profile",
       icon: User,
       isActive: pathname?.startsWith("/my-profile"),
@@ -94,7 +100,7 @@ export function BottomNav() {
               <button
                 key={tab.href}
                 onClick={() => router.push(tab.href)}
-                className={`flex flex-col items-center justify-center min-w-[60px] px-2 py-1.5 rounded-xl transition-all relative ${
+                className={`flex flex-col items-center justify-center min-w-[48px] px-1 py-1.5 rounded-xl transition-all relative ${
                   tab.isActive
                     ? "text-[#0071e3]"
                     : "text-[#86868b] active:bg-[#f5f5f7]"
