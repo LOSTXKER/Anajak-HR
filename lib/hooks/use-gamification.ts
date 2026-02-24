@@ -1,28 +1,23 @@
 /**
  * Gamification Hooks
  * =============================================
- * SWR hooks for gamification data via API routes
+ * SWR hooks for gamification data
+ * Uses client-side Supabase with user session (RLS applies).
+ * employees table has a broad read policy for all authenticated users.
  */
 
 import useSWR from "swr";
 import { useAuth } from "@/lib/auth/auth-context";
-import { supabase } from "@/lib/supabase/client";
+import {
+  getEmployeeGameProfile,
+  getBadgesWithProgress,
+  getLeaderboard,
+} from "@/lib/services/gamification.service";
 import type {
   GameProfile,
   BadgeWithProgress,
   LeaderboardEntry,
 } from "@/lib/services/gamification.service";
-
-async function apiFetcher<T>(url: string): Promise<T> {
-  const { data: { session } } = await supabase.auth.getSession();
-  const res = await fetch(url, {
-    headers: session?.access_token
-      ? { Authorization: `Bearer ${session.access_token}` }
-      : {},
-  });
-  if (!res.ok) throw new Error("API request failed");
-  return res.json();
-}
 
 /**
  * Hook for current user's game profile
@@ -31,8 +26,8 @@ export function useGameProfile() {
   const { employee } = useAuth();
 
   const { data, error, isLoading, mutate } = useSWR<GameProfile>(
-    employee?.id ? "/api/gamification/profile" : null,
-    apiFetcher<GameProfile>,
+    employee?.id ? `gamification:profile:${employee.id}` : null,
+    () => getEmployeeGameProfile(employee!.id),
     { refreshInterval: 60000, dedupingInterval: 10000 }
   );
 
@@ -52,19 +47,16 @@ export function useLeaderboard(
   branchId?: string
 ) {
   const { employee } = useAuth();
-  const params = new URLSearchParams({ period });
-  if (branchId) params.set("branch", branchId);
-  const url = `/api/gamification/leaderboard?${params}`;
 
-  const { data, error, isLoading, mutate } = useSWR<{ leaderboard: LeaderboardEntry[]; currentUserId: string }>(
-    employee?.id ? url : null,
-    apiFetcher<{ leaderboard: LeaderboardEntry[]; currentUserId: string }>,
+  const { data, error, isLoading, mutate } = useSWR<LeaderboardEntry[]>(
+    employee?.id ? `gamification:leaderboard:${period}:${branchId || "all"}` : null,
+    () => getLeaderboard(period, branchId),
     { refreshInterval: 120000, dedupingInterval: 30000 }
   );
 
   return {
-    leaderboard: data?.leaderboard || [],
-    currentUserId: data?.currentUserId || employee?.id,
+    leaderboard: data || [],
+    currentUserId: employee?.id,
     isLoading,
     error,
     refetch: mutate,
@@ -77,14 +69,14 @@ export function useLeaderboard(
 export function useBadges() {
   const { employee } = useAuth();
 
-  const { data, error, isLoading, mutate } = useSWR<{ badges: BadgeWithProgress[] }>(
-    employee?.id ? "/api/gamification/badges" : null,
-    apiFetcher<{ badges: BadgeWithProgress[] }>,
+  const { data, error, isLoading, mutate } = useSWR<BadgeWithProgress[]>(
+    employee?.id ? `gamification:badges:${employee.id}` : null,
+    () => getBadgesWithProgress(employee!.id),
     { refreshInterval: 120000, dedupingInterval: 30000 }
   );
 
   return {
-    badges: data?.badges || [],
+    badges: data || [],
     isLoading,
     error,
     refetch: mutate,

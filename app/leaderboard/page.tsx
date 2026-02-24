@@ -8,7 +8,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { Avatar } from "@/components/ui/Avatar";
 import { useLeaderboard, useGameProfile } from "@/lib/hooks/use-gamification";
 import { supabase } from "@/lib/supabase/client";
-import { LEVELS } from "@/lib/services/gamification.service";
+import { LEVELS, getEmployeeGameProfile, getBadgesWithProgress } from "@/lib/services/gamification.service";
 import {
   ArrowLeft,
   Trophy,
@@ -87,15 +87,22 @@ function LeaderboardContent() {
     setSelectedPlayer(employeeId);
     setPlayerLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`/api/gamification/profile?employeeId=${employeeId}`, {
-        headers: session?.access_token
-          ? { Authorization: `Bearer ${session.access_token}` }
-          : {},
+      const [profile, badges] = await Promise.all([
+        getEmployeeGameProfile(employeeId),
+        getBadgesWithProgress(employeeId),
+      ]);
+
+      const { data: emp } = await supabase
+        .from("employees")
+        .select("name")
+        .eq("id", employeeId)
+        .maybeSingle();
+
+      setPlayerProfile({
+        ...profile,
+        employeeName: emp?.name || "",
+        badges: badges.filter((b) => b.earned),
       });
-      if (res.ok) {
-        setPlayerProfile(await res.json());
-      }
     } catch (err) {
       console.error("Error fetching player profile:", err);
     } finally {
