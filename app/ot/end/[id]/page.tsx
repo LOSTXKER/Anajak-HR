@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { format, differenceInMinutes } from "date-fns";
 import { th } from "date-fns/locale";
+import { processOTGamification } from "@/lib/services/gamification.service";
 
 interface OTRequest {
   id: string;
@@ -269,6 +270,10 @@ function OTEndContent({ id }: { id: string }) {
       } catch (notifyError) {
         console.error("Notification error:", notifyError);
       }
+
+      // Gamification (fire-and-forget)
+      processOTGamification(employee.id, id)
+        .catch((err) => console.error("Gamification error:", err));
 
       setSuccess(true);
       stopCamera();

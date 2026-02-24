@@ -18,6 +18,7 @@ import {
   Clock, Navigation, RotateCcw,
 } from "lucide-react";
 import { format } from "date-fns";
+import { processCheckoutGamification } from "@/lib/services/gamification.service";
 
 function CheckoutContent() {
   const { employee } = useAuth();
@@ -256,6 +257,10 @@ function CheckoutContent() {
       } catch (notifyError) {
         console.error("Notification error:", notifyError);
       }
+
+      // Gamification (fire-and-forget)
+      processCheckoutGamification(employee.id, todayLog.id)
+        .catch((err) => console.error("Gamification error:", err));
 
       setSuccess(true);
       stopCamera();

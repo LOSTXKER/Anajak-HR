@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { getDayType } from "@/lib/services/holiday.service";
+import { processCheckinGamification } from "@/lib/services/gamification.service";
 
 function CheckinContent() {
   const { employee } = useAuth();
@@ -243,6 +244,10 @@ function CheckinContent() {
       } catch (notifyError) {
         console.error("Notification error:", notifyError);
       }
+
+      // Gamification (fire-and-forget)
+      processCheckinGamification(employee.id, isLate, now)
+        .catch((err) => console.error("Gamification error:", err));
 
       setSuccess(true);
       stopCamera();

@@ -20,6 +20,7 @@ import {
   Zap,
   Building2,
   CalendarDays,
+  Trophy,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { useState, useEffect } from "react";
@@ -120,6 +121,7 @@ export function Sidebar() {
       title: "ตั้งค่า",
       items: [
         { title: "ตั้งค่าระบบ", href: "/admin/settings", icon: Settings },
+        { title: "Gamification", href: "/admin/settings/gamification", icon: Trophy },
         { title: "สาขา", href: "/admin/branches", icon: Building2 },
         { title: "วันหยุด", href: "/admin/holidays", icon: CalendarDays },
       ],

@@ -74,3 +74,6 @@ export { usePayroll } from "./use-payroll";
 
 // Admin Monitor Hook
 export { useMonitor } from "./use-monitor";
+
+// Gamification Hooks
+export { useGameProfile, useLeaderboard, useBadges } from "./use-gamification";

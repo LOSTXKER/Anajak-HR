@@ -131,4 +131,30 @@ export {
     sendCheckinNotification,
     sendCheckoutNotification,
     sendPushNotification,
+    sendBadgeNotification,
 } from "./notification.service";
+
+// Gamification Service
+export {
+    awardPoints,
+    processCheckinGamification,
+    processCheckoutGamification,
+    processOTGamification,
+    checkAndAwardBadges,
+    updateStreak,
+    calculateLevel,
+    getLevelProgress,
+    getEmployeeGameProfile,
+    getBadgesWithProgress,
+    getLeaderboard,
+    getGamificationSettings,
+    recalculateEmployeePoints,
+    LEVELS,
+} from "./gamification.service";
+export type {
+    ActionType,
+    GameProfile,
+    EarnedBadge,
+    BadgeWithProgress,
+    LeaderboardEntry,
+} from "./gamification.service";

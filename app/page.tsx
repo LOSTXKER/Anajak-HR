@@ -24,6 +24,7 @@ import {
   UpcomingHolidaysCard,
   MonthlySummaryCards,
   QuickActionsGrid,
+  GameStatusCard,
 } from "@/components/dashboard";
 
 
@@ -295,6 +296,9 @@ export default function HomePage() {
           leaveBalance={leaveBalance}
           employee={employee}
         />
+
+        {/* Gamification Status */}
+        <GameStatusCard />
 
         {/* Quick Actions Grid */}
         <QuickActionsGrid unreadAnnouncementCount={unreadAnnouncementCount} />

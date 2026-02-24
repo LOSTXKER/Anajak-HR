@@ -113,3 +113,20 @@ export async function sendPushNotification(data: {
     return false;
   }
 }
+
+/**
+ * Send badge earned notification via push
+ */
+export async function sendBadgeNotification(data: {
+  employeeId: string;
+  badgeName: string;
+  badgeIcon: string;
+  pointsReward: number;
+}): Promise<boolean> {
+  return sendPushNotification({
+    title: `${data.badgeIcon} ได้รับเหรียญใหม่!`,
+    body: `คุณได้รับเหรียญ "${data.badgeName}" (+${data.pointsReward} แต้ม)`,
+    employeeId: data.employeeId,
+    url: "/my-profile?tab=badges",
+  });
+}

@@ -180,6 +180,9 @@ model employees {
   wfh_requests_wfh_requests_cancelled_byToemployees                wfh_requests[]         @relation("wfh_requests_cancelled_byToemployees")
   wfh_requests_wfh_requests_employee_idToemployees                 wfh_requests[]         @relation("wfh_requests_employee_idToemployees")
   salary_history                                                   salary_history[]
+  employee_badges                                                  employee_badges[]
+  point_transactions                                               point_transactions[]
+  employee_points                                                  employee_points?
 
   @@index([account_status], map: "idx_employees_account_status")
   @@index([branch_id], map: "idx_employees_branch")
@@ -410,4 +413,75 @@ model salary_history {
   employees      employees @relation(fields: [employee_id], references: [id], onDelete: Cascade)
 
   @@index([employee_id, effective_date(sort: Desc)], map: "idx_salary_history_employee_date")
+}
+
+/// Gamification: Master badge definitions
+model badge_definitions {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code            String            @unique @db.VarChar(50)
+  name            String            @db.VarChar(100)
+  description     String?
+  icon            String            @default("🏅") @db.VarChar(50)
+  category        String            @default("attendance") @db.VarChar(30)
+  tier            String            @default("bronze") @db.VarChar(20)
+  condition_type  String            @db.VarChar(50)
+  condition_value Int               @default(1)
+  points_reward   Int               @default(0)
+  is_active       Boolean           @default(true)
+  created_at      DateTime?         @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime?         @default(now()) @db.Timestamptz(6)
+  employee_badges employee_badges[]
+}
+
+/// Gamification: Earned badges per employee
+model employee_badges {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employee_id       String           @db.Uuid
+  badge_id          String           @db.Uuid
+  earned_at         DateTime?        @default(now()) @db.Timestamptz(6)
+  month_context     String?          @db.VarChar(7)
+  badge_definitions badge_definitions @relation(fields: [badge_id], references: [id], onDelete: Cascade)
+  employees         employees        @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+
+  @@unique([employee_id, badge_id, month_context])
+  @@index([employee_id], map: "idx_employee_badges_employee")
+  @@index([badge_id], map: "idx_employee_badges_badge")
+  @@index([earned_at(sort: Desc)], map: "idx_employee_badges_earned")
+}
+
+/// Gamification: Point transaction ledger
+model point_transactions {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employee_id    String    @db.Uuid
+  points         Int
+  action_type    String    @db.VarChar(50)
+  description    String?
+  reference_id   String?   @db.Uuid
+  reference_type String?   @db.VarChar(30)
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  employees      employees @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+
+  @@index([employee_id], map: "idx_point_transactions_employee")
+  @@index([created_at(sort: Desc)], map: "idx_point_transactions_created")
+  @@index([action_type], map: "idx_point_transactions_action")
+}
+
+/// Gamification: Aggregated point summary per employee
+model employee_points {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employee_id      String    @unique @db.Uuid
+  total_points     Int       @default(0)
+  monthly_points   Int       @default(0)
+  current_month    String    @default(dbgenerated("to_char(now(), 'YYYY-MM'::text)")) @db.VarChar(7)
+  level            Int       @default(1)
+  level_name       String    @default("Rookie") @db.VarChar(50)
+  current_streak   Int       @default(0)
+  longest_streak   Int       @default(0)
+  last_streak_date DateTime? @db.Date
+  updated_at       DateTime? @default(now()) @db.Timestamptz(6)
+  employees        employees @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+
+  @@index([total_points(sort: Desc)], map: "idx_employee_points_total")
+  @@index([monthly_points(sort: Desc)], map: "idx_employee_points_monthly")
+  @@index([level(sort: Desc)], map: "idx_employee_points_level")
 }

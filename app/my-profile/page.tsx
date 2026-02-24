@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { Card } from "@/components/ui/Card";
@@ -19,15 +19,18 @@ import { OTTab } from "@/components/profile/OTTab";
 import { LeaveTab } from "@/components/profile/LeaveTab";
 import { WFHTab } from "@/components/profile/WFHTab";
 import { LateTab } from "@/components/profile/LateTab";
+import { BadgesTab } from "@/components/profile/BadgesTab";
 import type { TabType, AttendanceRecord, OTRecord, LeaveRecord, WFHRecord, LateRequestRecord, LeaveQuota } from "@/components/profile/types";
 
 export default function MyProfilePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const toast = useToast();
   const { user, employee, loading: authLoading } = useAuth();
 
+  const initialTab = (searchParams.get("tab") as TabType) || "overview";
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>("overview");
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [photoModal, setPhotoModal] = useState<{ url: string; type: string } | null>(null);
   const [canceling, setCanceling] = useState<string | null>(null);
@@ -147,6 +150,7 @@ export default function MyProfilePage() {
 
   const tabs: { id: TabType; label: string }[] = [
     { id: "overview", label: "ภาพรวม" },
+    { id: "badges", label: "เหรียญ" },
     { id: "attendance", label: "เข้างาน" },
     { id: "ot", label: "OT" },
     { id: "leave", label: "ลา" },
@@ -219,6 +223,7 @@ export default function MyProfilePage() {
             {activeTab === "overview" && (
               <OverviewTab attendanceData={attendanceData} otData={otData} leaveData={leaveData} wfhData={wfhData} />
             )}
+            {activeTab === "badges" && <BadgesTab />}
             {activeTab === "attendance" && (
               <AttendanceTab data={attendanceData} onViewPhoto={(url, type) => setPhotoModal({ url, type })} />
             )}

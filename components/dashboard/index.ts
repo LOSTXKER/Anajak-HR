@@ -4,3 +4,4 @@ export { PendingOTCard } from "./PendingOTCard";
 export { UpcomingHolidaysCard } from "./UpcomingHolidaysCard";
 export { MonthlySummaryCards } from "./MonthlySummaryCards";
 export { QuickActionsGrid } from "./QuickActionsGrid";
+export { GameStatusCard } from "./GameStatusCard";
