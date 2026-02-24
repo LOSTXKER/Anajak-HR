@@ -32,7 +32,16 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { getLeaderboard, type LeaderboardEntry } from "@/lib/services/gamification.service";
+import { getLeaderboard, type LeaderboardEntry, RANK_TIERS } from "@/lib/services/gamification.service";
+
+const RANK_BADGE_SOLID: Record<string, { bg: string; text: string; icon: string }> = {
+  Unranked: { bg: "bg-[#636366]", text: "text-white", icon: "🔒" },
+  Bronze:   { bg: "bg-gradient-to-r from-[#d97706] to-[#b45309]", text: "text-white", icon: "🥉" },
+  Silver:   { bg: "bg-gradient-to-r from-[#6b7280] to-[#4b5563]", text: "text-white", icon: "🥈" },
+  Gold:     { bg: "bg-gradient-to-r from-[#f59e0b] to-[#d97706]", text: "text-[#1c0a00]", icon: "🥇" },
+  Platinum: { bg: "bg-gradient-to-r from-[#0ea5e9] to-[#6366f1]", text: "text-white", icon: "💎" },
+  Diamond:  { bg: "bg-gradient-to-r from-[#d946ef] via-[#818cf8] to-[#22d3ee]", text: "text-white", icon: "👑" },
+};
 
 function StatCard({
   title,
@@ -510,15 +519,19 @@ function AdminDashboardContent() {
                               {entry.currentStreak}
                             </span>
                           )}
-                          {entry.badgeCount > 0 && (
-                            <span className="flex items-center gap-0.5">
-                              <Star className="w-3 h-3 text-[#ffd700]" />
-                              {entry.badgeCount}
-                            </span>
-                          )}
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="flex flex-col items-end gap-1">
+                        {(() => {
+                          const tier = entry.rankTier || "Unranked";
+                          const s = RANK_BADGE_SOLID[tier] || RANK_BADGE_SOLID.Unranked;
+                          if (tier === "Unranked") return null;
+                          return (
+                            <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${s.bg} ${s.text}`}>
+                              <span>{s.icon}</span>{tier}
+                            </span>
+                          );
+                        })()}
                         <p className="text-[15px] font-bold text-[#1d1d1f]">{entry.quarterlyPoints}</p>
                         <p className="text-[10px] text-[#86868b]">pts</p>
                       </div>
