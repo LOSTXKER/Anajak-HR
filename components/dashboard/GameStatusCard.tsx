@@ -69,11 +69,11 @@ export function GameStatusCard() {
 
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-3">
-          {/* Monthly Points */}
+          {/* Quarterly Points */}
           <div className="bg-white/8 rounded-xl p-2.5 text-center">
             <TrendingUp className="w-4 h-4 text-[#0071e3] mx-auto mb-1" />
-            <p className="text-[16px] font-bold">{profile.monthlyPoints}</p>
-            <p className="text-[10px] text-white/50">เดือนนี้</p>
+            <p className="text-[16px] font-bold">{profile.quarterlyPoints}</p>
+            <p className="text-[10px] text-white/50">ไตรมาส</p>
           </div>
 
           {/* Streak */}

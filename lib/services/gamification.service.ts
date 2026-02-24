@@ -35,10 +35,11 @@ interface EmployeePointsRow {
   id: string;
   employee_id: string;
   total_points: number;
-  monthly_points: number;
-  current_month: string;
+  quarterly_points: number;
+  current_quarter: string;
   level: number;
   level_name: string;
+  rank_tier: string;
   current_streak: number;
   longest_streak: number;
   last_streak_date: string | null;
@@ -72,9 +73,10 @@ interface AttendanceLogLateOnlyRow {
 interface LeaderboardEntryRow {
   employee_id: string;
   total_points: number;
-  monthly_points: number;
+  quarterly_points: number;
   level: number;
   level_name: string;
+  rank_tier: string;
   current_streak: number;
   employees: {
     id: string;
@@ -113,6 +115,45 @@ export const LEVELS = [
   { level: 8, name: "Immortal", minPoints: 15000 },
 ] as const;
 
+// Quarterly rank tiers (resets every quarter)
+export const RANK_TIERS = [
+  { tier: "Unranked", minPoints: 0, icon: "🔘" },
+  { tier: "Bronze", minPoints: 50, icon: "🥉" },
+  { tier: "Silver", minPoints: 150, icon: "🥈" },
+  { tier: "Gold", minPoints: 300, icon: "🥇" },
+  { tier: "Platinum", minPoints: 500, icon: "💎" },
+  { tier: "Diamond", minPoints: 700, icon: "👑" },
+] as const;
+
+export function getCurrentQuarter(): string {
+  const now = new Date();
+  const q = Math.ceil((now.getMonth() + 1) / 3);
+  return `${now.getFullYear()}-Q${q}`;
+}
+
+export function calculateRankTier(quarterlyPoints: number): { tier: string; icon: string } {
+  let result = { tier: RANK_TIERS[0].tier as string, icon: RANK_TIERS[0].icon as string };
+  for (const r of RANK_TIERS) {
+    if (quarterlyPoints >= r.minPoints) {
+      result = { tier: r.tier, icon: r.icon };
+    }
+  }
+  return result;
+}
+
+export function getRankProgress(quarterlyPoints: number): { nextTierPoints: number; progress: number } {
+  const currentTier = calculateRankTier(quarterlyPoints);
+  const currentIdx = RANK_TIERS.findIndex((r) => r.tier === currentTier.tier);
+  const nextTier = RANK_TIERS[currentIdx + 1];
+
+  if (!nextTier) return { nextTierPoints: 0, progress: 100 };
+
+  const currentMin = RANK_TIERS[currentIdx].minPoints;
+  const range = nextTier.minPoints - currentMin;
+  const progress = Math.min(100, Math.round(((quarterlyPoints - currentMin) / range) * 100));
+  return { nextTierPoints: nextTier.minPoints, progress };
+}
+
 export type ActionType =
   | "on_time_checkin"
   | "early_checkin"
@@ -125,13 +166,17 @@ export type ActionType =
 
 export interface GameProfile {
   totalPoints: number;
-  monthlyPoints: number;
+  quarterlyPoints: number;
   level: number;
   levelName: string;
+  rankTier: string;
+  rankIcon: string;
   currentStreak: number;
   longestStreak: number;
   nextLevelPoints: number;
   progressToNextLevel: number;
+  nextRankPoints: number;
+  progressToNextRank: number;
   recentBadges: EarnedBadge[];
   rank?: number;
 }
@@ -169,9 +214,10 @@ export interface LeaderboardEntry {
   employeeId: string;
   employeeName: string;
   totalPoints: number;
-  monthlyPoints: number;
+  quarterlyPoints: number;
   level: number;
   levelName: string;
+  rankTier: string;
   currentStreak: number;
   badgeCount: number;
 }
@@ -234,7 +280,7 @@ export async function getGamificationSettings(): Promise<Record<string, string>>
  * Ensure employee_points row exists, return it
  */
 export async function ensureEmployeePoints(employeeId: string) {
-  const currentMonth = format(new Date(), "yyyy-MM");
+  const currentQ = getCurrentQuarter();
 
   const { data: existing } = await supabase
     .from("employee_points")
@@ -243,10 +289,10 @@ export async function ensureEmployeePoints(employeeId: string) {
     .maybeSingle();
 
   if (existing) {
-    if (existing.current_month !== currentMonth) {
+    if (existing.current_quarter !== currentQ) {
       const { data: updated } = await supabase
         .from("employee_points")
-        .update({ monthly_points: 0, current_month: currentMonth })
+        .update({ quarterly_points: 0, current_quarter: currentQ, rank_tier: "Unranked" })
         .eq("id", existing.id)
         .select()
         .single();
@@ -260,10 +306,11 @@ export async function ensureEmployeePoints(employeeId: string) {
     .insert({
       employee_id: employeeId,
       total_points: 0,
-      monthly_points: 0,
-      current_month: currentMonth,
+      quarterly_points: 0,
+      current_quarter: currentQ,
       level: 1,
       level_name: "Rookie",
+      rank_tier: "Unranked",
       current_streak: 0,
       longest_streak: 0,
     })
@@ -310,11 +357,12 @@ export async function awardPoints(
       const ep = await ensureEmployeePoints(employeeId);
       if (!ep) return false;
       const newTotal = Math.max(0, ep.total_points + points);
-      const newMonthly = Math.max(0, ep.monthly_points + points);
+      const newQuarterly = Math.max(0, ep.quarterly_points + points);
       const { level, name } = calculateLevel(newTotal);
+      const { tier } = calculateRankTier(newQuarterly);
       await supabase
         .from("employee_points")
-        .update({ total_points: newTotal, monthly_points: newMonthly, level, level_name: name })
+        .update({ total_points: newTotal, quarterly_points: newQuarterly, level, level_name: name, rank_tier: tier })
         .eq("id", ep.id);
     }
 
@@ -746,15 +794,23 @@ export async function getEmployeeGameProfile(employeeId: string): Promise<GamePr
     .select("id", { count: "exact", head: true })
     .gt("total_points", ep?.total_points || 0);
 
+  const qPts = ep?.quarterly_points || 0;
+  const { tier: rankTier, icon: rankIcon } = calculateRankTier(qPts);
+  const { nextTierPoints: nextRankPoints, progress: rankProgress } = getRankProgress(qPts);
+
   return {
     totalPoints: ep?.total_points || 0,
-    monthlyPoints: ep?.monthly_points || 0,
+    quarterlyPoints: qPts,
     level: ep?.level || 1,
     levelName: ep?.level_name || "Rookie",
+    rankTier,
+    rankIcon,
     currentStreak: ep?.current_streak || 0,
     longestStreak: ep?.longest_streak || 0,
     nextLevelPoints,
     progressToNextLevel: progress,
+    nextRankPoints,
+    progressToNextRank: rankProgress,
     recentBadges,
     rank: (higherCount || 0) + 1,
   };
@@ -827,7 +883,7 @@ async function getBadgeProgress(employeeId: string): Promise<Record<string, Reco
  * Get leaderboard
  */
 export async function getLeaderboard(
-  period: "monthly" | "alltime" = "monthly",
+  period: "quarterly" | "alltime" = "quarterly",
   branchId?: string
 ): Promise<LeaderboardEntry[]> {
   try {
@@ -836,13 +892,14 @@ export async function getLeaderboard(
       .select(`
         employee_id,
         total_points,
-        monthly_points,
+        quarterly_points,
         level,
         level_name,
+        rank_tier,
         current_streak,
         employees!inner(id, name, branch_id, account_status, deleted_at, is_system_account)
       `)
-      .order(period === "monthly" ? "monthly_points" : "total_points", { ascending: false })
+      .order(period === "quarterly" ? "quarterly_points" : "total_points", { ascending: false })
       .limit(50);
 
     const { data } = await query;
@@ -865,9 +922,10 @@ export async function getLeaderboard(
       employeeId: entry.employee_id,
       employeeName: entry.employees.name,
       totalPoints: entry.total_points,
-      monthlyPoints: entry.monthly_points,
+      quarterlyPoints: entry.quarterly_points,
       level: entry.level,
       levelName: entry.level_name,
+      rankTier: entry.rank_tier,
       currentStreak: entry.current_streak,
       badgeCount: badgeCounts[entry.employee_id] || 0,
     }));

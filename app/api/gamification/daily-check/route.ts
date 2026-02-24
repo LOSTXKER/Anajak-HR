@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
 
     if (rankingEnabled && dayOfWeek === rankingDay) {
       try {
-        const leaderboard = await getLeaderboard("monthly");
+        const leaderboard = await getLeaderboard("quarterly");
         const weekStartDate = startOfWeek(today, { weekStartsOn: 1 });
         const weekEndDate = endOfWeek(today, { weekStartsOn: 1 });
         const weekStartStr = format(weekStartDate, "d MMM", { locale: th });

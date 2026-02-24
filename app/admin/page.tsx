@@ -174,7 +174,7 @@ function AdminDashboardContent() {
       // Fetch leaderboard
       let lb: LeaderboardEntry[] = [];
       try {
-        lb = await getLeaderboard("monthly");
+        lb = await getLeaderboard("quarterly");
       } catch {
         // gamification might be disabled
       }
@@ -519,7 +519,7 @@ function AdminDashboardContent() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-[15px] font-bold text-[#1d1d1f]">{entry.monthlyPoints}</p>
+                        <p className="text-[15px] font-bold text-[#1d1d1f]">{entry.quarterlyPoints}</p>
                         <p className="text-[10px] text-[#86868b]">pts</p>
                       </div>
                     </Link>

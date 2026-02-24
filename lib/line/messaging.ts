@@ -515,7 +515,7 @@ export function formatWeeklyRankingMessage(
   leaderboard: Array<{
     rank: number;
     employeeName: string;
-    monthlyPoints: number;
+    quarterlyPoints: number;
     level: number;
     levelName: string;
     currentStreak: number;
@@ -532,7 +532,7 @@ export function formatWeeklyRankingMessage(
   const medals = ["🥇", "🥈", "🥉"];
   const rows = leaderboard.slice(0, 10).map((e) => {
     const medal = medals[e.rank - 1] || `${e.rank}.`;
-    return `${medal} ${e.employeeName} - ${e.monthlyPoints} pts (Lv.${e.level})`;
+    return `${medal} ${e.employeeName} - ${e.quarterlyPoints} pts (Lv.${e.level})`;
   });
 
   const mvp = leaderboard[0];

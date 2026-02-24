@@ -105,8 +105,8 @@ export function GamificationTab({ employeeId }: GamificationTabProps) {
       bg: "bg-[#ff9500]/10",
     },
     {
-      label: "แต้มเดือนนี้",
-      value: profile.monthlyPoints.toLocaleString(),
+      label: "แต้มไตรมาสนี้",
+      value: profile.quarterlyPoints.toLocaleString(),
       sub: "pts",
       icon: TrendingUp,
       color: "text-[#34c759]",

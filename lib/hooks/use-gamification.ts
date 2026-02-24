@@ -43,7 +43,7 @@ export function useGameProfile() {
  * Hook for leaderboard data
  */
 export function useLeaderboard(
-  period: "monthly" | "alltime" = "monthly",
+  period: "quarterly" | "alltime" = "quarterly",
   branchId?: string
 ) {
   const { employee } = useAuth();

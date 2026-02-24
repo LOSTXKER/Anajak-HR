@@ -5,7 +5,7 @@ import { getLeaderboard } from "@/lib/services/gamification.service";
 export const GET = withAuth(async (request: NextRequest, auth) => {
   try {
     const { searchParams } = new URL(request.url);
-    const period = (searchParams.get("period") || "monthly") as "monthly" | "alltime";
+    const period = (searchParams.get("period") || "quarterly") as "quarterly" | "alltime";
     const branchId = searchParams.get("branch") || undefined;
 
     const leaderboard = await getLeaderboard(period, branchId);

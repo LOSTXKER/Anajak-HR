@@ -8,7 +8,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { Avatar } from "@/components/ui/Avatar";
 import { useLeaderboard, useGameProfile } from "@/lib/hooks/use-gamification";
 import { supabase } from "@/lib/supabase/client";
-import { LEVELS, getEmployeeGameProfile, getBadgesWithProgress } from "@/lib/services/gamification.service";
+import { LEVELS, RANK_TIERS, getEmployeeGameProfile, getBadgesWithProgress, getCurrentQuarter } from "@/lib/services/gamification.service";
 import {
   ArrowLeft,
   Trophy,
@@ -37,13 +37,17 @@ const TIER_BG_COLORS = [
 
 interface PlayerProfile {
   totalPoints: number;
-  monthlyPoints: number;
+  quarterlyPoints: number;
   level: number;
   levelName: string;
+  rankTier: string;
+  rankIcon: string;
   currentStreak: number;
   longestStreak: number;
   nextLevelPoints: number;
   progressToNextLevel: number;
+  nextRankPoints: number;
+  progressToNextRank: number;
   rank?: number;
   employeeName?: string;
   badges?: Array<{
@@ -58,7 +62,7 @@ interface PlayerProfile {
 function LeaderboardContent() {
   const { employee } = useAuth();
 
-  const [period, setPeriod] = useState<"monthly" | "alltime">("monthly");
+  const [period, setPeriod] = useState<"quarterly" | "alltime">("quarterly");
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [showFilter, setShowFilter] = useState(false);
@@ -155,14 +159,14 @@ function LeaderboardContent() {
         {/* Period Tabs */}
         <div className="flex bg-[#f5f5f7] rounded-xl p-1 mb-4">
           <button
-            onClick={() => setPeriod("monthly")}
+            onClick={() => setPeriod("quarterly")}
             className={`flex-1 py-2.5 text-[14px] font-medium rounded-lg transition-all ${
-              period === "monthly"
+              period === "quarterly"
                 ? "bg-white text-[#1d1d1f] shadow-sm"
                 : "text-[#86868b]"
             }`}
           >
-            เดือนนี้
+            ไตรมาสนี้
           </button>
           <button
             onClick={() => setPeriod("alltime")}
@@ -219,6 +223,9 @@ function LeaderboardContent() {
                   <p className="text-[12px] text-white/80">
                     Lv.{profile.level} {profile.levelName}
                   </p>
+                  <p className="text-[12px] text-white/80">
+                    {profile.rankIcon} {profile.rankTier}
+                  </p>
                 </div>
               </div>
               <div className="text-right">
@@ -226,7 +233,7 @@ function LeaderboardContent() {
                   #{profile.rank}
                 </p>
                 <p className="text-[11px] text-white/80">
-                  {period === "monthly" ? profile.monthlyPoints : profile.totalPoints} pts
+                  {period === "quarterly" ? profile.quarterlyPoints : profile.totalPoints} pts
                 </p>
               </div>
             </div>
@@ -341,12 +348,22 @@ function HowItWorksSection({ onClose }: { onClose: () => void }) {
       ],
     },
     {
+      id: "ranks",
+      title: "แรงค์ (Rank) - รีเซตทุกไตรมาส",
+      icon: <Crown className="w-4 h-4 text-[#ffd700]" />,
+      items: RANK_TIERS.map((r) => ({
+        label: `${r.icon} ${r.tier}`,
+        value: r.minPoints > 0 ? `${r.minPoints.toLocaleString()} แต้ม/ไตรมาส` : "-",
+        desc: r.tier === "Unranked" ? "ยังไม่มีคะแนนในไตรมาสนี้" : "",
+      })),
+    },
+    {
       id: "levels",
-      title: "ระดับ (Level)",
+      title: "ระดับ (Level) - ถาวร",
       icon: <TrendingUp className="w-4 h-4 text-[#0071e3]" />,
       items: LEVELS.map((l) => ({
         label: `Lv.${l.level} ${l.name}`,
-        value: l.minPoints > 0 ? `${l.minPoints.toLocaleString()} แต้ม` : "เริ่มต้น",
+        value: l.minPoints > 0 ? `${l.minPoints.toLocaleString()} แต้มสะสม` : "เริ่มต้น",
         desc: "",
       })),
     },
@@ -468,18 +485,35 @@ function PlayerProfileModal({
               <p className="text-[14px] text-[#86868b]">
                 Lv.{profile.level} {profile.levelName}
               </p>
+              <p className="text-[14px] text-[#86868b]">
+                {profile.rankIcon} {profile.rankTier}
+              </p>
             </div>
 
             {/* Level progress */}
-            <div className="mb-6">
+            <div className="mb-4">
               <div className="flex justify-between text-[11px] text-[#86868b] mb-1.5">
-                <span>{profile.totalPoints.toLocaleString()} แต้ม</span>
+                <span>Level: {profile.totalPoints.toLocaleString()} แต้ม</span>
                 {nextLevel && <span>{nextLevel.minPoints.toLocaleString()} แต้ม</span>}
               </div>
               <div className="h-2.5 bg-[#f5f5f7] rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-[#0071e3] to-[#34c759] rounded-full transition-all"
                   style={{ width: `${profile.progressToNextLevel}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Rank progress */}
+            <div className="mb-6">
+              <div className="flex justify-between text-[11px] text-[#86868b] mb-1.5">
+                <span>Rank: {profile.quarterlyPoints.toLocaleString()} แต้ม (ไตรมาสนี้)</span>
+                {profile.nextRankPoints > 0 && <span>{profile.nextRankPoints.toLocaleString()} แต้ม</span>}
+              </div>
+              <div className="h-2.5 bg-[#f5f5f7] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-[#ff9500] to-[#ffd700] rounded-full transition-all"
+                  style={{ width: `${profile.progressToNextRank}%` }}
                 />
               </div>
             </div>
@@ -493,8 +527,8 @@ function PlayerProfileModal({
               </div>
               <div className="bg-[#f5f5f7] rounded-2xl p-3 text-center">
                 <TrendingUp className="w-4 h-4 text-[#0071e3] mx-auto mb-1" />
-                <p className="text-[16px] font-bold text-[#1d1d1f]">{profile.monthlyPoints}</p>
-                <p className="text-[10px] text-[#86868b]">เดือนนี้</p>
+                <p className="text-[16px] font-bold text-[#1d1d1f]">{profile.quarterlyPoints}</p>
+                <p className="text-[10px] text-[#86868b]">ไตรมาส</p>
               </div>
               <div className="bg-[#f5f5f7] rounded-2xl p-3 text-center">
                 <Flame className="w-4 h-4 text-[#ff9500] mx-auto mb-1" />
@@ -563,14 +597,14 @@ function PodiumCard({
 }: {
   entry: any;
   position: number;
-  period: "monthly" | "alltime";
+  period: "quarterly" | "alltime";
   currentUserId?: string;
   onTap: (employeeId: string) => void;
 }) {
   const isMe = entry.employeeId === currentUserId;
   const height = position === 1 ? "h-28" : position === 2 ? "h-20" : "h-16";
   const iconSize = position === 1 ? "w-6 h-6" : "w-5 h-5";
-  const points = period === "monthly" ? entry.monthlyPoints : entry.totalPoints;
+  const points = period === "quarterly" ? entry.quarterlyPoints : entry.totalPoints;
 
   return (
     <div
@@ -611,11 +645,11 @@ function LeaderboardRow({
   onTap,
 }: {
   entry: any;
-  period: "monthly" | "alltime";
+  period: "quarterly" | "alltime";
   isCurrentUser: boolean;
   onTap: (employeeId: string) => void;
 }) {
-  const points = period === "monthly" ? entry.monthlyPoints : entry.totalPoints;
+  const points = period === "quarterly" ? entry.quarterlyPoints : entry.totalPoints;
 
   return (
     <div
@@ -641,6 +675,9 @@ function LeaderboardRow({
         </p>
         <div className="flex items-center gap-2 text-[11px] text-[#86868b]">
           <span>Lv.{entry.level}</span>
+          {entry.rankTier && entry.rankTier !== "Unranked" && (
+            <span className="font-medium">{entry.rankTier}</span>
+          )}
           {entry.currentStreak > 0 && (
             <span className="flex items-center gap-0.5">
               <Flame className="w-3 h-3 text-[#ff9500]" />
