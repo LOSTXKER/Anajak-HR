@@ -252,6 +252,7 @@ function CheckoutContent() {
             time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false }),
             totalHours,
             location: branch?.name || "สำนักงาน",
+            photoUrl,
           }),
         }).catch((err) => console.error("Failed to send check-out notification:", err));
       } catch (notifyError) {

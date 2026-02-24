@@ -16,6 +16,8 @@ import {
   Star,
   Flame,
   TrendingUp,
+  Megaphone,
+  Calendar,
 } from "lucide-react";
 
 const ToggleSwitch = ({
@@ -66,6 +68,8 @@ function GamificationSettingsContent() {
   const [recalculating, setRecalculating] = useState(false);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [badges, setBadges] = useState<any[]>([]);
+  const [rankingEnabled, setRankingEnabled] = useState(true);
+  const [rankingDay, setRankingDay] = useState("0");
 
   useEffect(() => {
     fetchSettings();
@@ -78,13 +82,15 @@ function GamificationSettingsContent() {
       const { data } = await supabase
         .from("system_settings")
         .select("setting_key, setting_value")
-        .like("setting_key", "gamify_%");
+        .or("setting_key.like.gamify_%,setting_key.in.(enable_weekly_ranking_announcement,weekly_ranking_day)");
 
       const map: Record<string, string> = {};
       data?.forEach((s: any) => {
         map[s.setting_key] = s.setting_value;
       });
       setSettings(map);
+      setRankingEnabled(map.enable_weekly_ranking_announcement !== "false");
+      setRankingDay(map.weekly_ranking_day || "0");
     } catch (error) {
       toast.error("ข้อผิดพลาด", "ไม่สามารถโหลดการตั้งค่าได้");
     } finally {
@@ -104,7 +110,13 @@ function GamificationSettingsContent() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      for (const [key, value] of Object.entries(settings)) {
+      const allSettings = {
+        ...settings,
+        enable_weekly_ranking_announcement: rankingEnabled ? "true" : "false",
+        weekly_ranking_day: rankingDay,
+      };
+
+      for (const [key, value] of Object.entries(allSettings)) {
         await supabase
           .from("system_settings")
           .upsert(
@@ -226,6 +238,50 @@ function GamificationSettingsContent() {
             );
           })}
         </div>
+      </div>
+
+      {/* Weekly Ranking Announcement */}
+      <div>
+        <h2 className="text-[17px] font-semibold text-[#1d1d1f] mb-3">ประกาศอันดับรายสัปดาห์</h2>
+        <Card elevated>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#0071e3]/10 flex items-center justify-center">
+                  <Megaphone className="w-5 h-5 text-[#0071e3]" />
+                </div>
+                <div>
+                  <p className="text-[15px] font-semibold text-[#1d1d1f]">ส่งอันดับไป LINE</p>
+                  <p className="text-[12px] text-[#86868b]">ประกาศอันดับ Leaderboard ทุกสัปดาห์</p>
+                </div>
+              </div>
+              <ToggleSwitch
+                enabled={rankingEnabled}
+                onChange={() => setRankingEnabled(!rankingEnabled)}
+              />
+            </div>
+
+            {rankingEnabled && (
+              <div className="flex items-center gap-3 pl-[52px]">
+                <Calendar className="w-4 h-4 text-[#86868b] flex-shrink-0" />
+                <label className="text-[13px] text-[#86868b] flex-shrink-0">ส่งทุกวัน</label>
+                <select
+                  value={rankingDay}
+                  onChange={(e) => setRankingDay(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-[#f5f5f7] border border-[#e8e8ed] rounded-lg text-[14px] text-[#1d1d1f] focus:outline-none focus:border-[#0071e3]"
+                >
+                  <option value="0">อาทิตย์</option>
+                  <option value="1">จันทร์</option>
+                  <option value="2">อังคาร</option>
+                  <option value="3">พุธ</option>
+                  <option value="4">พฤหัสบดี</option>
+                  <option value="5">ศุกร์</option>
+                  <option value="6">เสาร์</option>
+                </select>
+              </div>
+            )}
+          </div>
+        </Card>
       </div>
 
       {/* Save Button */}

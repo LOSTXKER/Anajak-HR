@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
-import { checkAndAwardBadges, ensureEmployeePoints, getGamificationSettings, awardPoints } from "@/lib/services/gamification.service";
+import { checkAndAwardBadges, ensureEmployeePoints, getGamificationSettings, awardPoints, getLeaderboard } from "@/lib/services/gamification.service";
 import { format, startOfWeek, endOfWeek } from "date-fns";
+import { th } from "date-fns/locale";
+import { sendLineMessage, formatWeeklyRankingMessage } from "@/lib/line/messaging";
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -83,13 +85,45 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log(`[Gamification Daily] Done: ${badgesAwarded} badges, ${weeklyBonuses} weekly bonuses`);
+    // Weekly ranking announcement
+    let rankingSent = false;
+    const { data: rankingSettings } = await supabaseServer
+      .from("system_settings")
+      .select("setting_key, setting_value")
+      .in("setting_key", ["enable_weekly_ranking_announcement", "weekly_ranking_day"]);
+
+    const rankingMap: Record<string, string> = {};
+    (rankingSettings || []).forEach((s: { setting_key: string; setting_value: string }) => {
+      rankingMap[s.setting_key] = s.setting_value;
+    });
+
+    const rankingEnabled = rankingMap.enable_weekly_ranking_announcement !== "false";
+    const rankingDay = parseInt(rankingMap.weekly_ranking_day || "0");
+
+    if (rankingEnabled && dayOfWeek === rankingDay) {
+      try {
+        const leaderboard = await getLeaderboard("monthly");
+        const weekStartDate = startOfWeek(today, { weekStartsOn: 1 });
+        const weekEndDate = endOfWeek(today, { weekStartsOn: 1 });
+        const weekStartStr = format(weekStartDate, "d MMM", { locale: th });
+        const weekEndStr = format(weekEndDate, "d MMM yyyy", { locale: th });
+
+        const message = formatWeeklyRankingMessage(leaderboard, weekStartStr, weekEndStr);
+        rankingSent = await sendLineMessage(message);
+        console.log(`[Gamification Daily] Weekly ranking sent: ${rankingSent}`);
+      } catch (err) {
+        console.error("[Gamification Daily] Error sending weekly ranking:", err);
+      }
+    }
+
+    console.log(`[Gamification Daily] Done: ${badgesAwarded} badges, ${weeklyBonuses} weekly bonuses, ranking: ${rankingSent}`);
 
     return NextResponse.json({
       success: true,
       processed: employees.length,
       badgesAwarded,
       weeklyBonuses,
+      rankingSent,
     });
   } catch (error) {
     console.error("[Gamification Daily] Error:", error);

@@ -9,10 +9,9 @@ import { supabaseServer } from "@/lib/supabase/server";
 
 const LINE_MESSAGING_API = "https://api.line.me/v2/bot/message";
 
-interface LineMessage {
-  type: string;
-  text: string;
-}
+type LineMessage =
+  | { type: "text"; text: string }
+  | { type: "image"; originalContentUrl: string; previewImageUrl: string };
 
 /**
  * Get LINE settings from database (server-side only)
@@ -59,54 +58,22 @@ export async function getLineSettings() {
 }
 
 /**
- * Send push message via LINE Messaging API
- * @param message - Message text to send
- * @param to - Optional User ID or Group ID (uses database setting if not provided)
- * @param accessToken - Optional access token (uses database setting if not provided)
- * @returns Success status
+ * Send an array of LINE messages (text and/or image) in a single push.
+ * LINE allows up to 5 messages per push request.
  */
-export async function sendLineMessage(
-  message: string,
+export async function sendLineMessages(
+  messages: LineMessage[],
   to?: string,
   accessToken?: string
 ): Promise<boolean> {
   try {
-    console.debug("[LINE] Attempting to send message...");
-    
-    // Get settings from database if not provided
     const settings = await getLineSettings();
-
-    if (!settings) {
-      console.warn("[LINE] Failed to load settings from database");
-      return false;
-    }
-
-    if (settings.enable_notifications !== "true") {
-      console.debug("[LINE] Notifications are disabled in settings");
-      return false;
-    }
+    if (!settings) return false;
+    if (settings.enable_notifications !== "true") return false;
 
     const token = accessToken || settings.line_channel_access_token;
     const recipient = to || settings.line_recipient_id;
-
-    if (!token) {
-      console.warn("[LINE] Channel Access Token not configured - please set in Admin Settings");
-      return false;
-    }
-
-    if (!recipient) {
-      console.warn("[LINE] Recipient ID not configured - please set in Admin Settings");
-      return false;
-    }
-
-    console.debug("[LINE] Sending to:", recipient.substring(0, 10) + "...");
-
-    const messages: LineMessage[] = [
-      {
-        type: "text",
-        text: message,
-      },
-    ];
+    if (!token || !recipient) return false;
 
     const response = await fetch(`${LINE_MESSAGING_API}/push`, {
       method: "POST",
@@ -114,24 +81,42 @@ export async function sendLineMessage(
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({
-        to: recipient,
-        messages: messages,
-      }),
+      body: JSON.stringify({ to: recipient, messages: messages.slice(0, 5) }),
     });
 
     if (!response.ok) {
       const error = await response.json();
       console.error("[LINE] API Error:", error);
-      throw new Error(`LINE Messaging API error: ${JSON.stringify(error)}`);
+      return false;
     }
 
-    console.debug("[LINE] Message sent successfully!");
     return true;
   } catch (error) {
-    console.error("[LINE] Error sending message:", error);
+    console.error("[LINE] Error sending messages:", error);
     return false;
   }
+}
+
+/**
+ * Send a text push message, optionally followed by a photo.
+ */
+export async function sendLineMessage(
+  message: string,
+  to?: string,
+  accessToken?: string,
+  photoUrl?: string
+): Promise<boolean> {
+  const msgs: LineMessage[] = [{ type: "text", text: message }];
+
+  if (photoUrl) {
+    msgs.push({
+      type: "image",
+      originalContentUrl: photoUrl,
+      previewImageUrl: photoUrl,
+    });
+  }
+
+  return sendLineMessages(msgs, to, accessToken);
 }
 
 /**
@@ -521,6 +506,45 @@ export async function formatCheckOutMessage(
 ⏰ เวลา: ${time}
 ⏱️ ทำงาน: ${totalHours.toFixed(1)} ชั่วโมง
 📍 สถานที่: ${location}`;
+}
+
+/**
+ * Format weekly ranking announcement for LINE
+ */
+export function formatWeeklyRankingMessage(
+  leaderboard: Array<{
+    rank: number;
+    employeeName: string;
+    monthlyPoints: number;
+    level: number;
+    levelName: string;
+    currentStreak: number;
+  }>,
+  weekStart: string,
+  weekEnd: string
+): string {
+  const header = `🏆 Leaderboard ประจำสัปดาห์\n📅 ${weekStart} - ${weekEnd}\n${"═".repeat(24)}`;
+
+  if (leaderboard.length === 0) {
+    return `${header}\n\nยังไม่มีข้อมูลอันดับ`;
+  }
+
+  const medals = ["🥇", "🥈", "🥉"];
+  const rows = leaderboard.slice(0, 10).map((e) => {
+    const medal = medals[e.rank - 1] || `${e.rank}.`;
+    return `${medal} ${e.employeeName} - ${e.monthlyPoints} pts (Lv.${e.level})`;
+  });
+
+  const mvp = leaderboard[0];
+  const bestStreak = [...leaderboard].sort((a, b) => b.currentStreak - a.currentStreak)[0];
+
+  let footer = `\n${"─".repeat(24)}`;
+  footer += `\n👑 MVP: ${mvp.employeeName}`;
+  if (bestStreak && bestStreak.currentStreak > 0) {
+    footer += `\n🔥 Streak สูงสุด: ${bestStreak.employeeName} (${bestStreak.currentStreak} วัน)`;
+  }
+
+  return `${header}\n\n${rows.join("\n")}${footer}`;
 }
 
 /**

@@ -156,6 +156,9 @@ function LineSettingsContent() {
     lineRecipientType: "group",
   });
 
+  // Photo setting
+  const [sendPhotos, setSendPhotos] = useState(true);
+
   // Message Templates
   const [messages, setMessages] = useState<Record<string, string>>({});
 
@@ -180,6 +183,8 @@ function LineSettingsContent() {
           lineRecipientType: map.line_recipient_type || "group",
         });
 
+        setSendPhotos(map.enable_line_photo_notifications !== "false");
+
         // Load message templates
         const msgs: Record<string, string> = {};
         MESSAGE_TEMPLATES.forEach((template) => {
@@ -201,6 +206,7 @@ function LineSettingsContent() {
         { key: "line_channel_access_token", value: apiSettings.lineChannelToken },
         { key: "line_recipient_id", value: apiSettings.lineRecipientId },
         { key: "line_recipient_type", value: apiSettings.lineRecipientType },
+        { key: "enable_line_photo_notifications", value: sendPhotos ? "true" : "false" },
       ];
 
       for (const update of updates) {
@@ -360,6 +366,26 @@ function LineSettingsContent() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Photo toggle */}
+              <div className="flex items-center justify-between p-4 bg-[#f5f5f7] rounded-xl">
+                <div>
+                  <p className="text-[14px] font-medium text-[#1d1d1f]">ส่งรูปภาพพร้อมแจ้งเตือน</p>
+                  <p className="text-[12px] text-[#86868b]">ส่งภาพเช็คอิน/เช็คเอาท์ไปกับข้อความ LINE</p>
+                </div>
+                <button
+                  onClick={() => setSendPhotos(!sendPhotos)}
+                  className={`relative w-12 h-7 rounded-full transition-colors ${
+                    sendPhotos ? "bg-[#06C755]" : "bg-[#d2d2d7]"
+                  }`}
+                  role="switch"
+                  aria-checked={sendPhotos}
+                >
+                  <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${
+                    sendPhotos ? "translate-x-5" : "translate-x-0.5"
+                  }`} />
+                </button>
               </div>
 
               <div className="flex gap-3 pt-4">

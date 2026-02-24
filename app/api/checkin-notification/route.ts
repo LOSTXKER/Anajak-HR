@@ -13,15 +13,14 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { employeeName, time, location, isLate } = body;
+    const { employeeName, time, location, isLate, photoUrl } = body;
 
     console.debug("[Check-in Notification] Request:", { employeeName, time, isLate });
 
-    // เช็คว่าเปิดการแจ้งเตือนหรือไม่
     const { data: settings } = await supabaseServer
       .from("system_settings")
       .select("setting_key, setting_value")
-      .in("setting_key", ["enable_checkin_notifications", "enable_notifications"]);
+      .in("setting_key", ["enable_checkin_notifications", "enable_notifications", "enable_line_photo_notifications"]);
 
     if (!settings || settings.length === 0) {
       return Response.json({ error: "Settings not found" }, { status: 500 });
@@ -38,9 +37,9 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Notifications disabled" }, { status: 503 });
     }
 
-    // Format และส่งข้อความ
     const message = await formatCheckInMessage(employeeName, time, location, isLate);
-    const success = await sendLineMessage(message);
+    const includePhoto = settingsMap.enable_line_photo_notifications !== "false";
+    const success = await sendLineMessage(message, undefined, undefined, includePhoto ? photoUrl : undefined);
 
     if (!success) {
       return Response.json({ error: "Failed to send notification" }, { status: 500 });
