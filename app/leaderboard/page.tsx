@@ -8,7 +8,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { Avatar } from "@/components/ui/Avatar";
 import { useLeaderboard, useGameProfile } from "@/lib/hooks/use-gamification";
 import { supabase } from "@/lib/supabase/client";
-import { LEVELS, RANK_TIERS, getEmployeeGameProfile, getBadgesWithProgress, getCurrentQuarter } from "@/lib/services/gamification.service";
+import { LEVELS, RANK_TIERS, getEmployeeGameProfile, getBadgesWithProgress, calculateRankTier } from "@/lib/services/gamification.service";
 import {
   ArrowLeft,
   Trophy,
@@ -26,14 +26,173 @@ import {
   Zap,
   Target,
   Award,
+  RotateCcw,
 } from "lucide-react";
 
-const TIER_MEDAL_COLORS = ["text-[#ffd700]", "text-[#c0c0c0]", "text-[#cd7f32]"];
-const TIER_BG_COLORS = [
-  "bg-gradient-to-br from-[#ffd700]/20 to-[#daa520]/10 border-[#ffd700]/30",
-  "bg-gradient-to-br from-[#c0c0c0]/20 to-[#808080]/10 border-[#c0c0c0]/30",
-  "bg-gradient-to-br from-[#cd7f32]/20 to-[#a0522d]/10 border-[#cd7f32]/30",
-];
+// ─── Rank Visual Config ───────────────────────────────────────────────────────
+
+interface RankVisualConfig {
+  icon: string;
+  label: string;
+  cardBg: string;
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
+  barStyle: string;
+  glow: string;
+  shimmer: boolean;
+}
+
+const RANK_VISUAL: Record<string, RankVisualConfig> = {
+  Unranked: {
+    icon: "⬜",
+    label: "Unranked",
+    cardBg: "from-[#48484a] to-[#1d1d1f]",
+    badgeBg: "bg-[#f5f5f7]",
+    badgeText: "text-[#6e6e73]",
+    badgeBorder: "border-[#d2d2d7]",
+    barStyle: "bg-[#86868b]",
+    glow: "",
+    shimmer: false,
+  },
+  Bronze: {
+    icon: "🥉",
+    label: "Bronze",
+    cardBg: "from-[#7c3a0d] via-[#5a2d0c] to-[#1d1209]",
+    badgeBg: "bg-gradient-to-r from-[#cd7f32]/25 to-[#a0522d]/20",
+    badgeText: "text-[#e8951a]",
+    badgeBorder: "border-[#cd7f32]/50",
+    barStyle: "bg-gradient-to-r from-[#cd7f32] to-[#b8860b]",
+    glow: "shadow-[0_0_20px_rgba(205,127,50,0.45)]",
+    shimmer: false,
+  },
+  Silver: {
+    icon: "🥈",
+    label: "Silver",
+    cardBg: "from-[#374151] via-[#1f2937] to-[#111827]",
+    badgeBg: "bg-gradient-to-r from-[#9ca3af]/25 to-[#6b7280]/20",
+    badgeText: "text-[#d1d5db]",
+    badgeBorder: "border-[#9ca3af]/50",
+    barStyle: "bg-gradient-to-r from-[#d1d5db] to-[#9ca3af]",
+    glow: "shadow-[0_0_20px_rgba(156,163,175,0.4)]",
+    shimmer: false,
+  },
+  Gold: {
+    icon: "🥇",
+    label: "Gold",
+    cardBg: "from-[#78350f] via-[#451a03] to-[#1c0a00]",
+    badgeBg: "bg-gradient-to-r from-[#fbbf24]/30 to-[#f59e0b]/20",
+    badgeText: "text-[#fbbf24]",
+    badgeBorder: "border-[#fbbf24]/50",
+    barStyle: "bg-gradient-to-r from-[#fbbf24] to-[#f59e0b]",
+    glow: "shadow-[0_0_24px_rgba(251,191,36,0.55)]",
+    shimmer: false,
+  },
+  Platinum: {
+    icon: "💎",
+    label: "Platinum",
+    cardBg: "from-[#1e3a5f] via-[#1e1b4b] to-[#0a0a1a]",
+    badgeBg: "bg-gradient-to-r from-[#38bdf8]/25 to-[#818cf8]/25",
+    badgeText: "text-[#7dd3f0]",
+    badgeBorder: "border-[#38bdf8]/50",
+    barStyle: "bg-gradient-to-r from-[#38bdf8] to-[#818cf8]",
+    glow: "shadow-[0_0_28px_rgba(56,189,248,0.5)]",
+    shimmer: false,
+  },
+  Diamond: {
+    icon: "👑",
+    label: "Diamond",
+    cardBg: "from-[#4a044e] via-[#1e1b4b] to-[#0c4a6e]",
+    badgeBg: "bg-gradient-to-r from-[#e879f9]/25 via-[#818cf8]/20 to-[#38bdf8]/25",
+    badgeText: "text-[#e879f9]",
+    badgeBorder: "border-[#e879f9]/40",
+    barStyle: "bg-gradient-to-r from-[#e879f9] via-[#818cf8] to-[#38bdf8]",
+    glow: "shadow-[0_0_32px_rgba(232,121,249,0.6)]",
+    shimmer: true,
+  },
+};
+
+// ─── RankBadge Component ──────────────────────────────────────────────────────
+
+function RankBadge({
+  tier,
+  size = "md",
+  showIcon = true,
+}: {
+  tier: string;
+  size?: "sm" | "md" | "lg" | "xl";
+  showIcon?: boolean;
+}) {
+  const cfg = RANK_VISUAL[tier] || RANK_VISUAL.Unranked;
+  const sizes = {
+    sm: "text-[11px] px-2 py-0.5 gap-1",
+    md: "text-[13px] px-2.5 py-1 gap-1.5",
+    lg: "text-[15px] px-3.5 py-1.5 gap-2 font-bold",
+    xl: "text-[18px] px-4 py-2 gap-2 font-bold",
+  };
+  return (
+    <span
+      className={`inline-flex items-center ${sizes[size]} rounded-full border font-semibold ${cfg.badgeBg} ${cfg.badgeText} ${cfg.badgeBorder} ${cfg.shimmer ? "relative overflow-hidden" : ""}`}
+    >
+      {cfg.shimmer && (
+        <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-[shimmer_2s_infinite] -translate-x-full" />
+      )}
+      {showIcon && <span>{cfg.icon}</span>}
+      <span>{tier}</span>
+    </span>
+  );
+}
+
+// ─── Rank Journey Bar ─────────────────────────────────────────────────────────
+
+function RankJourneyBar({ quarterlyPoints }: { quarterlyPoints: number }) {
+  const tiers = RANK_TIERS.slice(1); // skip Unranked
+  const currentTier = calculateRankTier(quarterlyPoints).tier;
+
+  return (
+    <div className="flex items-center w-full gap-0.5">
+      {tiers.map((t, idx) => {
+        const reached = quarterlyPoints >= t.minPoints;
+        const isCurrent = currentTier === t.tier;
+        const cfg = RANK_VISUAL[t.tier];
+        return (
+          <div key={t.tier} className="flex items-center flex-1">
+            {idx > 0 && (
+              <div
+                className={`h-1.5 flex-1 rounded-full mx-0.5 transition-all duration-500 ${
+                  reached ? cfg.barStyle : "bg-[#e8e8ed]"
+                }`}
+              />
+            )}
+            <div
+              className={`
+                w-8 h-8 rounded-full flex items-center justify-center text-[16px]
+                transition-all duration-300
+                ${isCurrent ? `ring-2 ring-offset-1 ring-white/50 scale-125 ${cfg.glow}` : ""}
+                ${!reached ? "opacity-25 grayscale" : ""}
+              `}
+            >
+              {t.icon}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Quarter Info ─────────────────────────────────────────────────────────────
+
+function getDaysUntilQuarterEnd(): number {
+  const now = new Date();
+  const q = Math.ceil((now.getMonth() + 1) / 3);
+  const quarterEndMonth = q * 3; // March=3, June=6, Sep=9, Dec=12
+  const quarterEnd = new Date(now.getFullYear(), quarterEndMonth, 0); // last day of that month
+  const diff = Math.ceil((quarterEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  return diff;
+}
+
+// ─── Interfaces ───────────────────────────────────────────────────────────────
 
 interface PlayerProfile {
   totalPoints: number;
@@ -59,6 +218,8 @@ interface PlayerProfile {
   }>;
 }
 
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 function LeaderboardContent() {
   const { employee } = useAuth();
 
@@ -70,6 +231,7 @@ function LeaderboardContent() {
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
   const [playerProfile, setPlayerProfile] = useState<PlayerProfile | null>(null);
   const [playerLoading, setPlayerLoading] = useState(false);
+  const daysLeft = getDaysUntilQuarterEnd();
 
   const { leaderboard, isLoading } = useLeaderboard(period, branchId);
   const { profile } = useGameProfile();
@@ -79,49 +241,49 @@ function LeaderboardContent() {
   }, []);
 
   const fetchBranches = async () => {
-    const { data } = await supabase
-      .from("branches")
-      .select("id, name")
-      .order("name");
+    const { data } = await supabase.from("branches").select("id, name").order("name");
     setBranches(data || []);
   };
 
-  const openPlayerProfile = useCallback(async (employeeId: string) => {
-    if (employeeId === employee?.id) return;
-    setSelectedPlayer(employeeId);
-    setPlayerLoading(true);
-    try {
-      const [profile, badges] = await Promise.all([
-        getEmployeeGameProfile(employeeId),
-        getBadgesWithProgress(employeeId),
-      ]);
-
-      const { data: emp } = await supabase
-        .from("employees")
-        .select("name")
-        .eq("id", employeeId)
-        .maybeSingle();
-
-      setPlayerProfile({
-        ...profile,
-        employeeName: emp?.name || "",
-        badges: badges.filter((b) => b.earned),
-      });
-    } catch (err) {
-      console.error("Error fetching player profile:", err);
-    } finally {
-      setPlayerLoading(false);
-    }
-  }, [employee?.id]);
+  const openPlayerProfile = useCallback(
+    async (employeeId: string) => {
+      if (employeeId === employee?.id) return;
+      setSelectedPlayer(employeeId);
+      setPlayerLoading(true);
+      try {
+        const [gameProfile, badges] = await Promise.all([
+          getEmployeeGameProfile(employeeId),
+          getBadgesWithProgress(employeeId),
+        ]);
+        const { data: emp } = await supabase
+          .from("employees")
+          .select("name")
+          .eq("id", employeeId)
+          .maybeSingle();
+        setPlayerProfile({
+          ...gameProfile,
+          employeeName: emp?.name || "",
+          badges: badges.filter((b) => b.earned),
+        });
+      } catch (err) {
+        console.error("Error fetching player profile:", err);
+      } finally {
+        setPlayerLoading(false);
+      }
+    },
+    [employee?.id]
+  );
 
   const top3 = leaderboard.slice(0, 3);
   const rest = leaderboard.slice(3);
+  const myRankTier = profile?.rankTier || "Unranked";
+  const myCfg = RANK_VISUAL[myRankTier];
 
   return (
     <div className="min-h-screen bg-[#fbfbfd] pb-20 pt-safe">
       <main className="max-w-[600px] mx-auto px-4 pt-4 pb-4">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
             <Link
               href="/"
@@ -137,7 +299,6 @@ function LeaderboardContent() {
               className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
                 showHowItWorks ? "bg-[#34c759]/10 text-[#34c759]" : "bg-[#f5f5f7] text-[#86868b]"
               }`}
-              aria-label="วิธีการคำนวณ"
             >
               <Info className="w-5 h-5" />
             </button>
@@ -146,14 +307,12 @@ function LeaderboardContent() {
               className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
                 showFilter ? "bg-[#0071e3]/10 text-[#0071e3]" : "bg-[#f5f5f7] text-[#86868b]"
               }`}
-              aria-label="กรองตามสาขา"
             >
               <Filter className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* How It Works Section */}
         {showHowItWorks && <HowItWorksSection onClose={() => setShowHowItWorks(false)} />}
 
         {/* Period Tabs */}
@@ -161,9 +320,7 @@ function LeaderboardContent() {
           <button
             onClick={() => setPeriod("quarterly")}
             className={`flex-1 py-2.5 text-[14px] font-medium rounded-lg transition-all ${
-              period === "quarterly"
-                ? "bg-white text-[#1d1d1f] shadow-sm"
-                : "text-[#86868b]"
+              period === "quarterly" ? "bg-white text-[#1d1d1f] shadow-sm" : "text-[#86868b]"
             }`}
           >
             ไตรมาสนี้
@@ -171,9 +328,7 @@ function LeaderboardContent() {
           <button
             onClick={() => setPeriod("alltime")}
             className={`flex-1 py-2.5 text-[14px] font-medium rounded-lg transition-all ${
-              period === "alltime"
-                ? "bg-white text-[#1d1d1f] shadow-sm"
-                : "text-[#86868b]"
+              period === "alltime" ? "bg-white text-[#1d1d1f] shadow-sm" : "text-[#86868b]"
             }`}
           >
             ตลอดกาล
@@ -182,15 +337,13 @@ function LeaderboardContent() {
 
         {/* Branch Filter */}
         {showFilter && (
-          <div className="mb-4 p-4 bg-white rounded-2xl border border-[#e8e8ed] shadow-sm animate-fade-in">
+          <div className="mb-4 p-4 bg-white rounded-2xl border border-[#e8e8ed] shadow-sm">
             <p className="text-[13px] font-medium text-[#86868b] mb-2">กรองตามสาขา</p>
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setBranchId(undefined)}
                 className={`px-3 py-1.5 text-[13px] rounded-lg transition-all ${
-                  !branchId
-                    ? "bg-[#0071e3] text-white"
-                    : "bg-[#f5f5f7] text-[#1d1d1f]"
+                  !branchId ? "bg-[#0071e3] text-white" : "bg-[#f5f5f7] text-[#1d1d1f]"
                 }`}
               >
                 ทั้งหมด
@@ -200,9 +353,7 @@ function LeaderboardContent() {
                   key={b.id}
                   onClick={() => setBranchId(b.id)}
                   className={`px-3 py-1.5 text-[13px] rounded-lg transition-all ${
-                    branchId === b.id
-                      ? "bg-[#0071e3] text-white"
-                      : "bg-[#f5f5f7] text-[#1d1d1f]"
+                    branchId === b.id ? "bg-[#0071e3] text-white" : "bg-[#f5f5f7] text-[#1d1d1f]"
                   }`}
                 >
                   {b.name}
@@ -212,34 +363,101 @@ function LeaderboardContent() {
           </div>
         )}
 
-        {/* My Stats */}
+        {/* My Stats Card – Dynamic per Rank */}
         {profile && (
-          <div className="bg-gradient-to-r from-[#0071e3] to-[#34c759] rounded-2xl p-4 mb-6 text-white">
-            <div className="flex items-center justify-between">
+          <div
+            className={`bg-gradient-to-br ${myCfg.cardBg} rounded-2xl p-4 mb-3 text-white ${myCfg.glow} transition-all`}
+          >
+            <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3">
                 <Avatar name={employee?.name || ""} size="md" />
                 <div>
-                  <p className="text-[14px] font-semibold">{employee?.name}</p>
-                  <p className="text-[12px] text-white/80">
-                    Lv.{profile.level} {profile.levelName}
-                  </p>
-                  <p className="text-[12px] text-white/80">
-                    {profile.rankIcon} {profile.rankTier}
-                  </p>
+                  <p className="text-[15px] font-semibold">{employee?.name}</p>
+                  <p className="text-[12px] text-white/60">Lv.{profile.level} {profile.levelName}</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-[20px] font-bold">
-                  #{profile.rank}
-                </p>
-                <p className="text-[11px] text-white/80">
-                  {period === "quarterly" ? profile.quarterlyPoints : profile.totalPoints} pts
-                </p>
+              <div className="flex flex-col items-end gap-1">
+                {profile.rank && (
+                  <span className="text-[13px] font-bold bg-white/15 px-2 py-0.5 rounded-lg">#{profile.rank}</span>
+                )}
+                <RankBadge tier={myRankTier} size="sm" />
               </div>
+            </div>
+
+            {/* Rank Journey */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between text-[11px] text-white/60 mb-2">
+                <span className="font-medium text-white/80">Rank Journey</span>
+                <span className="flex items-center gap-1">
+                  <RotateCcw className="w-3 h-3" />
+                  รีเซตใน {daysLeft} วัน
+                </span>
+              </div>
+              <RankJourneyBar quarterlyPoints={profile.quarterlyPoints} />
+            </div>
+
+            {/* Rank progress bar */}
+            <div className="mb-3">
+              <div className="flex justify-between text-[11px] text-white/60 mb-1">
+                <span>{profile.quarterlyPoints} pts (ไตรมาส)</span>
+                {profile.nextRankPoints > 0 && (
+                  <span>อีก {profile.nextRankPoints - profile.quarterlyPoints} pts ถึงขั้นถัดไป</span>
+                )}
+              </div>
+              <div className="h-2 bg-white/15 rounded-full overflow-hidden">
+                <div
+                  className={`h-full ${myCfg.barStyle} rounded-full transition-all duration-700`}
+                  style={{ width: `${profile.progressToNextRank}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Stats mini row */}
+            <div className="flex items-center gap-2 text-[11px] text-white/60">
+              <span>Total: {profile.totalPoints.toLocaleString()} pts</span>
+              <span className="w-1 h-1 bg-white/30 rounded-full" />
+              {profile.currentStreak > 0 && (
+                <>
+                  <span className="flex items-center gap-0.5">
+                    <Flame className="w-3 h-3 text-[#ff9500]" />
+                    Streak {profile.currentStreak}
+                  </span>
+                  <span className="w-1 h-1 bg-white/30 rounded-full" />
+                </>
+              )}
+              <span>{period === "quarterly" ? profile.quarterlyPoints : profile.totalPoints} pts</span>
             </div>
           </div>
         )}
 
+        {/* Rank Tier Guide (quarterly only) */}
+        {period === "quarterly" && (
+          <div className="mb-4 bg-white rounded-2xl border border-[#e8e8ed] p-3.5 overflow-x-auto">
+            <div className="flex items-center gap-3 min-w-max">
+              {RANK_TIERS.slice(1).map((t) => {
+                const cfg = RANK_VISUAL[t.tier];
+                const isReached = (profile?.quarterlyPoints || 0) >= t.minPoints;
+                return (
+                  <div key={t.tier} className="flex flex-col items-center gap-1">
+                    <span
+                      className={`text-[22px] transition-all ${
+                        isReached ? `drop-shadow-sm` : "opacity-25 grayscale"
+                      }`}
+                    >
+                      {t.icon}
+                    </span>
+                    <span className={`text-[10px] font-semibold ${isReached ? cfg.badgeText : "text-[#86868b]"}`}>
+                      {t.tier}
+                    </span>
+                    <span className="text-[9px] text-[#86868b]">{t.minPoints}+</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Leaderboard List */}
         {isLoading ? (
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
@@ -262,7 +480,6 @@ function LeaderboardContent() {
           </div>
         ) : (
           <>
-            {/* Top 3 Podium */}
             {top3.length >= 3 && (
               <div className="flex items-end justify-center gap-3 mb-6 px-2">
                 <PodiumCard entry={top3[1]} position={2} period={period} currentUserId={employee?.id} onTap={openPlayerProfile} />
@@ -303,97 +520,96 @@ function LeaderboardContent() {
       </main>
       <BottomNav />
 
-      {/* Player Profile Modal */}
       {selectedPlayer && (
         <PlayerProfileModal
           profile={playerProfile}
           loading={playerLoading}
-          onClose={() => { setSelectedPlayer(null); setPlayerProfile(null); }}
+          onClose={() => {
+            setSelectedPlayer(null);
+            setPlayerProfile(null);
+          }}
         />
       )}
     </div>
   );
 }
 
-// ============================================
-// How It Works Section
-// ============================================
+// ─── How It Works ─────────────────────────────────────────────────────────────
 
 function HowItWorksSection({ onClose }: { onClose: () => void }) {
-  const [expandedSection, setExpandedSection] = useState<string | null>("points");
+  const [expandedSection, setExpandedSection] = useState<string | null>("ranks");
 
   const sections = [
+    {
+      id: "ranks",
+      title: "Rank ไตรมาส (รีเซตทุก Q1-Q4)",
+      icon: <Crown className="w-4 h-4 text-[#ffd700]" />,
+      items: RANK_TIERS.slice(1).map((r) => ({
+        label: `${r.icon} ${r.tier}`,
+        value: `${r.minPoints}+ pts`,
+        desc: "",
+      })).concat([{
+        label: "⟳ รีเซต",
+        value: "",
+        desc: "คะแนน Rank รีเซตเป็น 0 ทุกต้นไตรมาส (มี.ค., มิ.ย., ก.ย., ธ.ค.) Level ไม่รีเซต",
+      }]),
+    },
     {
       id: "points",
       title: "การได้แต้ม",
       icon: <Zap className="w-4 h-4 text-[#ff9500]" />,
       items: [
-        { label: "เช็กอินตรงเวลา", value: "+10 แต้ม", desc: "เช็กอินก่อนเวลาเริ่มงาน + เวลาผ่อนผัน" },
-        { label: "เช็กอินก่อนเวลา (15 นาที)", value: "+5 แต้ม", desc: "มาก่อนเวลาเริ่มงาน 15 นาทีขึ้นไป" },
-        { label: "เข้า-ออกงานครบวัน", value: "+5 แต้ม", desc: "เช็กอินและเช็กเอาท์ครบในวันเดียวกัน" },
-        { label: "ทำ OT สำเร็จ", value: "+15 แต้ม", desc: "ทำ OT จนเสร็จตามที่ขออนุมัติ" },
-        { label: "ไม่ลาทั้งสัปดาห์", value: "+20 แต้ม", desc: "มาทำงานครบทุกวันทำงานในสัปดาห์" },
-        { label: "โบนัส Streak ทุก 5 วัน", value: "+25 แต้ม", desc: "เช็กอินตรงเวลาต่อเนื่อง 5, 10, 15... วัน" },
-        { label: "มาสาย", value: "-5 แต้ม", desc: "เช็กอินหลังเวลาเริ่มงาน + เวลาผ่อนผัน" },
+        { label: "เช็กอินตรงเวลา", value: "+5 แต้ม", desc: "" },
+        { label: "เช็กอินก่อนเวลา 15 นาที", value: "+2 แต้ม", desc: "" },
+        { label: "เข้า-ออกงานครบวัน", value: "+2 แต้ม", desc: "" },
+        { label: "ทำ OT สำเร็จ", value: "+10 แต้ม", desc: "" },
+        { label: "ไม่ลาทั้งสัปดาห์", value: "+10 แต้ม", desc: "" },
+        { label: "โบนัส Streak ทุก 5 วัน", value: "+15 แต้ม", desc: "" },
+        { label: "มาสาย", value: "-10 แต้ม", desc: "หักแต้มรายวัน" },
       ],
-    },
-    {
-      id: "streak",
-      title: "Streak (ต่อเนื่อง)",
-      icon: <Flame className="w-4 h-4 text-[#ff3b30]" />,
-      items: [
-        { label: "เพิ่ม Streak", value: "", desc: "เช็กอินตรงเวลาทุกวันทำงาน (จันทร์-เสาร์) streak จะเพิ่มขึ้นเรื่อยๆ ข้ามวันอาทิตย์ได้โดยไม่ขาด" },
-        { label: "Reset Streak", value: "", desc: "ถ้ามาสายหรือไม่มาทำงานในวันทำงาน streak จะ reset เป็น 0 ทันที" },
-        { label: "Streak สูงสุด", value: "", desc: "ระบบจะบันทึก streak สูงสุดที่เคยทำได้ไว้ด้วย" },
-      ],
-    },
-    {
-      id: "ranks",
-      title: "แรงค์ (Rank) - รีเซตทุกไตรมาส",
-      icon: <Crown className="w-4 h-4 text-[#ffd700]" />,
-      items: RANK_TIERS.map((r) => ({
-        label: `${r.icon} ${r.tier}`,
-        value: r.minPoints > 0 ? `${r.minPoints.toLocaleString()} แต้ม/ไตรมาส` : "-",
-        desc: r.tier === "Unranked" ? "ยังไม่มีคะแนนในไตรมาสนี้" : "",
-      })),
     },
     {
       id: "levels",
-      title: "ระดับ (Level) - ถาวร",
+      title: "Level (ถาวร ไม่รีเซต)",
       icon: <TrendingUp className="w-4 h-4 text-[#0071e3]" />,
       items: LEVELS.map((l) => ({
         label: `Lv.${l.level} ${l.name}`,
-        value: l.minPoints > 0 ? `${l.minPoints.toLocaleString()} แต้มสะสม` : "เริ่มต้น",
+        value: l.minPoints > 0 ? `${l.minPoints.toLocaleString()} pts` : "เริ่มต้น",
         desc: "",
       })),
+    },
+    {
+      id: "streak",
+      title: "Streak",
+      icon: <Flame className="w-4 h-4 text-[#ff3b30]" />,
+      items: [
+        { label: "เพิ่ม Streak", value: "", desc: "เช็กอินตรงเวลาต่อเนื่องทุกวันทำงาน" },
+        { label: "Reset Streak", value: "", desc: "มาสายหรือไม่มาทำงาน streak เป็น 0 ทันที" },
+      ],
     },
     {
       id: "badges",
       title: "เหรียญ (Badge)",
       icon: <Award className="w-4 h-4 text-[#af52de]" />,
       items: [
-        { label: "เหรียญจะได้รับอัตโนมัติ", value: "", desc: "เมื่อคุณทำตามเงื่อนไขครบ เช่น เช็กอินตรงเวลา 5 ครั้ง, streak 7 วัน, ทำ OT 10 ครั้ง" },
-        { label: "ดูเหรียญทั้งหมดได้ที่", value: "", desc: "โปรไฟล์ > แท็บเหรียญ จะเห็นเหรียญที่ได้แล้วและเหรียญที่ยังไม่ได้พร้อมความคืบหน้า" },
-        { label: "แต่ละเหรียญมีแต้มโบนัส", value: "", desc: "เมื่อได้เหรียญจะได้แต้มเพิ่มตามระดับ Bronze, Silver, Gold, Platinum" },
+        { label: "ได้อัตโนมัติ", value: "", desc: "เมื่อทำตามเงื่อนไขครบ เช่น streak 7 วัน, OT 10 ครั้ง" },
+        { label: "โบนัสแต้ม", value: "", desc: "แต่ละเหรียญให้แต้มพิเศษตามระดับ Bronze-Platinum" },
       ],
     },
   ];
 
   return (
-    <div className="mb-4 bg-white rounded-2xl border border-[#e8e8ed] shadow-sm overflow-hidden animate-fade-in">
+    <div className="mb-4 bg-white rounded-2xl border border-[#e8e8ed] shadow-sm overflow-hidden">
       <div className="p-4 border-b border-[#f5f5f7]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Target className="w-5 h-5 text-[#34c759]" />
-            <h2 className="text-[16px] font-semibold text-[#1d1d1f]">ระบบคำนวณแต้ม</h2>
+            <h2 className="text-[16px] font-semibold text-[#1d1d1f]">ระบบคะแนน</h2>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-[#f5f5f7]">
             <X className="w-4 h-4 text-[#86868b]" />
           </button>
         </div>
-        <p className="text-[12px] text-[#86868b] mt-1">
-          แต้มคำนวณจากการเช็กอิน, OT, และ streak อัตโนมัติ
-        </p>
       </div>
 
       {sections.map((section) => (
@@ -412,7 +628,6 @@ function HowItWorksSection({ onClose }: { onClose: () => void }) {
               <ChevronDown className="w-4 h-4 text-[#86868b]" />
             )}
           </button>
-
           {expandedSection === section.id && (
             <div className="px-4 pb-4 space-y-2">
               {section.items.map((item, i) => (
@@ -421,16 +636,12 @@ function HowItWorksSection({ onClose }: { onClose: () => void }) {
                     <div className="flex items-center justify-between">
                       <span className="text-[13px] font-medium text-[#1d1d1f]">{item.label}</span>
                       {item.value && (
-                        <span className={`text-[13px] font-bold ml-2 whitespace-nowrap ${
-                          item.value.startsWith("-") ? "text-[#ff3b30]" : "text-[#34c759]"
-                        }`}>
+                        <span className={`text-[13px] font-bold ml-2 whitespace-nowrap ${item.value.startsWith("-") ? "text-[#ff3b30]" : "text-[#34c759]"}`}>
                           {item.value}
                         </span>
                       )}
                     </div>
-                    {item.desc && (
-                      <p className="text-[11px] text-[#86868b] mt-0.5">{item.desc}</p>
-                    )}
+                    {item.desc && <p className="text-[11px] text-[#86868b] mt-0.5">{item.desc}</p>}
                   </div>
                 </div>
               ))}
@@ -442,9 +653,7 @@ function HowItWorksSection({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ============================================
-// Player Profile Modal
-// ============================================
+// ─── Player Profile Modal ─────────────────────────────────────────────────────
 
 function PlayerProfileModal({
   profile,
@@ -456,15 +665,15 @@ function PlayerProfileModal({
   onClose: () => void;
 }) {
   const nextLevel = profile ? LEVELS.find((l) => l.level === profile.level + 1) : null;
+  const cfg = profile ? RANK_VISUAL[profile.rankTier] || RANK_VISUAL.Unranked : RANK_VISUAL.Unranked;
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={onClose}>
       <div
-        className="bg-white rounded-t-3xl w-full max-w-[600px] max-h-[80vh] overflow-y-auto animate-slide-up"
+        className="bg-white rounded-t-3xl w-full max-w-[600px] max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Handle bar */}
-        <div className="flex justify-center pt-3 pb-2">
+        <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 bg-[#d2d2d7] rounded-full" />
         </div>
 
@@ -475,118 +684,110 @@ function PlayerProfileModal({
             <div className="h-4 bg-[#f5f5f7] rounded w-20 mx-auto animate-pulse" />
           </div>
         ) : (
-          <div className="px-6 pb-8">
-            {/* Player header */}
-            <div className="text-center mb-6">
-              <Avatar name={profile.employeeName || ""} size="lg" />
-              <h3 className="text-[20px] font-bold text-[#1d1d1f] mt-3">
-                {profile.employeeName}
-              </h3>
-              <p className="text-[14px] text-[#86868b]">
-                Lv.{profile.level} {profile.levelName}
-              </p>
-              <p className="text-[14px] text-[#86868b]">
-                {profile.rankIcon} {profile.rankTier}
-              </p>
-            </div>
+          <>
+            {/* Rank Header Banner */}
+            <div className={`bg-gradient-to-br ${cfg.cardBg} px-6 pt-4 pb-6 text-white ${cfg.glow}`}>
+              <div className="flex flex-col items-center text-center">
+                <Avatar name={profile.employeeName || ""} size="lg" />
+                <h3 className="text-[20px] font-bold mt-3">{profile.employeeName}</h3>
+                <p className="text-[13px] text-white/70 mb-3">Lv.{profile.level} {profile.levelName}</p>
 
-            {/* Level progress */}
-            <div className="mb-4">
-              <div className="flex justify-between text-[11px] text-[#86868b] mb-1.5">
-                <span>Level: {profile.totalPoints.toLocaleString()} แต้ม</span>
-                {nextLevel && <span>{nextLevel.minPoints.toLocaleString()} แต้ม</span>}
-              </div>
-              <div className="h-2.5 bg-[#f5f5f7] rounded-full overflow-hidden">
+                {/* Big Rank Badge */}
                 <div
-                  className="h-full bg-gradient-to-r from-[#0071e3] to-[#34c759] rounded-full transition-all"
-                  style={{ width: `${profile.progressToNextLevel}%` }}
-                />
+                  className={`
+                    flex items-center gap-2 px-4 py-2 rounded-2xl border font-bold text-[16px]
+                    ${cfg.badgeBg} ${cfg.badgeText} ${cfg.badgeBorder}
+                    ${cfg.shimmer ? "relative overflow-hidden" : ""}
+                  `}
+                >
+                  {cfg.shimmer && (
+                    <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                  )}
+                  <span className="text-[20px]">{cfg.icon}</span>
+                  <span>{profile.rankTier}</span>
+                </div>
+
+                {/* Rank Journey inside header */}
+                <div className="w-full mt-4">
+                  <RankJourneyBar quarterlyPoints={profile.quarterlyPoints} />
+                </div>
+                {profile.nextRankPoints > 0 && (
+                  <p className="text-[11px] text-white/60 mt-2">
+                    อีก {profile.nextRankPoints - profile.quarterlyPoints} pts ถึงขั้นถัดไป
+                  </p>
+                )}
               </div>
             </div>
 
-            {/* Rank progress */}
-            <div className="mb-6">
-              <div className="flex justify-between text-[11px] text-[#86868b] mb-1.5">
-                <span>Rank: {profile.quarterlyPoints.toLocaleString()} แต้ม (ไตรมาสนี้)</span>
-                {profile.nextRankPoints > 0 && <span>{profile.nextRankPoints.toLocaleString()} แต้ม</span>}
-              </div>
-              <div className="h-2.5 bg-[#f5f5f7] rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-[#ff9500] to-[#ffd700] rounded-full transition-all"
-                  style={{ width: `${profile.progressToNextRank}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Stats grid */}
-            <div className="grid grid-cols-4 gap-3 mb-6">
-              <div className="bg-[#f5f5f7] rounded-2xl p-3 text-center">
-                <Trophy className="w-4 h-4 text-[#ffd700] mx-auto mb-1" />
-                <p className="text-[16px] font-bold text-[#1d1d1f]">#{profile.rank}</p>
-                <p className="text-[10px] text-[#86868b]">อันดับ</p>
-              </div>
-              <div className="bg-[#f5f5f7] rounded-2xl p-3 text-center">
-                <TrendingUp className="w-4 h-4 text-[#0071e3] mx-auto mb-1" />
-                <p className="text-[16px] font-bold text-[#1d1d1f]">{profile.quarterlyPoints}</p>
-                <p className="text-[10px] text-[#86868b]">ไตรมาส</p>
-              </div>
-              <div className="bg-[#f5f5f7] rounded-2xl p-3 text-center">
-                <Flame className="w-4 h-4 text-[#ff9500] mx-auto mb-1" />
-                <p className="text-[16px] font-bold text-[#1d1d1f]">{profile.currentStreak}</p>
-                <p className="text-[10px] text-[#86868b]">Streak</p>
-              </div>
-              <div className="bg-[#f5f5f7] rounded-2xl p-3 text-center">
-                <Flame className="w-4 h-4 text-[#ff3b30] mx-auto mb-1" />
-                <p className="text-[16px] font-bold text-[#1d1d1f]">{profile.longestStreak}</p>
-                <p className="text-[10px] text-[#86868b]">สูงสุด</p>
-              </div>
-            </div>
-
-            {/* Earned badges */}
-            {profile.badges && profile.badges.length > 0 && (
-              <div>
-                <h4 className="text-[14px] font-semibold text-[#1d1d1f] mb-3">
-                  เหรียญที่ได้รับ ({profile.badges.length})
-                </h4>
-                <div className="grid grid-cols-4 gap-2">
-                  {profile.badges.map((badge) => (
-                    <div
-                      key={badge.id}
-                      className="bg-[#f5f5f7] rounded-xl p-2.5 text-center"
-                    >
-                      <span className="text-[24px] block mb-1">{badge.icon}</span>
-                      <p className="text-[10px] font-medium text-[#1d1d1f] leading-tight truncate">
-                        {badge.name}
-                      </p>
-                    </div>
-                  ))}
+            <div className="px-6 pb-8 pt-5">
+              {/* Level progress */}
+              <div className="mb-5">
+                <div className="flex justify-between text-[12px] text-[#86868b] mb-1.5">
+                  <span className="font-medium text-[#1d1d1f]">Level Progress</span>
+                  <span>{profile.totalPoints.toLocaleString()} / {nextLevel ? nextLevel.minPoints.toLocaleString() : "Max"} pts</span>
+                </div>
+                <div className="h-2.5 bg-[#f5f5f7] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#0071e3] to-[#34c759] rounded-full transition-all duration-500"
+                    style={{ width: `${profile.progressToNextLevel}%` }}
+                  />
                 </div>
               </div>
-            )}
 
-            {profile.badges && profile.badges.length === 0 && (
-              <div className="text-center py-4">
-                <Star className="w-8 h-8 text-[#d2d2d7] mx-auto mb-2" />
-                <p className="text-[13px] text-[#86868b]">ยังไม่มีเหรียญ</p>
+              {/* Stats grid */}
+              <div className="grid grid-cols-4 gap-2 mb-5">
+                <div className="bg-[#f5f5f7] rounded-2xl p-3 text-center">
+                  <Trophy className="w-4 h-4 text-[#ffd700] mx-auto mb-1" />
+                  <p className="text-[16px] font-bold text-[#1d1d1f]">#{profile.rank}</p>
+                  <p className="text-[10px] text-[#86868b]">อันดับ</p>
+                </div>
+                <div className="bg-[#f5f5f7] rounded-2xl p-3 text-center">
+                  <TrendingUp className="w-4 h-4 text-[#0071e3] mx-auto mb-1" />
+                  <p className="text-[16px] font-bold text-[#1d1d1f]">{profile.quarterlyPoints}</p>
+                  <p className="text-[10px] text-[#86868b]">ไตรมาส</p>
+                </div>
+                <div className="bg-[#f5f5f7] rounded-2xl p-3 text-center">
+                  <Flame className="w-4 h-4 text-[#ff9500] mx-auto mb-1" />
+                  <p className="text-[16px] font-bold text-[#1d1d1f]">{profile.currentStreak}</p>
+                  <p className="text-[10px] text-[#86868b]">Streak</p>
+                </div>
+                <div className="bg-[#f5f5f7] rounded-2xl p-3 text-center">
+                  <Star className="w-4 h-4 text-[#ffd700] mx-auto mb-1" />
+                  <p className="text-[16px] font-bold text-[#1d1d1f]">{profile.longestStreak}</p>
+                  <p className="text-[10px] text-[#86868b]">Best</p>
+                </div>
               </div>
-            )}
 
-            <button
-              onClick={onClose}
-              className="w-full mt-6 py-3 bg-[#f5f5f7] rounded-xl text-[14px] font-medium text-[#86868b] active:bg-[#e8e8ed] transition-colors"
-            >
-              ปิด
-            </button>
-          </div>
+              {/* Badges */}
+              {profile.badges && profile.badges.length > 0 && (
+                <div className="mb-5">
+                  <h4 className="text-[14px] font-semibold text-[#1d1d1f] mb-3">เหรียญ ({profile.badges.length})</h4>
+                  <div className="grid grid-cols-4 gap-2">
+                    {profile.badges.map((badge) => (
+                      <div key={badge.id} className="bg-[#f5f5f7] rounded-xl p-2.5 text-center">
+                        <span className="text-[24px] block mb-1">{badge.icon}</span>
+                        <p className="text-[10px] font-medium text-[#1d1d1f] leading-tight truncate">{badge.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={onClose}
+                className="w-full py-3 bg-[#f5f5f7] rounded-xl text-[14px] font-medium text-[#86868b] active:bg-[#e8e8ed] transition-colors"
+              >
+                ปิด
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>
   );
 }
 
-// ============================================
-// Podium Card
-// ============================================
+// ─── Podium Card ──────────────────────────────────────────────────────────────
 
 function PodiumCard({
   entry,
@@ -603,40 +804,51 @@ function PodiumCard({
 }) {
   const isMe = entry.employeeId === currentUserId;
   const height = position === 1 ? "h-28" : position === 2 ? "h-20" : "h-16";
-  const iconSize = position === 1 ? "w-6 h-6" : "w-5 h-5";
   const points = period === "quarterly" ? entry.quarterlyPoints : entry.totalPoints;
+  const cfg = RANK_VISUAL[entry.rankTier] || RANK_VISUAL.Unranked;
+
+  const podiumBg = [
+    "bg-gradient-to-br from-[#ffd700]/20 to-[#daa520]/10 border-[#ffd700]/30",
+    "bg-gradient-to-br from-[#c0c0c0]/20 to-[#808080]/10 border-[#c0c0c0]/30",
+    "bg-gradient-to-br from-[#cd7f32]/20 to-[#a0522d]/10 border-[#cd7f32]/30",
+  ];
+  const positionBg = ["bg-[#ffd700]", "bg-[#9ca3af]", "bg-[#cd7f32]"];
 
   return (
     <div
-      className={`flex-1 flex flex-col items-center cursor-pointer ${position === 1 ? "order-2" : position === 2 ? "order-1" : "order-3"}`}
+      className={`flex-1 flex flex-col items-center cursor-pointer ${
+        position === 1 ? "order-2" : position === 2 ? "order-1" : "order-3"
+      }`}
       onClick={() => onTap(entry.employeeId)}
     >
       <div className="relative mb-2">
         <Avatar name={entry.employeeName} size={position === 1 ? "lg" : "md"} />
-        <div className={`absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center ${
-          position === 1 ? "bg-[#ffd700]" : position === 2 ? "bg-[#c0c0c0]" : "bg-[#cd7f32]"
-        }`}>
+        <div className={`absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center ${positionBg[position - 1]}`}>
           <span className="text-[11px] font-bold text-white">{position}</span>
         </div>
       </div>
       <p className={`text-[13px] font-semibold text-center mb-0.5 truncate max-w-full ${isMe ? "text-[#0071e3]" : "text-[#1d1d1f]"}`}>
         {entry.employeeName.split(" ")[0]}
       </p>
+      {/* Rank badge */}
+      {entry.rankTier && entry.rankTier !== "Unranked" && (
+        <span className={`text-[10px] font-bold mb-1 ${cfg.badgeText}`}>
+          {cfg.icon} {entry.rankTier}
+        </span>
+      )}
       <p className="text-[11px] text-[#86868b] mb-1">{points.toLocaleString()} pts</p>
-      <div className={`w-full ${height} rounded-t-xl ${TIER_BG_COLORS[position - 1]} border flex items-center justify-center`}>
+      <div className={`w-full ${height} rounded-t-xl ${podiumBg[position - 1]} border flex items-center justify-center`}>
         {position === 1 ? (
-          <Crown className={`${iconSize} text-[#ffd700]`} />
+          <Crown className="w-6 h-6 text-[#ffd700]" />
         ) : (
-          <Medal className={`${iconSize} ${TIER_MEDAL_COLORS[position - 1]}`} />
+          <Medal className={`w-5 h-5 ${position === 2 ? "text-[#9ca3af]" : "text-[#cd7f32]"}`} />
         )}
       </div>
     </div>
   );
 }
 
-// ============================================
-// Leaderboard Row
-// ============================================
+// ─── Leaderboard Row ──────────────────────────────────────────────────────────
 
 function LeaderboardRow({
   entry,
@@ -650,6 +862,7 @@ function LeaderboardRow({
   onTap: (employeeId: string) => void;
 }) {
   const points = period === "quarterly" ? entry.quarterlyPoints : entry.totalPoints;
+  const cfg = RANK_VISUAL[entry.rankTier] || RANK_VISUAL.Unranked;
 
   return (
     <div
@@ -675,9 +888,6 @@ function LeaderboardRow({
         </p>
         <div className="flex items-center gap-2 text-[11px] text-[#86868b]">
           <span>Lv.{entry.level}</span>
-          {entry.rankTier && entry.rankTier !== "Unranked" && (
-            <span className="font-medium">{entry.rankTier}</span>
-          )}
           {entry.currentStreak > 0 && (
             <span className="flex items-center gap-0.5">
               <Flame className="w-3 h-3 text-[#ff9500]" />
@@ -693,15 +903,23 @@ function LeaderboardRow({
         </div>
       </div>
 
-      <div className="text-right">
-        <p className={`text-[16px] font-bold ${isCurrentUser ? "text-[#0071e3]" : "text-[#1d1d1f]"}`}>
-          {points.toLocaleString()}
-        </p>
-        <p className="text-[10px] text-[#86868b]">pts</p>
+      {/* Rank badge - prominent right side */}
+      <div className="flex flex-col items-end gap-1">
+        {entry.rankTier && entry.rankTier !== "Unranked" && (
+          <RankBadge tier={entry.rankTier} size="sm" />
+        )}
+        <div className="text-right">
+          <p className={`text-[16px] font-bold ${isCurrentUser ? "text-[#0071e3]" : "text-[#1d1d1f]"}`}>
+            {points.toLocaleString()}
+          </p>
+          <p className="text-[10px] text-[#86868b]">pts</p>
+        </div>
       </div>
     </div>
   );
 }
+
+// ─── Page Export ──────────────────────────────────────────────────────────────
 
 export default function LeaderboardPage() {
   return (

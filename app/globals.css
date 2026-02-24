@@ -29,6 +29,12 @@
   --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Noto Sans Thai', sans-serif;
 }
 
+/* Rank shimmer animation for Diamond tier */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
 /* Base Styles */
 html {
   -webkit-font-smoothing: antialiased;
