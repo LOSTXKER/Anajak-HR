@@ -3,73 +3,71 @@
 import Link from "next/link";
 import { Trophy, Flame, Star, ChevronRight, TrendingUp, RotateCcw } from "lucide-react";
 import { useGameProfile } from "@/lib/hooks/use-gamification";
-import { LEVELS, RANK_TIERS, calculateRankTier } from "@/lib/services/gamification.service";
+import { LEVELS, RANK_TIERS } from "@/lib/services/gamification.service";
 
-const RANK_CARD_STYLE: Record<string, { bg: string; bar: string; glow: string; accent: string; badgeBg: string; badgeText: string }> = {
+// Solid gradient badges → readable on any background
+const RANK_STYLE: Record<string, {
+  cardBg: string;
+  badgeSolid: string;
+  badgeText: string;
+  barStyle: string;
+  glow: string;
+  icon: string;
+}> = {
   Unranked: {
-    bg: "from-[#48484a] to-[#1d1d1f]",
-    bar: "bg-[#86868b]",
+    cardBg: "from-[#3a3a3c] to-[#1d1d1f]",
+    badgeSolid: "bg-[#636366]",
+    badgeText: "text-white",
+    barStyle: "bg-[#636366]",
     glow: "",
-    accent: "#86868b",
-    badgeBg: "bg-white/10",
-    badgeText: "text-white/60",
+    icon: "🔒",
   },
   Bronze: {
-    bg: "from-[#7c3a0d] via-[#5a2d0c] to-[#1d1209]",
-    bar: "bg-gradient-to-r from-[#cd7f32] to-[#b8860b]",
-    glow: "shadow-[0_4px_20px_rgba(205,127,50,0.4)]",
-    accent: "#e8951a",
-    badgeBg: "bg-[#cd7f32]/20",
-    badgeText: "text-[#e8951a]",
+    cardBg: "from-[#92400e] via-[#78350f] to-[#1c0a00]",
+    badgeSolid: "bg-gradient-to-r from-[#d97706] to-[#b45309]",
+    badgeText: "text-white",
+    barStyle: "bg-gradient-to-r from-[#d97706] to-[#b45309]",
+    glow: "shadow-[0_4px_20px_rgba(217,119,6,0.5)]",
+    icon: "🥉",
   },
   Silver: {
-    bg: "from-[#374151] via-[#1f2937] to-[#111827]",
-    bar: "bg-gradient-to-r from-[#d1d5db] to-[#9ca3af]",
-    glow: "shadow-[0_4px_20px_rgba(156,163,175,0.35)]",
-    accent: "#d1d5db",
-    badgeBg: "bg-[#9ca3af]/20",
-    badgeText: "text-[#d1d5db]",
+    cardBg: "from-[#374151] via-[#1f2937] to-[#111827]",
+    badgeSolid: "bg-gradient-to-r from-[#6b7280] to-[#4b5563]",
+    badgeText: "text-white",
+    barStyle: "bg-gradient-to-r from-[#9ca3af] to-[#6b7280]",
+    glow: "shadow-[0_4px_20px_rgba(107,114,128,0.5)]",
+    icon: "🥈",
   },
   Gold: {
-    bg: "from-[#78350f] via-[#451a03] to-[#1c0a00]",
-    bar: "bg-gradient-to-r from-[#fbbf24] to-[#f59e0b]",
-    glow: "shadow-[0_4px_24px_rgba(251,191,36,0.5)]",
-    accent: "#fbbf24",
-    badgeBg: "bg-[#fbbf24]/20",
-    badgeText: "text-[#fbbf24]",
+    cardBg: "from-[#78350f] via-[#92400e] to-[#1c0a00]",
+    badgeSolid: "bg-gradient-to-r from-[#f59e0b] to-[#d97706]",
+    badgeText: "text-[#1c0a00]",
+    barStyle: "bg-gradient-to-r from-[#fbbf24] to-[#f59e0b]",
+    glow: "shadow-[0_4px_24px_rgba(245,158,11,0.6)]",
+    icon: "🥇",
   },
   Platinum: {
-    bg: "from-[#1e3a5f] via-[#1e1b4b] to-[#0a0a1a]",
-    bar: "bg-gradient-to-r from-[#38bdf8] to-[#818cf8]",
-    glow: "shadow-[0_4px_28px_rgba(56,189,248,0.45)]",
-    accent: "#7dd3f0",
-    badgeBg: "bg-[#38bdf8]/20",
-    badgeText: "text-[#7dd3f0]",
+    cardBg: "from-[#1e3a5f] via-[#1e1b4b] to-[#0a0a1a]",
+    badgeSolid: "bg-gradient-to-r from-[#0ea5e9] to-[#6366f1]",
+    badgeText: "text-white",
+    barStyle: "bg-gradient-to-r from-[#38bdf8] to-[#818cf8]",
+    glow: "shadow-[0_4px_28px_rgba(14,165,233,0.55)]",
+    icon: "💎",
   },
   Diamond: {
-    bg: "from-[#4a044e] via-[#1e1b4b] to-[#0c4a6e]",
-    bar: "bg-gradient-to-r from-[#e879f9] via-[#818cf8] to-[#38bdf8]",
-    glow: "shadow-[0_4px_32px_rgba(232,121,249,0.55)]",
-    accent: "#e879f9",
-    badgeBg: "bg-[#e879f9]/20",
-    badgeText: "text-[#e879f9]",
+    cardBg: "from-[#581c87] via-[#1e1b4b] to-[#0c4a6e]",
+    badgeSolid: "bg-gradient-to-r from-[#d946ef] via-[#818cf8] to-[#22d3ee]",
+    badgeText: "text-white",
+    barStyle: "bg-gradient-to-r from-[#d946ef] via-[#818cf8] to-[#22d3ee]",
+    glow: "shadow-[0_4px_32px_rgba(217,70,239,0.65)]",
+    icon: "👑",
   },
-};
-
-const RANK_ICONS: Record<string, string> = {
-  Unranked: "⬜",
-  Bronze: "🥉",
-  Silver: "🥈",
-  Gold: "🥇",
-  Platinum: "💎",
-  Diamond: "👑",
 };
 
 function getDaysUntilQuarterEnd(): number {
   const now = new Date();
   const q = Math.ceil((now.getMonth() + 1) / 3);
-  const quarterEndMonth = q * 3;
-  const quarterEnd = new Date(now.getFullYear(), quarterEndMonth, 0);
+  const quarterEnd = new Date(now.getFullYear(), q * 3, 0);
   return Math.ceil((quarterEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
@@ -90,64 +88,68 @@ export function GameStatusCard() {
   if (!profile) return null;
 
   const rankTier = profile.rankTier || "Unranked";
-  const style = RANK_CARD_STYLE[rankTier] || RANK_CARD_STYLE.Unranked;
-  const rankIcon = RANK_ICONS[rankTier] || "⬜";
+  const style = RANK_STYLE[rankTier] || RANK_STYLE.Unranked;
   const nextLevel = LEVELS.find((l) => l.level === profile.level + 1);
-
-  // Progress ring segments for tier journey
   const activeTiers = RANK_TIERS.slice(1);
 
   return (
     <Link href="/leaderboard">
       <div
-        className={`bg-gradient-to-br ${style.bg} rounded-2xl p-5 mb-4 text-white hover:opacity-95 transition-all active:scale-[0.98] ${style.glow}`}
+        className={`bg-gradient-to-br ${style.cardBg} rounded-2xl p-5 mb-4 text-white hover:opacity-95 transition-all active:scale-[0.98] ${style.glow}`}
       >
-        {/* Top: Level + Rank */}
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Trophy className="w-4 h-4 text-[#ffd700]" />
-              <span className="text-[12px] text-white/60">Level {profile.level} · {profile.levelName}</span>
-            </div>
-            {/* Rank Tier - prominent */}
-            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl ${style.badgeBg}`}>
-              <span className="text-[20px] leading-none">{rankIcon}</span>
-              <div>
-                <p className={`text-[16px] font-bold leading-tight ${style.badgeText}`}>{rankTier}</p>
-                <p className="text-[10px] text-white/50">Rank ไตรมาสนี้</p>
-              </div>
-            </div>
+        {/* Top row: Level + Rank number */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-[#ffd700]" />
+            <span className="text-[12px] text-white/70">Level {profile.level} · {profile.levelName}</span>
           </div>
-          <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-2">
             {profile.rank && (
-              <div className="px-2.5 py-1 bg-white/10 rounded-lg">
-                <span className="text-[13px] font-bold text-white">#{profile.rank}</span>
-              </div>
+              <span className="text-[13px] font-bold bg-white/20 px-2.5 py-1 rounded-xl">#{profile.rank}</span>
             )}
             <ChevronRight className="w-4 h-4 text-white/40" />
           </div>
         </div>
 
-        {/* Rank Journey Dots */}
+        {/* Rank Badge – solid color, always readable */}
+        <div className="flex items-center justify-between mb-4">
+          <div className={`inline-flex items-center gap-2.5 px-3.5 py-2 rounded-2xl ${style.badgeSolid} relative overflow-hidden`}>
+            {rankTier === "Diamond" && (
+              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent animate-[shimmer_2s_infinite] -translate-x-full" />
+            )}
+            <span className="text-[22px] leading-none">{style.icon}</span>
+            <div>
+              <p className={`text-[16px] font-bold leading-tight ${style.badgeText}`}>{rankTier}</p>
+              <p className={`text-[9px] font-medium ${style.badgeText} opacity-80`}>Rank ไตรมาสนี้</p>
+            </div>
+          </div>
+          <span className="flex items-center gap-1 text-[11px] text-white/60">
+            <RotateCcw className="w-3 h-3" />
+            {daysLeft} วัน
+          </span>
+        </div>
+
+        {/* Rank Journey dots */}
         <div className="flex items-center gap-1 mb-3">
           {activeTiers.map((t, idx) => {
             const reached = profile.quarterlyPoints >= t.minPoints;
             const isCurrent = rankTier === t.tier;
+            const tStyle = RANK_STYLE[t.tier];
             return (
               <div key={t.tier} className="flex items-center flex-1">
                 {idx > 0 && (
                   <div
                     className={`h-1 flex-1 rounded-full mx-0.5 transition-all ${
-                      reached ? style.bar : "bg-white/10"
+                      reached ? tStyle.barStyle : "bg-white/15"
                     }`}
                   />
                 )}
                 <span
                   className={`text-[15px] transition-all duration-300 ${
                     isCurrent ? "scale-125 drop-shadow-sm" : ""
-                  } ${!reached ? "opacity-20 grayscale" : ""}`}
+                  } ${!reached ? "opacity-35" : ""}`}
                 >
-                  {RANK_ICONS[t.tier]}
+                  {tStyle.icon}
                 </span>
               </div>
             );
@@ -156,37 +158,29 @@ export function GameStatusCard() {
 
         {/* Rank progress bar */}
         <div className="mb-3">
-          <div className="flex justify-between text-[11px] text-white/50 mb-1.5">
-            <span>{profile.quarterlyPoints} pts ไตรมาสนี้</span>
-            <span className="flex items-center gap-1">
-              <RotateCcw className="w-2.5 h-2.5" />
-              {daysLeft} วัน
-            </span>
+          <div className="flex justify-between text-[11px] text-white/60 mb-1.5">
+            <span className="font-medium text-white/80">{profile.quarterlyPoints} pts ไตรมาสนี้</span>
+            {profile.nextRankPoints > 0 && (
+              <span>อีก {profile.nextRankPoints - profile.quarterlyPoints} pts</span>
+            )}
           </div>
-          <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+          <div className="h-2 bg-white/15 rounded-full overflow-hidden">
             <div
-              className={`h-full ${style.bar} rounded-full transition-all duration-700`}
+              className={`h-full ${style.barStyle} rounded-full transition-all duration-700`}
               style={{ width: `${profile.progressToNextRank}%` }}
             />
           </div>
-          {profile.nextRankPoints > 0 && (
-            <p className="text-[10px] text-white/40 mt-1">
-              อีก {profile.nextRankPoints - profile.quarterlyPoints} pts ถึง {
-                RANK_TIERS.find((t) => t.minPoints === profile.nextRankPoints)?.tier
-              }
-            </p>
-          )}
         </div>
 
         {/* Level progress */}
         <div className="mb-4">
-          <div className="flex justify-between text-[11px] text-white/40 mb-1">
-            <span>Lv.{profile.level} Progress</span>
-            {nextLevel && <span>{profile.totalPoints.toLocaleString()} / {nextLevel.minPoints.toLocaleString()}</span>}
+          <div className="flex justify-between text-[11px] text-white/45 mb-1">
+            <span>Lv.{profile.level} Progress · {profile.totalPoints.toLocaleString()} pts</span>
+            {nextLevel && <span>{nextLevel.minPoints.toLocaleString()}</span>}
           </div>
           <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-[#0071e3] to-[#34c759] rounded-full transition-all duration-500"
+              className="h-full bg-gradient-to-r from-[#34c759] to-[#0071e3] rounded-full transition-all duration-500"
               style={{ width: `${profile.progressToNextLevel}%` }}
             />
           </div>
@@ -194,17 +188,17 @@ export function GameStatusCard() {
 
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-2">
-          <div className="bg-white/8 rounded-xl p-2.5 text-center">
-            <TrendingUp className="w-4 h-4 mx-auto mb-1" style={{ color: style.accent }} />
+          <div className="bg-white/10 rounded-xl p-2.5 text-center">
+            <TrendingUp className="w-4 h-4 mx-auto mb-1 opacity-70" />
             <p className="text-[15px] font-bold">{profile.quarterlyPoints}</p>
             <p className="text-[10px] text-white/50">ไตรมาส</p>
           </div>
-          <div className="bg-white/8 rounded-xl p-2.5 text-center">
+          <div className="bg-white/10 rounded-xl p-2.5 text-center">
             <Flame className="w-4 h-4 text-[#ff9500] mx-auto mb-1" />
             <p className="text-[15px] font-bold">{profile.currentStreak}</p>
             <p className="text-[10px] text-white/50">Streak</p>
           </div>
-          <div className="bg-white/8 rounded-xl p-2.5 text-center">
+          <div className="bg-white/10 rounded-xl p-2.5 text-center">
             {profile.recentBadges.length > 0 ? (
               <>
                 <span className="text-[15px] block mb-0.5">{profile.recentBadges[0].icon}</span>

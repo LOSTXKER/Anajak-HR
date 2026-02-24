@@ -35,84 +35,87 @@ interface RankVisualConfig {
   icon: string;
   label: string;
   cardBg: string;
-  badgeBg: string;
+  // Badge: solid gradient bg + white text = readable on ANY background
+  badgeSolid: string;
   badgeText: string;
-  badgeBorder: string;
   barStyle: string;
   glow: string;
   shimmer: boolean;
+  // accent color (hex) for glow/highlight
+  accent: string;
 }
 
 const RANK_VISUAL: Record<string, RankVisualConfig> = {
   Unranked: {
-    icon: "⬜",
+    icon: "🔒",
     label: "Unranked",
-    cardBg: "from-[#48484a] to-[#1d1d1f]",
-    badgeBg: "bg-[#f5f5f7]",
-    badgeText: "text-[#6e6e73]",
-    badgeBorder: "border-[#d2d2d7]",
-    barStyle: "bg-[#86868b]",
+    cardBg: "from-[#3a3a3c] to-[#1d1d1f]",
+    badgeSolid: "bg-[#636366]",
+    badgeText: "text-white",
+    barStyle: "bg-[#636366]",
     glow: "",
     shimmer: false,
+    accent: "#636366",
   },
   Bronze: {
     icon: "🥉",
     label: "Bronze",
-    cardBg: "from-[#7c3a0d] via-[#5a2d0c] to-[#1d1209]",
-    badgeBg: "bg-gradient-to-r from-[#cd7f32]/25 to-[#a0522d]/20",
-    badgeText: "text-[#e8951a]",
-    badgeBorder: "border-[#cd7f32]/50",
-    barStyle: "bg-gradient-to-r from-[#cd7f32] to-[#b8860b]",
-    glow: "shadow-[0_0_20px_rgba(205,127,50,0.45)]",
+    cardBg: "from-[#92400e] via-[#78350f] to-[#1c0a00]",
+    badgeSolid: "bg-gradient-to-r from-[#d97706] to-[#b45309]",
+    badgeText: "text-white",
+    barStyle: "bg-gradient-to-r from-[#d97706] to-[#b45309]",
+    glow: "shadow-[0_2px_20px_rgba(217,119,6,0.5)]",
     shimmer: false,
+    accent: "#d97706",
   },
   Silver: {
     icon: "🥈",
     label: "Silver",
     cardBg: "from-[#374151] via-[#1f2937] to-[#111827]",
-    badgeBg: "bg-gradient-to-r from-[#9ca3af]/25 to-[#6b7280]/20",
-    badgeText: "text-[#d1d5db]",
-    badgeBorder: "border-[#9ca3af]/50",
-    barStyle: "bg-gradient-to-r from-[#d1d5db] to-[#9ca3af]",
-    glow: "shadow-[0_0_20px_rgba(156,163,175,0.4)]",
+    badgeSolid: "bg-gradient-to-r from-[#6b7280] to-[#4b5563]",
+    badgeText: "text-white",
+    barStyle: "bg-gradient-to-r from-[#9ca3af] to-[#6b7280]",
+    glow: "shadow-[0_2px_20px_rgba(107,114,128,0.5)]",
     shimmer: false,
+    accent: "#9ca3af",
   },
   Gold: {
     icon: "🥇",
     label: "Gold",
-    cardBg: "from-[#78350f] via-[#451a03] to-[#1c0a00]",
-    badgeBg: "bg-gradient-to-r from-[#fbbf24]/30 to-[#f59e0b]/20",
-    badgeText: "text-[#fbbf24]",
-    badgeBorder: "border-[#fbbf24]/50",
+    cardBg: "from-[#78350f] via-[#92400e] to-[#1c0a00]",
+    badgeSolid: "bg-gradient-to-r from-[#f59e0b] to-[#d97706]",
+    badgeText: "text-[#1c0a00]",
     barStyle: "bg-gradient-to-r from-[#fbbf24] to-[#f59e0b]",
-    glow: "shadow-[0_0_24px_rgba(251,191,36,0.55)]",
+    glow: "shadow-[0_2px_24px_rgba(245,158,11,0.6)]",
     shimmer: false,
+    accent: "#f59e0b",
   },
   Platinum: {
     icon: "💎",
     label: "Platinum",
     cardBg: "from-[#1e3a5f] via-[#1e1b4b] to-[#0a0a1a]",
-    badgeBg: "bg-gradient-to-r from-[#38bdf8]/25 to-[#818cf8]/25",
-    badgeText: "text-[#7dd3f0]",
-    badgeBorder: "border-[#38bdf8]/50",
+    badgeSolid: "bg-gradient-to-r from-[#0ea5e9] to-[#6366f1]",
+    badgeText: "text-white",
     barStyle: "bg-gradient-to-r from-[#38bdf8] to-[#818cf8]",
-    glow: "shadow-[0_0_28px_rgba(56,189,248,0.5)]",
+    glow: "shadow-[0_2px_28px_rgba(14,165,233,0.55)]",
     shimmer: false,
+    accent: "#38bdf8",
   },
   Diamond: {
     icon: "👑",
     label: "Diamond",
-    cardBg: "from-[#4a044e] via-[#1e1b4b] to-[#0c4a6e]",
-    badgeBg: "bg-gradient-to-r from-[#e879f9]/25 via-[#818cf8]/20 to-[#38bdf8]/25",
-    badgeText: "text-[#e879f9]",
-    badgeBorder: "border-[#e879f9]/40",
-    barStyle: "bg-gradient-to-r from-[#e879f9] via-[#818cf8] to-[#38bdf8]",
-    glow: "shadow-[0_0_32px_rgba(232,121,249,0.6)]",
+    cardBg: "from-[#581c87] via-[#1e1b4b] to-[#0c4a6e]",
+    badgeSolid: "bg-gradient-to-r from-[#d946ef] via-[#818cf8] to-[#22d3ee]",
+    badgeText: "text-white",
+    barStyle: "bg-gradient-to-r from-[#d946ef] via-[#818cf8] to-[#22d3ee]",
+    glow: "shadow-[0_2px_32px_rgba(217,70,239,0.65)]",
     shimmer: true,
+    accent: "#d946ef",
   },
 };
 
 // ─── RankBadge Component ──────────────────────────────────────────────────────
+// Uses solid gradient background + contrasting text → readable on ANY background
 
 function RankBadge({
   tier,
@@ -132,10 +135,10 @@ function RankBadge({
   };
   return (
     <span
-      className={`inline-flex items-center ${sizes[size]} rounded-full border font-semibold ${cfg.badgeBg} ${cfg.badgeText} ${cfg.badgeBorder} ${cfg.shimmer ? "relative overflow-hidden" : ""}`}
+      className={`inline-flex items-center ${sizes[size]} rounded-full font-semibold ${cfg.badgeSolid} ${cfg.badgeText} ${cfg.shimmer ? "relative overflow-hidden" : ""}`}
     >
       {cfg.shimmer && (
-        <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-[shimmer_2s_infinite] -translate-x-full" />
+        <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent animate-[shimmer_2s_infinite] -translate-x-full" />
       )}
       {showIcon && <span>{cfg.icon}</span>}
       <span>{tier}</span>
@@ -160,7 +163,7 @@ function RankJourneyBar({ quarterlyPoints }: { quarterlyPoints: number }) {
             {idx > 0 && (
               <div
                 className={`h-1.5 flex-1 rounded-full mx-0.5 transition-all duration-500 ${
-                  reached ? cfg.barStyle : "bg-[#e8e8ed]"
+                  reached ? cfg.barStyle : "bg-white/20"
                 }`}
               />
             )}
@@ -168,8 +171,8 @@ function RankJourneyBar({ quarterlyPoints }: { quarterlyPoints: number }) {
               className={`
                 w-8 h-8 rounded-full flex items-center justify-center text-[16px]
                 transition-all duration-300
-                ${isCurrent ? `ring-2 ring-offset-1 ring-white/50 scale-125 ${cfg.glow}` : ""}
-                ${!reached ? "opacity-25 grayscale" : ""}
+                ${isCurrent ? `ring-2 ring-offset-2 ring-white/70 scale-125` : ""}
+                ${!reached ? "opacity-40" : ""}
               `}
             >
               {t.icon}
@@ -368,43 +371,44 @@ function LeaderboardContent() {
           <div
             className={`bg-gradient-to-br ${myCfg.cardBg} rounded-2xl p-4 mb-3 text-white ${myCfg.glow} transition-all`}
           >
-            <div className="flex items-start justify-between mb-3">
+            {/* Top row */}
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 <Avatar name={employee?.name || ""} size="md" />
                 <div>
                   <p className="text-[15px] font-semibold">{employee?.name}</p>
-                  <p className="text-[12px] text-white/60">Lv.{profile.level} {profile.levelName}</p>
+                  <p className="text-[12px] text-white/60">Lv.{profile.level} · {profile.levelName}</p>
                 </div>
               </div>
-              <div className="flex flex-col items-end gap-1">
-                {profile.rank && (
-                  <span className="text-[13px] font-bold bg-white/15 px-2 py-0.5 rounded-lg">#{profile.rank}</span>
-                )}
-                <RankBadge tier={myRankTier} size="sm" />
-              </div>
+              {profile.rank && (
+                <span className="text-[14px] font-bold bg-white/20 px-2.5 py-1 rounded-xl">#{profile.rank}</span>
+              )}
+            </div>
+
+            {/* Rank badge - big and prominent */}
+            <div className="flex items-center justify-between mb-3">
+              <RankBadge tier={myRankTier} size="lg" />
+              <span className="flex items-center gap-1 text-[11px] text-white/60">
+                <RotateCcw className="w-3 h-3" />
+                รีเซตใน {daysLeft} วัน
+              </span>
             </div>
 
             {/* Rank Journey */}
-            <div className="mb-3">
-              <div className="flex items-center justify-between text-[11px] text-white/60 mb-2">
-                <span className="font-medium text-white/80">Rank Journey</span>
-                <span className="flex items-center gap-1">
-                  <RotateCcw className="w-3 h-3" />
-                  รีเซตใน {daysLeft} วัน
-                </span>
-              </div>
+            <div className="mb-2.5">
+              <p className="text-[11px] text-white/60 mb-2">Rank Journey</p>
               <RankJourneyBar quarterlyPoints={profile.quarterlyPoints} />
             </div>
 
             {/* Rank progress bar */}
             <div className="mb-3">
-              <div className="flex justify-between text-[11px] text-white/60 mb-1">
-                <span>{profile.quarterlyPoints} pts (ไตรมาส)</span>
+              <div className="flex justify-between text-[11px] text-white/60 mb-1.5">
+                <span className="font-medium text-white/80">{profile.quarterlyPoints} pts ไตรมาสนี้</span>
                 {profile.nextRankPoints > 0 && (
-                  <span>อีก {profile.nextRankPoints - profile.quarterlyPoints} pts ถึงขั้นถัดไป</span>
+                  <span>อีก {profile.nextRankPoints - profile.quarterlyPoints} pts</span>
                 )}
               </div>
-              <div className="h-2 bg-white/15 rounded-full overflow-hidden">
+              <div className="h-2.5 bg-white/15 rounded-full overflow-hidden">
                 <div
                   className={`h-full ${myCfg.barStyle} rounded-full transition-all duration-700`}
                   style={{ width: `${profile.progressToNextRank}%` }}
@@ -413,43 +417,42 @@ function LeaderboardContent() {
             </div>
 
             {/* Stats mini row */}
-            <div className="flex items-center gap-2 text-[11px] text-white/60">
-              <span>Total: {profile.totalPoints.toLocaleString()} pts</span>
-              <span className="w-1 h-1 bg-white/30 rounded-full" />
+            <div className="flex items-center gap-3 text-[11px] text-white/50">
+              <span>สะสม {profile.totalPoints.toLocaleString()} pts</span>
               {profile.currentStreak > 0 && (
-                <>
-                  <span className="flex items-center gap-0.5">
-                    <Flame className="w-3 h-3 text-[#ff9500]" />
-                    Streak {profile.currentStreak}
-                  </span>
-                  <span className="w-1 h-1 bg-white/30 rounded-full" />
-                </>
+                <span className="flex items-center gap-0.5">
+                  <Flame className="w-3 h-3 text-[#ff9500]" />
+                  Streak {profile.currentStreak}
+                </span>
               )}
-              <span>{period === "quarterly" ? profile.quarterlyPoints : profile.totalPoints} pts</span>
             </div>
           </div>
         )}
 
         {/* Rank Tier Guide (quarterly only) */}
         {period === "quarterly" && (
-          <div className="mb-4 bg-white rounded-2xl border border-[#e8e8ed] p-3.5 overflow-x-auto">
-            <div className="flex items-center gap-3 min-w-max">
+          <div className="mb-4 bg-white rounded-2xl border border-[#e8e8ed] p-4">
+            <p className="text-[12px] font-semibold text-[#86868b] mb-3">เกณฑ์ Rank ไตรมาสนี้</p>
+            <div className="flex items-stretch gap-2">
               {RANK_TIERS.slice(1).map((t) => {
                 const cfg = RANK_VISUAL[t.tier];
                 const isReached = (profile?.quarterlyPoints || 0) >= t.minPoints;
                 return (
-                  <div key={t.tier} className="flex flex-col items-center gap-1">
-                    <span
-                      className={`text-[22px] transition-all ${
-                        isReached ? `drop-shadow-sm` : "opacity-25 grayscale"
-                      }`}
-                    >
-                      {t.icon}
-                    </span>
-                    <span className={`text-[10px] font-semibold ${isReached ? cfg.badgeText : "text-[#86868b]"}`}>
+                  <div
+                    key={t.tier}
+                    className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 px-1 rounded-xl border transition-all ${
+                      isReached
+                        ? `${cfg.badgeSolid} border-transparent`
+                        : "bg-[#f5f5f7] border-[#e8e8ed] opacity-50"
+                    }`}
+                  >
+                    <span className="text-[20px] leading-none">{t.icon}</span>
+                    <span className={`text-[10px] font-bold ${isReached ? cfg.badgeText : "text-[#6e6e73]"}`}>
                       {t.tier}
                     </span>
-                    <span className="text-[9px] text-[#86868b]">{t.minPoints}+</span>
+                    <span className={`text-[9px] ${isReached ? cfg.badgeText + " opacity-80" : "text-[#86868b]"}`}>
+                      {t.minPoints}+
+                    </span>
                   </div>
                 );
               })}
@@ -693,19 +696,7 @@ function PlayerProfileModal({
                 <p className="text-[13px] text-white/70 mb-3">Lv.{profile.level} {profile.levelName}</p>
 
                 {/* Big Rank Badge */}
-                <div
-                  className={`
-                    flex items-center gap-2 px-4 py-2 rounded-2xl border font-bold text-[16px]
-                    ${cfg.badgeBg} ${cfg.badgeText} ${cfg.badgeBorder}
-                    ${cfg.shimmer ? "relative overflow-hidden" : ""}
-                  `}
-                >
-                  {cfg.shimmer && (
-                    <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
-                  )}
-                  <span className="text-[20px]">{cfg.icon}</span>
-                  <span>{profile.rankTier}</span>
-                </div>
+                <RankBadge tier={profile.rankTier} size="xl" />
 
                 {/* Rank Journey inside header */}
                 <div className="w-full mt-4">
