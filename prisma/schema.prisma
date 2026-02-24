@@ -182,6 +182,13 @@ model employees {
   employee_badges                                                  employee_badges[]
   point_transactions                                               point_transactions[]
   employee_points                                                  employee_points?
+  kpi_periods_created                                              kpi_periods[]              @relation("kpi_periods_created_byToemployees")
+  kpi_goals_kpi_goals_employee_idToemployees                       kpi_goals[]                @relation("kpi_goals_employee_idToemployees")
+  kpi_goals_kpi_goals_approved_byToemployees                       kpi_goals[]                @relation("kpi_goals_approved_byToemployees")
+  kpi_goal_progress_created                                        kpi_goal_progress[]        @relation("kpi_goal_progress_created_byToemployees")
+  kpi_evaluations_kpi_evaluations_employee_idToemployees           kpi_evaluations[]          @relation("kpi_evaluations_employee_idToemployees")
+  kpi_evaluations_kpi_evaluations_evaluator_idToemployees          kpi_evaluations[]          @relation("kpi_evaluations_evaluator_idToemployees")
+  kpi_auto_metrics                                                 kpi_auto_metrics[]
 
   @@index([account_status], map: "idx_employees_account_status")
   @@index([branch_id], map: "idx_employees_branch")
@@ -491,4 +498,177 @@ model employee_points {
   @@index([total_points(sort: Desc)], map: "idx_employee_points_total")
   @@index([monthly_points(sort: Desc)], map: "idx_employee_points_monthly")
   @@index([level(sort: Desc)], map: "idx_employee_points_level")
+}
+
+/// KPI: Evaluation periods
+model kpi_periods {
+  id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                 String                @db.VarChar(100)
+  description          String?
+  start_date           DateTime              @db.Date
+  end_date             DateTime              @db.Date
+  goal_deadline        DateTime?             @db.Date
+  self_eval_start      DateTime?             @db.Date
+  self_eval_end        DateTime?             @db.Date
+  supervisor_eval_end  DateTime?             @db.Date
+  status               String                @default("draft") @db.VarChar(20)
+  created_by           String?               @db.Uuid
+  created_at           DateTime?             @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?             @default(now()) @db.Timestamptz(6)
+  employees            employees?            @relation("kpi_periods_created_byToemployees", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  kpi_period_templates kpi_period_templates[]
+  kpi_goals            kpi_goals[]
+  kpi_evaluations      kpi_evaluations[]
+  kpi_auto_metrics     kpi_auto_metrics[]
+
+  @@index([status], map: "idx_kpi_periods_status")
+  @@index([start_date, end_date], map: "idx_kpi_periods_dates")
+}
+
+/// KPI: Template criteria definitions
+model kpi_templates {
+  id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                 String                @db.VarChar(200)
+  description          String?
+  category             String                @db.VarChar(30)
+  evaluation_type      String                @db.VarChar(20)
+  default_weight       Decimal?              @default(0) @db.Decimal(5, 2)
+  score_min            Int                   @default(1)
+  score_max            Int                   @default(5)
+  is_active            Boolean               @default(true)
+  sort_order           Int                   @default(0)
+  created_at           DateTime?             @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?             @default(now()) @db.Timestamptz(6)
+  kpi_period_templates kpi_period_templates[]
+  kpi_evaluation_items kpi_evaluation_items[]
+
+  @@index([category], map: "idx_kpi_templates_category")
+  @@index([is_active], map: "idx_kpi_templates_active")
+}
+
+/// KPI: Templates assigned to a period with weights
+model kpi_period_templates {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  period_id     String        @db.Uuid
+  template_id   String        @db.Uuid
+  weight        Decimal       @default(0) @db.Decimal(5, 2)
+  is_active     Boolean       @default(true)
+  kpi_periods   kpi_periods   @relation(fields: [period_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  kpi_templates kpi_templates @relation(fields: [template_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([period_id, template_id])
+  @@index([period_id], map: "idx_kpi_period_templates_period")
+}
+
+/// KPI: Individual employee goals
+model kpi_goals {
+  id                                            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employee_id                                   String              @db.Uuid
+  period_id                                     String              @db.Uuid
+  title                                         String              @db.VarChar(300)
+  description                                   String?
+  target_value                                  String?             @db.VarChar(100)
+  target_unit                                   String?             @db.VarChar(50)
+  weight                                        Decimal             @default(0) @db.Decimal(5, 2)
+  status                                        String              @default("pending_approval") @db.VarChar(20)
+  approved_by                                   String?             @db.Uuid
+  approved_at                                   DateTime?           @db.Timestamptz(6)
+  rejection_reason                              String?
+  created_at                                    DateTime?           @default(now()) @db.Timestamptz(6)
+  updated_at                                    DateTime?           @default(now()) @db.Timestamptz(6)
+  employees_kpi_goals_employee_idToemployees    employees           @relation("kpi_goals_employee_idToemployees", fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  employees_kpi_goals_approved_byToemployees    employees?          @relation("kpi_goals_approved_byToemployees", fields: [approved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  kpi_periods                                   kpi_periods         @relation(fields: [period_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  kpi_goal_progress                             kpi_goal_progress[]
+  kpi_evaluation_items                          kpi_evaluation_items[]
+
+  @@index([employee_id], map: "idx_kpi_goals_employee")
+  @@index([period_id], map: "idx_kpi_goals_period")
+  @@index([status], map: "idx_kpi_goals_status")
+}
+
+/// KPI: Goal progress updates
+model kpi_goal_progress {
+  id                                                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  goal_id                                           String    @db.Uuid
+  progress_value                                    String?   @db.VarChar(100)
+  progress_percent                                  Decimal?  @default(0) @db.Decimal(5, 2)
+  note                                              String?
+  attachment_url                                    String?
+  created_by                                        String?   @db.Uuid
+  created_at                                        DateTime? @default(now()) @db.Timestamptz(6)
+  kpi_goals                                         kpi_goals @relation(fields: [goal_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  employees_kpi_goal_progress_created_byToemployees employees? @relation("kpi_goal_progress_created_byToemployees", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([goal_id], map: "idx_kpi_goal_progress_goal")
+  @@index([created_at(sort: Desc)], map: "idx_kpi_goal_progress_created")
+}
+
+/// KPI: Evaluation records (self or supervisor)
+model kpi_evaluations {
+  id                                                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employee_id                                           String                @db.Uuid
+  period_id                                             String                @db.Uuid
+  evaluator_id                                          String                @db.Uuid
+  evaluation_type                                       String                @db.VarChar(20)
+  status                                                String                @default("draft") @db.VarChar(20)
+  overall_score                                         Decimal?              @db.Decimal(5, 2)
+  overall_grade                                         String?               @db.VarChar(10)
+  overall_comment                                       String?
+  submitted_at                                          DateTime?             @db.Timestamptz(6)
+  created_at                                            DateTime?             @default(now()) @db.Timestamptz(6)
+  updated_at                                            DateTime?             @default(now()) @db.Timestamptz(6)
+  employees_kpi_evaluations_employee_idToemployees      employees             @relation("kpi_evaluations_employee_idToemployees", fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  employees_kpi_evaluations_evaluator_idToemployees     employees             @relation("kpi_evaluations_evaluator_idToemployees", fields: [evaluator_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  kpi_periods                                           kpi_periods           @relation(fields: [period_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  kpi_evaluation_items                                  kpi_evaluation_items[]
+
+  @@unique([employee_id, period_id, evaluation_type])
+  @@index([employee_id], map: "idx_kpi_evaluations_employee")
+  @@index([period_id], map: "idx_kpi_evaluations_period")
+  @@index([evaluator_id], map: "idx_kpi_evaluations_evaluator")
+  @@index([status], map: "idx_kpi_evaluations_status")
+}
+
+/// KPI: Individual evaluation item scores
+model kpi_evaluation_items {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  evaluation_id   String           @db.Uuid
+  template_id     String?          @db.Uuid
+  goal_id         String?          @db.Uuid
+  category        String           @db.VarChar(30)
+  score           Decimal?         @db.Decimal(5, 2)
+  weight          Decimal          @default(0) @db.Decimal(5, 2)
+  comment         String?
+  kpi_evaluations kpi_evaluations  @relation(fields: [evaluation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  kpi_templates   kpi_templates?   @relation(fields: [template_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  kpi_goals       kpi_goals?       @relation(fields: [goal_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([evaluation_id], map: "idx_kpi_eval_items_evaluation")
+  @@index([template_id], map: "idx_kpi_eval_items_template")
+}
+
+/// KPI: Auto-calculated metrics snapshot per period
+model kpi_auto_metrics {
+  id                 String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employee_id        String      @db.Uuid
+  period_id          String      @db.Uuid
+  total_working_days Int         @default(0)
+  days_present       Int         @default(0)
+  days_late          Int         @default(0)
+  days_absent        Int         @default(0)
+  attendance_rate    Decimal?    @db.Decimal(5, 2)
+  punctuality_rate   Decimal?    @db.Decimal(5, 2)
+  total_leave_days   Decimal?    @default(0) @db.Decimal(5, 2)
+  total_ot_hours     Decimal?    @default(0) @db.Decimal(5, 2)
+  calculated_score   Decimal?    @db.Decimal(5, 2)
+  calculated_at      DateTime?   @db.Timestamptz(6)
+  created_at         DateTime?   @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime?   @default(now()) @db.Timestamptz(6)
+  employees          employees   @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  kpi_periods        kpi_periods @relation(fields: [period_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([employee_id, period_id])
+  @@index([employee_id], map: "idx_kpi_auto_metrics_employee")
+  @@index([period_id], map: "idx_kpi_auto_metrics_period")
 }

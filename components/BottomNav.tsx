@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Home, User, Bell, Settings, Trophy } from "lucide-react";
+import { Home, User, Bell, Settings, Target } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -58,10 +58,10 @@ export function BottomNav() {
       isActive: pathname === "/",
     },
     {
-      name: "อันดับ",
-      href: "/leaderboard",
-      icon: Trophy,
-      isActive: pathname?.startsWith("/leaderboard"),
+      name: "KPI",
+      href: "/kpi",
+      icon: Target,
+      isActive: pathname?.startsWith("/kpi"),
     },
     {
       name: "ประกาศ",
