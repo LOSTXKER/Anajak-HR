@@ -26,9 +26,13 @@ import {
   AlertCircle,
   RefreshCw,
   AlertTriangle,
+  Trophy,
+  Flame,
+  Star,
 } from "lucide-react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
+import { getLeaderboard, type LeaderboardEntry } from "@/lib/services/gamification.service";
 
 function StatCard({
   title,
@@ -85,6 +89,7 @@ function AdminDashboardContent() {
     leave: any[];
     wfh: any[];
   }>({ ot: [], leave: [], wfh: [] });
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -166,6 +171,14 @@ function AdminDashboardContent() {
       // วันหยุด/สุดสัปดาห์ หรือ ก่อนเวลาเข้างาน → ไม่นับขาดงาน
       const absent = (isNonWorkingDay || isBeforeWorkStart) ? 0 : (totalEmployees || 0) - present;
 
+      // Fetch leaderboard
+      let lb: LeaderboardEntry[] = [];
+      try {
+        lb = await getLeaderboard("monthly");
+      } catch {
+        // gamification might be disabled
+      }
+
       setStats({
         totalEmployees: totalEmployees || 0,
         present,
@@ -181,6 +194,7 @@ function AdminDashboardContent() {
         leave: leaveRequests || [],
         wfh: wfhRequests || [],
       });
+      setLeaderboard(lb.slice(0, 5));
     } catch (err: any) {
       console.error("Error:", err);
       setError("ไม่สามารถโหลดข้อมูล Dashboard ได้");
@@ -450,6 +464,70 @@ function AdminDashboardContent() {
               </div>
             )}
           </Card>
+
+          {/* Leaderboard */}
+          {leaderboard.length > 0 && (
+            <Card elevated padding="none">
+              <div className="px-5 py-4 border-b border-[#e8e8ed]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-[#ffd700]" />
+                    <h3 className="text-[17px] font-semibold text-[#1d1d1f]">Leaderboard</h3>
+                  </div>
+                  <Link
+                    href="/leaderboard"
+                    className="text-[14px] text-[#0071e3] hover:underline"
+                  >
+                    ดูทั้งหมด →
+                  </Link>
+                </div>
+                <p className="text-[12px] text-[#86868b] mt-0.5">อันดับเดือนนี้</p>
+              </div>
+              <div className="divide-y divide-[#f5f5f7]">
+                {leaderboard.map((entry) => {
+                  const medals = ["text-[#ffd700]", "text-[#c0c0c0]", "text-[#cd7f32]"];
+                  return (
+                    <Link
+                      key={entry.employeeId}
+                      href={`/admin/employees/${entry.employeeId}`}
+                      className="flex items-center gap-3 px-5 py-3 hover:bg-[#f5f5f7]/50 transition-colors"
+                    >
+                      <div className="w-7 text-center">
+                        {entry.rank <= 3 ? (
+                          <Trophy className={`w-4 h-4 mx-auto ${medals[entry.rank - 1]}`} />
+                        ) : (
+                          <span className="text-[14px] font-bold text-[#86868b]">{entry.rank}</span>
+                        )}
+                      </div>
+                      <Avatar name={entry.employeeName} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-medium text-[#1d1d1f] truncate">{entry.employeeName}</p>
+                        <div className="flex items-center gap-2 text-[11px] text-[#86868b]">
+                          <span>Lv.{entry.level}</span>
+                          {entry.currentStreak > 0 && (
+                            <span className="flex items-center gap-0.5">
+                              <Flame className="w-3 h-3 text-[#ff9500]" />
+                              {entry.currentStreak}
+                            </span>
+                          )}
+                          {entry.badgeCount > 0 && (
+                            <span className="flex items-center gap-0.5">
+                              <Star className="w-3 h-3 text-[#ffd700]" />
+                              {entry.badgeCount}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[15px] font-bold text-[#1d1d1f]">{entry.monthlyPoints}</p>
+                        <p className="text-[10px] text-[#86868b]">pts</p>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
         </div>
       </div>
     </AdminLayout>
