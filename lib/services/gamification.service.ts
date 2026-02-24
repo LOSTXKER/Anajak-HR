@@ -101,15 +101,16 @@ interface OTRequestRow {
   id: string;
 }
 
-// Level definitions
+// Level definitions (rebalanced: harder progression, ~8 pts/day for perfect employee)
 export const LEVELS = [
   { level: 1, name: "Rookie", minPoints: 0 },
-  { level: 2, name: "Regular", minPoints: 100 },
-  { level: 3, name: "Reliable", minPoints: 300 },
-  { level: 4, name: "Star", minPoints: 600 },
-  { level: 5, name: "Super Star", minPoints: 1000 },
-  { level: 6, name: "MVP", minPoints: 1500 },
-  { level: 7, name: "Legend", minPoints: 2500 },
+  { level: 2, name: "Regular", minPoints: 200 },
+  { level: 3, name: "Reliable", minPoints: 600 },
+  { level: 4, name: "Star", minPoints: 1500 },
+  { level: 5, name: "Super Star", minPoints: 3000 },
+  { level: 6, name: "MVP", minPoints: 6000 },
+  { level: 7, name: "Legend", minPoints: 10000 },
+  { level: 8, name: "Immortal", minPoints: 15000 },
 ] as const;
 
 export type ActionType =
