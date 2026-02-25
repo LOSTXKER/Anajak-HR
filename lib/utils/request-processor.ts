@@ -14,8 +14,24 @@ import { RequestItem, leaveTypeLabels } from "@/lib/types/request";
 export function processOTRequest(r: any): RequestItem | null {
   if (!r.employee?.id) return null;
 
-  const startTime = format(parseISO(r.requested_start_time), "HH:mm");
-  const endTime = format(parseISO(r.requested_end_time), "HH:mm");
+  // For completed OT, prefer actual times; otherwise use requested times
+  const isCompleted = r.status === "completed" || !!r.actual_end_time;
+  const displayStart = isCompleted && r.actual_start_time
+    ? r.actual_start_time
+    : r.requested_start_time;
+  const displayEnd = isCompleted && r.actual_end_time
+    ? r.actual_end_time
+    : r.requested_end_time;
+  const displayHours: number = isCompleted && r.actual_ot_hours != null
+    ? r.actual_ot_hours
+    : r.approved_ot_hours != null
+      ? r.approved_ot_hours
+      : Math.round(
+          ((new Date(r.requested_end_time).getTime() - new Date(r.requested_start_time).getTime()) / 3600000) * 100
+        ) / 100;
+
+  const startTime = format(parseISO(displayStart), "HH:mm");
+  const endTime = format(parseISO(displayEnd), "HH:mm");
 
   return {
     id: r.id,
@@ -28,14 +44,7 @@ export function processOTRequest(r: any): RequestItem | null {
     subtitle: format(parseISO(r.request_date), "EEEE d MMM yyyy", {
       locale: th,
     }),
-    details: `เวลา: ${startTime} - ${endTime}\nชั่วโมง: ${
-      r.approved_ot_hours ||
-      (
-        (new Date(r.requested_end_time).getTime() -
-          new Date(r.requested_start_time).getTime()) /
-        (1000 * 60 * 60)
-      ).toFixed(2)
-    } ชม.`,
+    details: `เวลา: ${startTime} - ${endTime}\nชั่วโมง: ${displayHours.toFixed(2)} ชม.`,
     reason: r.reason,
     status: r.status,
     createdAt: r.created_at,

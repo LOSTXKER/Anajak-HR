@@ -124,15 +124,33 @@ export function RequestDetailModal({
                   </span>
                 </div>
                 <div>
-                  <span className="text-[#86868b]">อัตรา:</span>{" "}
-                  <span className="font-medium">{request.rawData.ot_rate}x</span>
+                  <span className="text-[#86868b]">อัตราคูณ:</span>{" "}
+                  <span className="font-medium">{request.rawData.ot_rate ?? "1.5"}x</span>
                 </div>
+                {/* Actual hours (for completed) vs approved hours */}
+                {request.rawData.actual_ot_hours != null && (
+                  <div>
+                    <span className="text-[#86868b]">ชม.จริง:</span>{" "}
+                    <span className="font-medium">{Number(request.rawData.actual_ot_hours).toFixed(2)} ชม.</span>
+                  </div>
+                )}
+                {request.rawData.approved_ot_hours != null && (
+                  <div>
+                    <span className="text-[#86868b]">ชม.อนุมัติ:</span>{" "}
+                    <span className="font-medium">{Number(request.rawData.approved_ot_hours).toFixed(2)} ชม.</span>
+                  </div>
+                )}
                 {isCompleted && request.rawData.ot_amount != null && (
-                  <div className="col-span-2">
+                  <div className="col-span-2 pt-1 border-t border-[#ff9500]/20">
                     <span className="text-[#86868b]">ยอดเงิน OT:</span>{" "}
-                    <span className="font-bold text-[#ff9500]">
-                      ฿{request.rawData.ot_amount?.toLocaleString() || 0}
+                    <span className="font-bold text-[#ff9500] text-base">
+                      ฿{Number(request.rawData.ot_amount).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
+                    {request.rawData.actual_ot_hours != null && request.rawData.ot_rate != null && (
+                      <p className="text-[11px] text-[#86868b] mt-0.5">
+                        = {Number(request.rawData.actual_ot_hours).toFixed(2)} ชม. × {request.rawData.ot_rate}x × อัตราต่อชั่วโมง
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
