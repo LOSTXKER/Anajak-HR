@@ -25,6 +25,7 @@ import {
 import { format, differenceInMinutes } from "date-fns";
 import { th } from "date-fns/locale";
 import { processOTGamification } from "@/lib/services/gamification.service";
+import { calculateOTAmount } from "@/lib/utils/ot-calculator";
 
 interface OTRequest {
   id: string;
@@ -215,7 +216,7 @@ function OTEndContent({ id }: { id: string }) {
       const { data: payrollSettingsData } = await supabase
         .from("system_settings")
         .select("setting_key, setting_value")
-        .in("setting_key", ["hours_per_day", "days_per_month"]);
+        .in("setting_key", ["work_hours_per_day", "days_per_month"]);
 
       const payrollSettings: Record<string, string> = {};
       (payrollSettingsData || []).forEach((s: { setting_key: string; setting_value: string }) => {
@@ -223,15 +224,18 @@ function OTEndContent({ id }: { id: string }) {
       });
 
       const baseSalary = empData?.base_salary || 0;
-      const hoursPerDay = parseFloat(payrollSettings.hours_per_day || "8");
+      const hoursPerDay = parseFloat(payrollSettings.work_hours_per_day || "8");
       const daysPerMonth = parseFloat(payrollSettings.days_per_month || "26");
 
-      // Calculate OT amount
-      let otAmount = null;
-      if (baseSalary > 0) {
-        const hourlyRate = baseSalary / daysPerMonth / hoursPerDay;
-        otAmount = actualOTHours * hourlyRate * otRate;
-      }
+      const calc = calculateOTAmount({
+        startTime: startTime,
+        endTime: effectiveEndTime,
+        baseSalary,
+        otRate,
+        daysPerMonth,
+        hoursPerDay,
+      });
+      const otAmount = calc.amount;
 
       // Update OT request with GPS
       const { error: updateError } = await supabase
@@ -241,8 +245,8 @@ function OTEndContent({ id }: { id: string }) {
           after_photo_url: photoUrl,
           end_gps_lat: location.lat,
           end_gps_lng: location.lng,
-          actual_ot_hours: Math.round(actualOTHours * 100) / 100,
-          ot_amount: otAmount ? Math.round(otAmount * 100) / 100 : null,
+          actual_ot_hours: calc.hours,
+          ot_amount: otAmount,
           status: "completed",
         })
         .eq("id", id);

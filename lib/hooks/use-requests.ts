@@ -1,12 +1,7 @@
 /**
  * Unified Requests Hook
  * =============================================
- * Orchestration layer that composes:
- *   - useRequestsQuery  → data fetching
- *   - useRequestFilters → filtering / stats
- *
- * All CRUD actions (approve, reject, cancel, create, edit) remain here
- * because they touch both data and filter state simultaneously.
+ * Orchestrates: data fetching, filtering, and CRUD actions.
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -26,6 +21,7 @@ import {
 } from "@/lib/types/request";
 import { useRequestsQuery } from "./use-requests-query";
 import { useRequestFilters } from "./use-request-filters";
+import { calculateOTAmount, buildLocalISO } from "@/lib/utils/ot-calculator";
 import { TIME_CONSTANTS } from "@/lib/constants";
 
 // ─── Options & Return Types ──────────────────────────────
@@ -37,26 +33,12 @@ interface DateRange {
 
 interface UseRequestsOptions {
   dateRange?: DateRange | null;
-  initialType?: RequestType | "all";
-}
-
-interface PendingStats {
-  ot: number;
-  leave: number;
-  wfh: number;
-  late: number;
-  field_work: number;
-  total: number;
 }
 
 interface UseRequestsReturn {
-  pendingRequests: RequestItem[];
-  filteredPending: RequestItem[];
-  pendingStats: PendingStats;
-
-  allRequests: RequestItem[];
-  filteredAll: RequestItem[];
-  allStats: RequestStats;
+  requests: RequestItem[];
+  filtered: RequestItem[];
+  stats: RequestStats;
 
   employees: Employee[];
   holidays: Holiday[];
@@ -65,10 +47,6 @@ interface UseRequestsReturn {
 
   loading: boolean;
   processing: boolean;
-  processingIds: Set<string>;
-
-  pendingType: RequestType | "all";
-  setPendingType: (type: RequestType | "all") => void;
 
   activeType: RequestType | "all";
   activeStatus: RequestStatus;
@@ -77,7 +55,6 @@ interface UseRequestsReturn {
   setActiveStatus: (status: RequestStatus) => void;
   setSearchTerm: (term: string) => void;
 
-  fetchPending: () => Promise<void>;
   fetchAll: () => Promise<void>;
   handleApprove: (request: RequestItem, adminId: string) => Promise<boolean>;
   handleReject: (request: RequestItem, adminId: string, reason?: string) => Promise<boolean>;
@@ -88,53 +65,51 @@ interface UseRequestsReturn {
   fetchEmployees: () => Promise<void>;
 }
 
-// ─── Hook Implementation ─────────────────────────────────
+// ─── Notification Helper ─────────────────────────────────
+
+async function sendNotification(type: string, data: Record<string, unknown>) {
+  try {
+    await fetch("/api/notifications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, data }),
+    });
+  } catch (error) {
+    console.error("Error sending notification:", error);
+  }
+}
+
+function sendRequestNotification(request: RequestItem, approved: boolean) {
+  const employeeName = request.employeeName || "ไม่ระบุ";
+  switch (request.type) {
+    case "ot":
+      sendNotification("ot_approval", { employeeName, date: request.rawData.request_date, startTime: request.rawData.requested_start_time, endTime: request.rawData.requested_end_time, approved });
+      break;
+    case "leave":
+      sendNotification("leave_approval", { employeeName, leaveType: request.rawData.leave_type, startDate: request.rawData.start_date, endDate: request.rawData.end_date, approved });
+      break;
+    case "wfh":
+      sendNotification("wfh_approval", { employeeName, date: request.rawData.date, approved });
+      break;
+    case "late":
+      sendNotification("late_approval", { employeeName, date: request.rawData.request_date, lateMinutes: request.rawData.actual_late_minutes, approved });
+      break;
+    case "field_work":
+      sendNotification("field_work_approval", { employeeName, date: request.rawData.date, location: request.rawData.location, approved });
+      break;
+  }
+}
+
+// ─── Hook ────────────────────────────────────────────────
 
 export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn {
-  const { dateRange = null, initialType = "all" } = options;
+  const { dateRange = null } = options;
 
-  // Sub-hooks
   const query = useRequestsQuery();
-  const filters = useRequestFilters(query.pendingRequests, query.allRequests, initialType);
+  const filters = useRequestFilters(query.requests);
 
   const [detectedOTInfo, setDetectedOTInfo] = useState<OTRateInfo | null>(null);
   const [processing, setProcessing] = useState(false);
-  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
-
-  // ── Notification Helper ─────────────────────────────
-
-  const sendNotification = async (type: string, data: Record<string, unknown>) => {
-    try {
-      await fetch("/api/notifications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, data }),
-      });
-    } catch (error) {
-      console.error("Error sending notification:", error);
-    }
-  };
-
-  const sendRequestNotification = (request: RequestItem, approved: boolean) => {
-    const employeeName = request.employeeName || "ไม่ระบุ";
-    switch (request.type) {
-      case "ot":
-        sendNotification("ot_approval", { employeeName, date: request.rawData.request_date, startTime: request.rawData.requested_start_time, endTime: request.rawData.requested_end_time, approved });
-        break;
-      case "leave":
-        sendNotification("leave_approval", { employeeName, leaveType: request.rawData.leave_type, startDate: request.rawData.start_date, endDate: request.rawData.end_date, approved });
-        break;
-      case "wfh":
-        sendNotification("wfh_approval", { employeeName, date: request.rawData.date, approved });
-        break;
-      case "late":
-        sendNotification("late_approval", { employeeName, date: request.rawData.request_date, lateMinutes: request.rawData.actual_late_minutes, approved });
-        break;
-      case "field_work":
-        sendNotification("field_work_approval", { employeeName, date: request.rawData.date, location: request.rawData.location, approved });
-        break;
-    }
-  };
 
   // ── Detect OT Rate ──────────────────────────────────
 
@@ -164,12 +139,10 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
     [query.holidays, query.otSettings, query.workingDays]
   );
 
-  // ── Actions ─────────────────────────────────────────
+  // ── Approve ─────────────────────────────────────────
 
   const handleApprove = useCallback(
     async (request: RequestItem, adminId: string): Promise<boolean> => {
-      const key = `${request.type}_${request.id}`;
-      setProcessingIds((prev) => new Set(prev).add(key));
       setProcessing(true);
       try {
         const updateData: Record<string, unknown> = {
@@ -181,22 +154,25 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
         if (request.type === "ot") {
           updateData.approved_start_time = request.rawData.requested_start_time;
           updateData.approved_end_time = request.rawData.requested_end_time;
-          const start = new Date(request.rawData.requested_start_time);
-          const end = new Date(request.rawData.requested_end_time);
-          updateData.approved_ot_hours = (end.getTime() - start.getTime()) / TIME_CONSTANTS.MS_PER_HOUR;
+          const hours = (new Date(request.rawData.requested_end_time).getTime() - new Date(request.rawData.requested_start_time).getTime()) / TIME_CONSTANTS.MS_PER_HOUR;
+          updateData.approved_ot_hours = Math.round(hours * 100) / 100;
         }
 
         const { error } = await supabase.from(tableMap[request.type]).update(updateData).eq("id", request.id);
         if (error) throw error;
 
-        query.setPendingRequests((prev) => prev.filter((r) => !(r.type === request.type && r.id === request.id)));
+        query.setRequests((prev) =>
+          prev.map((r) => r.type === request.type && r.id === request.id
+            ? { ...r, status: "approved" }
+            : r
+          )
+        );
         sendRequestNotification(request, true);
         return true;
       } catch (error) {
         console.error("Error approving request:", error);
         return false;
       } finally {
-        setProcessingIds((prev) => { const next = new Set(prev); next.delete(key); return next; });
         setProcessing(false);
       }
     },
@@ -204,10 +180,10 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
     []
   );
 
+  // ── Reject ──────────────────────────────────────────
+
   const handleReject = useCallback(
     async (request: RequestItem, adminId: string, reason?: string): Promise<boolean> => {
-      const key = `${request.type}_${request.id}`;
-      setProcessingIds((prev) => new Set(prev).add(key));
       setProcessing(true);
       try {
         const updateData: Record<string, unknown> = {
@@ -220,20 +196,26 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
         const { error } = await supabase.from(tableMap[request.type]).update(updateData).eq("id", request.id);
         if (error) throw error;
 
-        query.setPendingRequests((prev) => prev.filter((r) => !(r.type === request.type && r.id === request.id)));
+        query.setRequests((prev) =>
+          prev.map((r) => r.type === request.type && r.id === request.id
+            ? { ...r, status: "rejected" }
+            : r
+          )
+        );
         sendRequestNotification(request, false);
         return true;
       } catch (error) {
         console.error("Error rejecting request:", error);
         return false;
       } finally {
-        setProcessingIds((prev) => { const next = new Set(prev); next.delete(key); return next; });
         setProcessing(false);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
+
+  // ── Cancel ──────────────────────────────────────────
 
   const handleCancel = useCallback(
     async (request: RequestItem, adminId: string, cancelReason: string): Promise<boolean> => {
@@ -253,7 +235,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
         if (error) throw error;
 
         // Restore leave balance when cancelling an approved leave
-        if (request.type === "leave" && request.status === "approved") {
+        if (request.type === "leave" && (request.status === "approved")) {
           const raw = request.rawData;
           const leaveType = raw.leave_type as string;
           const year = new Date(raw.start_date).getFullYear();
@@ -296,12 +278,10 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
           }
         }
 
-        query.setPendingRequests((prev) => prev.filter((r) => !(r.type === request.type && r.id === request.id)));
-        query.setAllRequests((prev) =>
-          prev.map((r) =>
-            r.type === request.type && r.id === request.id
-              ? { ...r, status: "cancelled", cancelReason: cancelReason.trim() }
-              : r
+        query.setRequests((prev) =>
+          prev.map((r) => r.type === request.type && r.id === request.id
+            ? { ...r, status: "cancelled", cancelReason: cancelReason.trim() }
+            : r
           )
         );
         return true;
@@ -316,6 +296,8 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
     []
   );
 
+  // ── Create ──────────────────────────────────────────
+
   const handleCreateRequest = useCallback(
     async (type: RequestType, formData: CreateFormData, adminId: string): Promise<boolean> => {
       if (!formData.employeeId) return false;
@@ -325,25 +307,26 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
 
         switch (type) {
           case "ot": {
-            const startDateTime = new Date(`${formData.otDate}T${formData.otStartTime}:00`);
-            const endDateTime = new Date(`${formData.otDate}T${formData.otEndTime}:00`);
-            const otHours = (endDateTime.getTime() - startDateTime.getTime()) / TIME_CONSTANTS.MS_PER_HOUR;
+            const startISO = buildLocalISO(formData.otDate, formData.otStartTime);
+            const endISO = buildLocalISO(formData.otDate, formData.otEndTime);
             const emp = query.employees.find((e) => e.id === formData.employeeId);
-            const baseSalary = emp?.base_salary || 0;
-            let otAmount = null;
-            if (baseSalary > 0) {
-              const hourlyRate = baseSalary / query.daysPerMonth / query.hoursPerDay;
-              otAmount = Math.round(otHours * hourlyRate * formData.otRate * 100) / 100;
-            }
+            const calc = calculateOTAmount({
+              startTime: startISO,
+              endTime: endISO,
+              baseSalary: emp?.base_salary || 0,
+              otRate: formData.otRate,
+              daysPerMonth: query.daysPerMonth,
+              hoursPerDay: query.hoursPerDay,
+            });
 
             const insertData: any = {
               employee_id: formData.employeeId,
               request_date: formData.otDate,
-              requested_start_time: startDateTime.toISOString(),
-              requested_end_time: endDateTime.toISOString(),
-              approved_start_time: startDateTime.toISOString(),
-              approved_end_time: endDateTime.toISOString(),
-              approved_ot_hours: Math.round(otHours * 100) / 100,
+              requested_start_time: startISO,
+              requested_end_time: endISO,
+              approved_start_time: startISO,
+              approved_end_time: endISO,
+              approved_ot_hours: calc.hours,
               ot_type: formData.otType,
               ot_rate: formData.otRate,
               reason: formData.reason,
@@ -352,10 +335,10 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
 
             if (formData.otIsCompleted) {
               insertData.status = "completed";
-              insertData.actual_start_time = startDateTime.toISOString();
-              insertData.actual_end_time = endDateTime.toISOString();
-              insertData.actual_ot_hours = Math.round(otHours * 100) / 100;
-              insertData.ot_amount = otAmount;
+              insertData.actual_start_time = startISO;
+              insertData.actual_end_time = endISO;
+              insertData.actual_ot_hours = calc.hours;
+              insertData.ot_amount = calc.amount;
             } else {
               insertData.status = "approved";
             }
@@ -415,6 +398,8 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
     [query.employees, query.daysPerMonth, query.hoursPerDay]
   );
 
+  // ── Edit ────────────────────────────────────────────
+
   const handleEditRequest = useCallback(
     async (request: RequestItem, editData: any, _adminId: string): Promise<boolean> => {
       setProcessing(true);
@@ -422,32 +407,40 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
         let updateData: any = {};
         switch (request.type) {
           case "ot": {
-            const startDate = new Date(`${request.rawData.request_date}T${editData.requested_start_time}:00`);
-            const endDate = new Date(`${request.rawData.request_date}T${editData.requested_end_time}:00`);
-            const newStart = startDate.toISOString();
-            const newEnd = endDate.toISOString();
-            const hours = (endDate.getTime() - startDate.getTime()) / TIME_CONSTANTS.MS_PER_HOUR;
+            const startISO = buildLocalISO(request.rawData.request_date, editData.requested_start_time);
+            const endISO = buildLocalISO(request.rawData.request_date, editData.requested_end_time);
+            const calc = calculateOTAmount({
+              startTime: startISO,
+              endTime: endISO,
+              baseSalary: 0, // hours only needed for approved/pending
+              otRate: request.rawData.ot_rate || 1.5,
+              daysPerMonth: query.daysPerMonth,
+              hoursPerDay: query.hoursPerDay,
+            });
             updateData = {
-              requested_start_time: newStart,
-              requested_end_time: newEnd,
+              requested_start_time: startISO,
+              requested_end_time: endISO,
               reason: editData.reason,
             };
             if (request.status === "approved" || request.status === "completed") {
-              updateData.approved_start_time = newStart;
-              updateData.approved_end_time = newEnd;
-              updateData.approved_ot_hours = Math.round(hours * 100) / 100;
+              updateData.approved_start_time = startISO;
+              updateData.approved_end_time = endISO;
+              updateData.approved_ot_hours = calc.hours;
             }
             if (request.status === "completed") {
-              updateData.actual_start_time = newStart;
-              updateData.actual_end_time = newEnd;
-              updateData.actual_ot_hours = Math.round(hours * 100) / 100;
               const emp = query.employees.find((e) => e.id === request.employeeId);
-              const baseSalary = emp?.base_salary || 0;
-              if (baseSalary > 0) {
-                const rate = request.rawData.ot_rate || 1.5;
-                const hourlyRate = baseSalary / query.daysPerMonth / query.hoursPerDay;
-                updateData.ot_amount = Math.round(hours * hourlyRate * rate * 100) / 100;
-              }
+              const fullCalc = calculateOTAmount({
+                startTime: startISO,
+                endTime: endISO,
+                baseSalary: emp?.base_salary || 0,
+                otRate: request.rawData.ot_rate || 1.5,
+                daysPerMonth: query.daysPerMonth,
+                hoursPerDay: query.hoursPerDay,
+              });
+              updateData.actual_start_time = startISO;
+              updateData.actual_end_time = endISO;
+              updateData.actual_ot_hours = fullCalc.hours;
+              updateData.ot_amount = fullCalc.amount;
             }
             break;
           }
@@ -475,31 +468,28 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
         setProcessing(false);
       }
     },
-    []
+    [query.employees, query.daysPerMonth, query.hoursPerDay]
   );
 
-  // ── Bound fetchAll with captured dateRange ──────────
+  // ── Bound fetchAll with dateRange ───────────────────
   const fetchAll = useCallback(async () => {
     await query.fetchAll(dateRange);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query.fetchAll, dateRange]);
 
-  // ── Initial Fetch ───────────────────────────────────
+  // ── Initial Fetch ────────────────────────────────────
   useEffect(() => {
-    query.fetchPending();
+    fetchAll();
     query.fetchEmployees();
     query.fetchSettings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Return ──────────────────────────────────────────
+  // ── Return ───────────────────────────────────────────
   return {
-    pendingRequests: query.pendingRequests,
-    filteredPending: filters.filteredPending,
-    pendingStats: filters.pendingStats,
-
-    allRequests: query.allRequests,
-    filteredAll: filters.filteredAll,
-    allStats: filters.allStats,
+    requests: query.requests,
+    filtered: filters.filtered,
+    stats: filters.stats,
 
     employees: query.employees,
     holidays: query.holidays,
@@ -508,10 +498,6 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
 
     loading: query.loading,
     processing,
-    processingIds,
-
-    pendingType: filters.pendingType,
-    setPendingType: filters.setPendingType,
 
     activeType: filters.activeType,
     activeStatus: filters.activeStatus,
@@ -520,7 +506,6 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
     setActiveStatus: filters.setActiveStatus,
     setSearchTerm: filters.setSearchTerm,
 
-    fetchPending: query.fetchPending,
     fetchAll,
     handleApprove, handleReject, handleCancel,
     handleCreateRequest, handleEditRequest,
