@@ -175,7 +175,6 @@ export type ActionType =
   | "early_checkin"
   | "full_attendance_day"
   | "ot_completed"
-  | "badge_earned"
   | "no_leave_week"
   | "streak_bonus"
   | "late_penalty";
@@ -581,21 +580,11 @@ export async function checkAndAwardBadges(employeeId: string): Promise<string[]>
 
       if (!error) {
         newlyEarned.push(badge.name);
-        if (badge.points_reward > 0) {
-          await awardPoints(
-            employeeId,
-            "badge_earned",
-            badge.points_reward,
-            `ได้รับเหรียญ "${badge.name}"`,
-            badge.id,
-            "badge"
-          );
-        }
         sendBadgeNotification({
           employeeId,
           badgeName: badge.name,
           badgeIcon: badge.icon,
-          pointsReward: badge.points_reward,
+          pointsReward: 0,
         }).catch(() => {});
       }
     }

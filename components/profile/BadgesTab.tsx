@@ -2,16 +2,8 @@
 
 import { useState } from "react";
 import { useBadges, useGameProfile } from "@/lib/hooks/use-gamification";
-import { LEVELS } from "@/lib/services/gamification.service";
 import { Trophy, Flame, TrendingUp, Star, X } from "lucide-react";
 import type { BadgeWithProgress } from "@/lib/services/gamification.service";
-
-const TIER_STYLES: Record<string, { bg: string; border: string; text: string }> = {
-  bronze: { bg: "bg-[#cd7f32]/10", border: "border-[#cd7f32]/30", text: "text-[#cd7f32]" },
-  silver: { bg: "bg-[#c0c0c0]/10", border: "border-[#c0c0c0]/30", text: "text-[#808080]" },
-  gold: { bg: "bg-[#ffd700]/10", border: "border-[#ffd700]/30", text: "text-[#b8860b]" },
-  platinum: { bg: "bg-[#af52de]/10", border: "border-[#af52de]/30", text: "text-[#af52de]" },
-};
 
 const CATEGORY_LABELS: Record<string, string> = {
   attendance: "การเข้างาน",
@@ -71,12 +63,8 @@ export function BadgesTab() {
 
       {/* Badge count */}
       <div className="flex items-center justify-between px-1">
-        <h3 className="text-[15px] font-semibold text-[#1d1d1f]">
-          เหรียญทั้งหมด
-        </h3>
-        <span className="text-[13px] text-[#86868b]">
-          {earnedCount}/{badges.length} เหรียญ
-        </span>
+        <h3 className="text-[15px] font-semibold text-[#1d1d1f]">เหรียญทั้งหมด</h3>
+        <span className="text-[13px] text-[#86868b]">{earnedCount}/{badges.length} เหรียญ</span>
       </div>
 
       {/* Category filter */}
@@ -104,7 +92,7 @@ export function BadgesTab() {
             onClick={() => setSelectedBadge(badge)}
             className={`relative rounded-2xl p-4 border text-center transition-all active:scale-95 ${
               badge.earned
-                ? `${TIER_STYLES[badge.tier]?.bg || "bg-white"} ${TIER_STYLES[badge.tier]?.border || "border-[#e8e8ed]"}`
+                ? "bg-white border-[#34c759]/40"
                 : "bg-[#f5f5f7]/50 border-[#e8e8ed] opacity-50"
             }`}
           >
@@ -116,10 +104,6 @@ export function BadgesTab() {
             }`}>
               {badge.name}
             </p>
-            {/* Tier indicator */}
-            <div className={`mt-1.5 text-[9px] font-semibold uppercase ${TIER_STYLES[badge.tier]?.text || "text-[#86868b]"}`}>
-              {badge.tier}
-            </div>
             {/* Progress bar for unearned */}
             {!badge.earned && badge.progress !== undefined && (
               <div className="mt-2">
@@ -176,11 +160,6 @@ export function BadgesTab() {
               <h3 className="text-[20px] font-semibold text-[#1d1d1f] mb-1">
                 {selectedBadge.name}
               </h3>
-              <div className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase mb-3 ${
-                TIER_STYLES[selectedBadge.tier]?.bg || "bg-[#f5f5f7]"
-              } ${TIER_STYLES[selectedBadge.tier]?.text || "text-[#86868b]"}`}>
-                {selectedBadge.tier}
-              </div>
               <p className="text-[15px] text-[#86868b] mb-4">
                 {selectedBadge.description}
               </p>
@@ -193,9 +172,6 @@ export function BadgesTab() {
                       month: "long",
                       year: "numeric",
                     })}
-                  </p>
-                  <p className="text-[12px] text-[#34c759]/70 mt-0.5">
-                    +{selectedBadge.pointsReward} แต้ม
                   </p>
                 </div>
               ) : (
@@ -216,9 +192,6 @@ export function BadgesTab() {
                       </p>
                     </div>
                   )}
-                  <p className="text-[12px] text-[#0071e3] mt-1">
-                    +{selectedBadge.pointsReward} แต้มเมื่อได้รับ
-                  </p>
                 </div>
               )}
             </div>

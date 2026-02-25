@@ -14,7 +14,6 @@ import {
   Clock,
   Zap,
   Flame,
-  Award,
   Briefcase,
   AlertCircle,
   CheckCircle,
@@ -72,13 +71,6 @@ const ACTION_CONFIG: Record<
     icon: Flame,
     color: "text-[#ff3b30]",
     bg: "bg-[#ff3b30]/10",
-    category: "bonus",
-  },
-  badge_earned: {
-    label: "ได้รับเหรียญ",
-    icon: Award,
-    color: "text-[#af52de]",
-    bg: "bg-[#af52de]/10",
     category: "bonus",
   },
   no_leave_week: {

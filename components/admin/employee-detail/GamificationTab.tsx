@@ -12,7 +12,6 @@ import {
   Sunrise,
   Briefcase,
   AlertCircle,
-  Award,
   Calendar,
   ChevronDown,
   Filter,
@@ -41,7 +40,6 @@ const ACTION_CONFIG: Record<
   full_attendance_day: { label: "เข้า-ออกครบวัน", icon: Star, color: "text-[#0071e3]", bg: "bg-[#0071e3]/10", category: "checkin" },
   ot_completed: { label: "ทำ OT สำเร็จ", icon: Briefcase, color: "text-[#ff9500]", bg: "bg-[#ff9500]/10", category: "ot" },
   streak_bonus: { label: "โบนัส Streak", icon: Flame, color: "text-[#ff3b30]", bg: "bg-[#ff3b30]/10", category: "bonus" },
-  badge_earned: { label: "ได้รับเหรียญ", icon: Award, color: "text-[#af52de]", bg: "bg-[#af52de]/10", category: "bonus" },
   no_leave_week: { label: "ไม่ลาทั้งสัปดาห์", icon: Calendar, color: "text-[#5ac8fa]", bg: "bg-[#5ac8fa]/10", category: "bonus" },
   late_penalty: { label: "มาสาย", icon: AlertCircle, color: "text-[#ff3b30]", bg: "bg-[#ff3b30]/10", category: "penalty" },
 };
@@ -57,17 +55,6 @@ type AdminFilterKey = (typeof ADMIN_FILTER_TABS)[number]["key"];
 
 interface GamificationTabProps {
   employeeId: string;
-}
-
-const BADGE_TIER_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  bronze:   { bg: "bg-[#cd7f32]/10", text: "text-[#cd7f32]", border: "border-[#cd7f32]/20" },
-  silver:   { bg: "bg-[#c0c0c0]/10", text: "text-[#8e8e93]", border: "border-[#c0c0c0]/30" },
-  gold:     { bg: "bg-[#ffd700]/10", text: "text-[#b8860b]", border: "border-[#ffd700]/30" },
-  platinum: { bg: "bg-[#e5e4e2]/10", text: "text-[#6e6e73]", border: "border-[#e5e4e2]/40" },
-};
-
-function getBadgeTierStyle(tier: string) {
-  return BADGE_TIER_COLORS[tier] || BADGE_TIER_COLORS.bronze;
 }
 
 // Rank tier visual config
@@ -302,28 +289,25 @@ export function GamificationTab({ employeeId }: GamificationTabProps) {
           </p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {earnedBadges.map((badge) => {
-              const tierStyle = getBadgeTierStyle(badge.tier);
-              return (
-                <div
-                  key={badge.id + (badge.earnedAt || "")}
-                  className={`${tierStyle.bg} border ${tierStyle.border} rounded-xl p-3 text-center`}
-                >
-                  <div className="text-3xl mb-2">{badge.icon}</div>
-                  <p className="text-[13px] font-semibold text-[#1d1d1f] leading-tight">
-                    {badge.name}
+            {earnedBadges.map((badge) => (
+              <div
+                key={badge.id + (badge.earnedAt || "")}
+                className="bg-white border border-[#34c759]/30 rounded-xl p-3 text-center"
+              >
+                <div className="text-3xl mb-2">{badge.icon}</div>
+                <p className="text-[13px] font-semibold text-[#1d1d1f] leading-tight">
+                  {badge.name}
+                </p>
+                <p className="text-[11px] text-[#86868b] mt-1 line-clamp-2">
+                  {badge.description}
+                </p>
+                {badge.earnedAt && (
+                  <p className="text-[10px] text-[#86868b] mt-1.5">
+                    {format(new Date(badge.earnedAt), "d MMM yy", { locale: th })}
                   </p>
-                  <p className="text-[11px] text-[#86868b] mt-1 line-clamp-2">
-                    {badge.description}
-                  </p>
-                  {badge.earnedAt && (
-                    <p className="text-[10px] text-[#86868b] mt-1.5">
-                      {format(new Date(badge.earnedAt), "d MMM yy", { locale: th })}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
+                )}
+              </div>
+            ))}
           </div>
         )}
       </Card>

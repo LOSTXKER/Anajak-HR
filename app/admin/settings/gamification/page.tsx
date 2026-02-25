@@ -300,20 +300,8 @@ function GamificationSettingsContent() {
                 <div className="flex items-center gap-3">
                   <span className="text-[24px]">{badge.icon}</span>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-[14px] font-medium text-[#1d1d1f]">{badge.name}</p>
-                      <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${
-                        badge.tier === "platinum" ? "bg-[#af52de]/10 text-[#af52de]" :
-                        badge.tier === "gold" ? "bg-[#ffd700]/10 text-[#b8860b]" :
-                        badge.tier === "silver" ? "bg-[#c0c0c0]/10 text-[#808080]" :
-                        "bg-[#cd7f32]/10 text-[#cd7f32]"
-                      }`}>
-                        {badge.tier}
-                      </span>
-                    </div>
-                    <p className="text-[12px] text-[#86868b]">
-                      {badge.description} (+{badge.points_reward} pts)
-                    </p>
+                    <p className="text-[14px] font-medium text-[#1d1d1f]">{badge.name}</p>
+                    <p className="text-[12px] text-[#86868b]">{badge.description}</p>
                   </div>
                 </div>
                 <ToggleSwitch

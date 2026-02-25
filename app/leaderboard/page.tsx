@@ -497,7 +497,7 @@ function HowItWorksSection({ onClose }: { onClose: () => void }) {
       icon: <Award className="w-4 h-4 text-[#af52de]" />,
       items: [
         { label: "ได้อัตโนมัติ", value: "", desc: "เมื่อทำตามเงื่อนไขครบ เช่น streak 7 วัน, OT 10 ครั้ง" },
-        { label: "โบนัสแต้ม", value: "", desc: "แต่ละเหรียญให้แต้มพิเศษตามระดับ Bronze-Platinum" },
+        { label: "เกียรติยศเท่านั้น", value: "", desc: "เหรียญเป็นสัญลักษณ์ความสำเร็จ ไม่มีแต้มโบนัส" },
       ],
     },
   ];
