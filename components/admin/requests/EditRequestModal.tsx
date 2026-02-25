@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Toggle } from "@/components/ui/Toggle";
+import { TimeInput } from "@/components/ui/TimeInput";
 import { RequestItem, typeConfig, leaveTypeLabels } from "@/lib/types/request";
 
 interface EditRequestModalProps {
@@ -105,30 +106,16 @@ export function EditRequestModal({
         {request.type === "ot" && (
           <>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                  เวลาเริ่ม
-                </label>
-                <Input
-                  type="time"
-                  value={editData.requested_start_time || ""}
-                  onChange={(e) =>
-                    updateEditData("requested_start_time", e.target.value)
-                  }
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                  เวลาสิ้นสุด
-                </label>
-                <Input
-                  type="time"
-                  value={editData.requested_end_time || ""}
-                  onChange={(e) =>
-                    updateEditData("requested_end_time", e.target.value)
-                  }
-                />
-              </div>
+              <TimeInput
+                label="เวลาเริ่ม"
+                value={editData.requested_start_time || ""}
+                onChange={(v) => updateEditData("requested_start_time", v)}
+              />
+              <TimeInput
+                label="เวลาสิ้นสุด"
+                value={editData.requested_end_time || ""}
+                onChange={(v) => updateEditData("requested_end_time", v)}
+              />
             </div>
           </>
         )}

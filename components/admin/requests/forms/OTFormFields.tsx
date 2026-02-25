@@ -2,6 +2,7 @@
 
 import { Input } from "@/components/ui/Input";
 import { Toggle } from "@/components/ui/Toggle";
+import { TimeInput } from "@/components/ui/TimeInput";
 import { OTRateInfo, CreateFormData } from "@/lib/types/request";
 
 interface OTFormFieldsProps {
@@ -33,26 +34,16 @@ export function OTFormFields({
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-            เวลาเริ่ม
-          </label>
-          <Input
-            type="time"
-            value={formData.otStartTime}
-            onChange={(e) => onUpdate("otStartTime", e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-            เวลาสิ้นสุด
-          </label>
-          <Input
-            type="time"
-            value={formData.otEndTime}
-            onChange={(e) => onUpdate("otEndTime", e.target.value)}
-          />
-        </div>
+        <TimeInput
+          label="เวลาเริ่ม"
+          value={formData.otStartTime}
+          onChange={(v) => onUpdate("otStartTime", v)}
+        />
+        <TimeInput
+          label="เวลาสิ้นสุด"
+          value={formData.otEndTime}
+          onChange={(v) => onUpdate("otEndTime", v)}
+        />
       </div>
       <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
         <div>
