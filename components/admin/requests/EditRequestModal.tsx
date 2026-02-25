@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Edit, Save } from "lucide-react";
+import { format } from "date-fns";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -32,12 +33,12 @@ export function EditRequestModal({
     switch (request.type) {
       case "ot":
         setEditData({
-          requested_start_time:
-            request.rawData.requested_start_time?.split("T")[1]?.substring(0, 5) ||
-            "",
-          requested_end_time:
-            request.rawData.requested_end_time?.split("T")[1]?.substring(0, 5) ||
-            "",
+          requested_start_time: request.rawData.requested_start_time
+            ? format(new Date(request.rawData.requested_start_time), "HH:mm")
+            : "",
+          requested_end_time: request.rawData.requested_end_time
+            ? format(new Date(request.rawData.requested_end_time), "HH:mm")
+            : "",
           reason: request.reason || "",
         });
         break;
