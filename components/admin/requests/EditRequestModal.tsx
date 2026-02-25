@@ -39,6 +39,7 @@ export function EditRequestModal({
           requested_end_time: request.rawData.requested_end_time
             ? format(new Date(request.rawData.requested_end_time), "HH:mm")
             : "",
+          ot_rate: request.rawData.ot_rate ?? 1.5,
           reason: request.reason || "",
         });
         break;
@@ -117,6 +118,29 @@ export function EditRequestModal({
                 value={editData.requested_end_time || ""}
                 onChange={(v) => updateEditData("requested_end_time", v)}
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
+                อัตรา OT (ตัวคูณ)
+              </label>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number"
+                  min={0.5}
+                  max={5}
+                  step={0.5}
+                  value={editData.ot_rate ?? 1.5}
+                  onChange={(e) =>
+                    updateEditData("ot_rate", parseFloat(e.target.value) || 1)
+                  }
+                />
+                <span className="text-[15px] font-bold text-[#ff9500] whitespace-nowrap">
+                  {(editData.ot_rate ?? 1.5)}x
+                </span>
+              </div>
+              <p className="text-[12px] text-[#86868b] mt-1">
+                วันทำงานปกติ = ตามที่ตั้งค่า, วันหยุดสุดสัปดาห์ = ตามที่ตั้งค่า, วันหยุดนักขัตฤกษ์ = ตามที่ตั้งค่า
+              </p>
             </div>
           </>
         )}

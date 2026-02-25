@@ -409,17 +409,19 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
           case "ot": {
             const startISO = buildLocalISO(request.rawData.request_date, editData.requested_start_time);
             const endISO = buildLocalISO(request.rawData.request_date, editData.requested_end_time);
+            const newRate = parseFloat(editData.ot_rate) || request.rawData.ot_rate || 1.5;
             const calc = calculateOTAmount({
               startTime: startISO,
               endTime: endISO,
-              baseSalary: 0, // hours only needed for approved/pending
-              otRate: request.rawData.ot_rate || 1.5,
+              baseSalary: 0,
+              otRate: newRate,
               daysPerMonth: query.daysPerMonth,
               hoursPerDay: query.hoursPerDay,
             });
             updateData = {
               requested_start_time: startISO,
               requested_end_time: endISO,
+              ot_rate: newRate,
               reason: editData.reason,
             };
             if (request.status === "approved" || request.status === "completed") {
@@ -433,7 +435,7 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
                 startTime: startISO,
                 endTime: endISO,
                 baseSalary: emp?.base_salary || 0,
-                otRate: request.rawData.ot_rate || 1.5,
+                otRate: newRate,
                 daysPerMonth: query.daysPerMonth,
                 hoursPerDay: query.hoursPerDay,
               });
