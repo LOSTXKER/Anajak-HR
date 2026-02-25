@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Trophy, Flame, Star, ChevronRight, TrendingUp, RotateCcw } from "lucide-react";
+import { Trophy, Flame, Star, ChevronRight, TrendingUp, RotateCcw, Zap } from "lucide-react";
 import { useGameProfile } from "@/lib/hooks/use-gamification";
 import { LEVELS, RANK_TIERS } from "@/lib/services/gamification.service";
 
@@ -93,6 +93,7 @@ export function GameStatusCard() {
   const activeTiers = RANK_TIERS.slice(1);
 
   return (
+    <>
     <Link href="/leaderboard">
       <div
         className={`bg-gradient-to-br ${style.cardBg} rounded-2xl p-5 mb-4 text-white hover:opacity-95 transition-all active:scale-[0.98] ${style.glow}`}
@@ -214,5 +215,22 @@ export function GameStatusCard() {
         </div>
       </div>
     </Link>
+
+    {/* Point History Link */}
+    <Link href="/points">
+      <div className="bg-white rounded-2xl p-3.5 mb-4 shadow-sm border border-[#e8e8ed] flex items-center justify-between hover:bg-[#f5f5f7] transition-colors active:scale-[0.98]">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[#ff9500]/10 flex items-center justify-center">
+            <Zap className="w-4.5 h-4.5 text-[#ff9500]" />
+          </div>
+          <div>
+            <p className="text-[14px] font-semibold text-[#1d1d1f]">ประวัติแต้ม</p>
+            <p className="text-[11px] text-[#86868b]">ดูที่มาแต้มทั้งหมดของคุณ</p>
+          </div>
+        </div>
+        <ChevronRight className="w-5 h-5 text-[#d2d2d7]" />
+      </div>
+    </Link>
+    </>
   );
 }
