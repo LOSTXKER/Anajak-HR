@@ -421,13 +421,35 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
       try {
         let updateData: any = {};
         switch (request.type) {
-          case "ot":
+          case "ot": {
+            const newStart = `${request.rawData.request_date}T${editData.requested_start_time}:00`;
+            const newEnd = `${request.rawData.request_date}T${editData.requested_end_time}:00`;
             updateData = {
-              requested_start_time: `${request.rawData.request_date}T${editData.requested_start_time}:00`,
-              requested_end_time: `${request.rawData.request_date}T${editData.requested_end_time}:00`,
+              requested_start_time: newStart,
+              requested_end_time: newEnd,
               reason: editData.reason,
             };
+            if (request.status === "approved" || request.status === "completed") {
+              updateData.approved_start_time = newStart;
+              updateData.approved_end_time = newEnd;
+              const hours = (new Date(newEnd).getTime() - new Date(newStart).getTime()) / TIME_CONSTANTS.MS_PER_HOUR;
+              updateData.approved_ot_hours = Math.round(hours * 100) / 100;
+            }
+            if (request.status === "completed") {
+              updateData.actual_start_time = newStart;
+              updateData.actual_end_time = newEnd;
+              const hours = (new Date(newEnd).getTime() - new Date(newStart).getTime()) / TIME_CONSTANTS.MS_PER_HOUR;
+              updateData.actual_ot_hours = Math.round(hours * 100) / 100;
+              const emp = query.employees.find((e) => e.id === request.employeeId);
+              const baseSalary = emp?.base_salary || 0;
+              if (baseSalary > 0) {
+                const rate = request.rawData.ot_rate || 1.5;
+                const hourlyRate = baseSalary / query.daysPerMonth / query.hoursPerDay;
+                updateData.ot_amount = Math.round(hours * hourlyRate * rate * 100) / 100;
+              }
+            }
             break;
+          }
           case "leave":
             updateData = { leave_type: editData.leave_type, start_date: editData.start_date, end_date: editData.end_date, is_half_day: editData.is_half_day, reason: editData.reason };
             break;

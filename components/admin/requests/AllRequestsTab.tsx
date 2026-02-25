@@ -216,7 +216,8 @@ export function AllRequestsTab({
             const statusInfo = statusConfig[request.status] || statusConfig.pending;
             const Icon = typeInfo.icon;
             const isPending = request.status === "pending";
-            const canCancel = request.status === "pending" || request.status === "approved";
+            const canCancel = request.status === "pending" || request.status === "approved" || request.status === "completed";
+            const canEdit = request.status === "pending" || request.status === "approved" || request.status === "completed";
 
             return (
               <Card key={`${request.type}-${request.id}`} className="p-4 hover:shadow-md transition-all">
@@ -285,7 +286,7 @@ export function AllRequestsTab({
                       </>
                     )}
 
-                    {isPending && (
+                    {canEdit && (
                       <Button variant="text" size="sm" onClick={() => onEdit(request)}>
                         <span className="text-xs">แก้ไข</span>
                       </Button>

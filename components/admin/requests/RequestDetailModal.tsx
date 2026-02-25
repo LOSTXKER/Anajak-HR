@@ -37,7 +37,9 @@ export function RequestDetailModal({
   const isCompleted = request.status === "completed";
   const isRejected = request.status === "rejected";
   const canCancel =
-    request.status === "pending" || request.status === "approved";
+    request.status === "pending" || request.status === "approved" || request.status === "completed";
+  const canEdit =
+    request.status === "pending" || request.status === "approved" || request.status === "completed";
 
   return (
     <Modal isOpen={!!request} onClose={onClose} title="รายละเอียดคำขอ">
@@ -236,7 +238,7 @@ export function RequestDetailModal({
             </>
           )}
 
-          {isPending && (
+          {canEdit && (
             <Button variant="secondary" onClick={() => onEdit(request)}>
               <Edit className="w-4 h-4" />
             </Button>
