@@ -9,6 +9,20 @@ import { format, subDays, startOfMonth, endOfMonth, getDay } from "date-fns";
 import { getTodayTH } from "@/lib/utils/date";
 import { sendBadgeNotification } from "./notification.service";
 
+const TH_TIMEZONE = "Asia/Bangkok";
+
+function getThaiMinutesOfDay(timestamp: string | Date): number {
+  const d = typeof timestamp === "string" ? new Date(timestamp) : timestamp;
+  const thaiStr = d.toLocaleString("en-US", {
+    timeZone: TH_TIMEZONE,
+    hour: "numeric",
+    minute: "numeric",
+    hour12: false,
+  });
+  const [h, m] = thaiStr.split(":").map(Number);
+  return h * 60 + m;
+}
+
 interface BadgeDefinitionRow {
   id: string;
   code: string;
@@ -96,11 +110,13 @@ interface AttendanceLogFullRow {
   id: string;
   work_date: string;
   is_late: boolean;
+  clock_in_time: string | null;
   clock_out_time: string | null;
 }
 
 interface OTRequestRow {
   id: string;
+  request_date: string;
 }
 
 // Level definitions (rebalanced: harder progression, ~8 pts/day for perfect employee)
@@ -461,13 +477,12 @@ export async function processCheckinGamification(
   }
 
   if (!isLate) {
-    // Early check-in bonus (only for on-time arrivals)
     const earlyMinutes = parseInt(settings.gamify_early_minutes || "15");
     const workStartSetting = await getWorkStartTime();
     if (workStartSetting) {
       const [h, m] = workStartSetting.split(":").map(Number);
       const workStartMinutes = h * 60 + m;
-      const checkinMinutes = clockInTime.getHours() * 60 + clockInTime.getMinutes();
+      const checkinMinutes = getThaiMinutesOfDay(clockInTime);
       if (workStartMinutes - checkinMinutes >= earlyMinutes) {
         const pts = parseInt(settings.gamify_points_early || "5");
         await awardPoints(employeeId, "early_checkin", pts, `เข้างานก่อนเวลา ${earlyMinutes} นาที`, attendanceId, "attendance");
@@ -951,7 +966,12 @@ async function getBadgeCounts(employeeIds: string[]): Promise<Record<string, num
 }
 
 /**
- * Recalculate all points from historical data for one employee
+ * Recalculate all points from historical data for one employee.
+ *
+ * Key design: we bypass the awardPoints→RPC path entirely so that
+ * quarterly_points only reflects the CURRENT quarter, not all-time history.
+ * Streak logic is calculated inline to avoid the same problem.
+ * Badges are awarded at the end; their small bonus goes to both totals.
  */
 export async function recalculateEmployeePoints(employeeId: string): Promise<void> {
   await supabase.from("point_transactions").delete().eq("employee_id", employeeId);
@@ -961,56 +981,157 @@ export async function recalculateEmployeePoints(employeeId: string): Promise<voi
   await ensureEmployeePoints(employeeId);
 
   const settings = await getGamificationSettings();
+  if (settings.gamify_enabled === "false") return;
 
   const { data: attendanceLogs } = await supabase
     .from("attendance_logs")
-    .select("*")
+    .select("id, work_date, is_late, clock_in_time, clock_out_time")
     .eq("employee_id", employeeId)
     .order("work_date", { ascending: true });
 
+  const { data: otRequests } = await supabase
+    .from("ot_requests")
+    .select("id, request_date")
+    .eq("employee_id", employeeId)
+    .eq("status", "completed");
+
   const workStartSetting = await getWorkStartTime();
   const earlyMinutes = parseInt(settings.gamify_early_minutes || "15");
+  const workingDays = await getWorkingDays();
+
+  // Quarter boundaries
+  const currentQ = getCurrentQuarter();
+  const [yr, qs] = currentQ.split("-Q");
+  const qNum = parseInt(qs);
+  const qStart = format(new Date(parseInt(yr), (qNum - 1) * 3, 1), "yyyy-MM-dd");
+  const qEnd = format(new Date(parseInt(yr), qNum * 3, 0), "yyyy-MM-dd");
+  const isInQ = (d: string) => d >= qStart && d <= qEnd;
+
+  let totalPts = 0;
+  let quarterlyPts = 0;
+
+  const txns: Array<{
+    employee_id: string;
+    points: number;
+    action_type: string;
+    description: string;
+    reference_id: string | null;
+    reference_type: string | null;
+  }> = [];
+
+  const addPts = (
+    pts: number,
+    eventDate: string,
+    actionType: string,
+    desc: string,
+    refId?: string,
+    refType?: string
+  ) => {
+    totalPts += pts;
+    if (isInQ(eventDate)) quarterlyPts += pts;
+    txns.push({
+      employee_id: employeeId,
+      points: pts,
+      action_type: actionType,
+      description: desc,
+      reference_id: refId || null,
+      reference_type: refType || null,
+    });
+  };
+
+  // Inline streak tracking (avoids calling updateStreak which calls awardPoints)
+  let currentStreak = 0;
+  let longestStreak = 0;
+  let lastStreakDate: string | null = null;
+
+  let wsMinutes = 0;
+  if (workStartSetting) {
+    const [wh, wm] = workStartSetting.split(":").map(Number);
+    wsMinutes = wh * 60 + wm;
+  }
 
   for (const log of (attendanceLogs || []) as AttendanceLogFullRow[]) {
     if (!log.is_late) {
       const pts = parseInt(settings.gamify_points_on_time || "10");
-      await awardPoints(employeeId, "on_time_checkin", pts, "เช็กอินตรงเวลา", log.id, "attendance");
+      addPts(pts, log.work_date, "on_time_checkin", "เช็กอินตรงเวลา", log.id, "attendance");
 
-      // Early check-in bonus (same logic as processCheckinGamification)
-      if (workStartSetting && (log as any).clock_in_time) {
-        const [h, m] = workStartSetting.split(":").map(Number);
-        const workStartMinutes = h * 60 + m;
-        const clockIn = new Date((log as any).clock_in_time);
-        const checkinMinutes = clockIn.getHours() * 60 + clockIn.getMinutes();
-        if (workStartMinutes - checkinMinutes >= earlyMinutes) {
+      if (workStartSetting && log.clock_in_time) {
+        const ciMins = getThaiMinutesOfDay(log.clock_in_time);
+        if (wsMinutes - ciMins >= earlyMinutes) {
           const earlyPts = parseInt(settings.gamify_points_early || "5");
-          await awardPoints(employeeId, "early_checkin", earlyPts, `เข้างานก่อนเวลา ${earlyMinutes} นาที`, log.id, "attendance");
+          addPts(earlyPts, log.work_date, "early_checkin", `เข้างานก่อนเวลา ${earlyMinutes} นาที`, log.id, "attendance");
         }
       }
 
-      await updateStreak(employeeId, log.work_date);
+      // Inline streak calculation
+      const today = new Date(log.work_date + "T00:00:00");
+      if (lastStreakDate) {
+        let expectedPrev = subDays(today, 1);
+        while (isOffDay(expectedPrev, workingDays)) {
+          expectedPrev = subDays(expectedPrev, 1);
+        }
+        const expectedStr = format(expectedPrev, "yyyy-MM-dd");
+        if (lastStreakDate === expectedStr) {
+          currentStreak += 1;
+        } else if (lastStreakDate === log.work_date) {
+          // same day duplicate, skip
+        } else {
+          currentStreak = 1;
+        }
+      } else {
+        currentStreak = 1;
+      }
+      lastStreakDate = log.work_date;
+      longestStreak = Math.max(longestStreak, currentStreak);
+
+      if (currentStreak > 0 && currentStreak % 5 === 0) {
+        const bonusPts = parseInt(settings.gamify_points_streak_bonus || "25");
+        addPts(bonusPts, log.work_date, "streak_bonus", `โบนัส Streak ${currentStreak} วันติดต่อกัน`);
+      }
     } else {
       const penalty = parseInt(settings.gamify_points_late_penalty || "-5");
-      await awardPoints(employeeId, "late_penalty", penalty, "มาสาย", log.id, "attendance");
-      await resetStreak(employeeId);
+      addPts(penalty, log.work_date, "late_penalty", "มาสาย", log.id, "attendance");
+      currentStreak = 0;
     }
 
     if (log.clock_out_time) {
       const pts = parseInt(settings.gamify_points_full_day || "5");
-      await awardPoints(employeeId, "full_attendance_day", pts, "เข้า-ออกงานครบวัน", log.id, "attendance");
+      addPts(pts, log.work_date, "full_attendance_day", "เข้า-ออกงานครบวัน", log.id, "attendance");
     }
   }
 
-  const { data: otRequests } = await supabase
-    .from("ot_requests")
-    .select("id")
-    .eq("employee_id", employeeId)
-    .eq("status", "completed");
-
   for (const ot of (otRequests || []) as OTRequestRow[]) {
     const pts = parseInt(settings.gamify_points_ot || "15");
-    await awardPoints(employeeId, "ot_completed", pts, "ทำ OT สำเร็จ", ot.id, "ot");
+    addPts(pts, ot.request_date, "ot_completed", "ทำ OT สำเร็จ", ot.id, "ot");
   }
 
+  // Batch insert point_transactions
+  for (let i = 0; i < txns.length; i += 100) {
+    await supabase.from("point_transactions").insert(txns.slice(i, i + 100));
+  }
+
+  // Set correct totals directly (bypass RPC to avoid the quarterly inflation bug)
+  totalPts = Math.max(0, totalPts);
+  quarterlyPts = Math.max(0, quarterlyPts);
+  const { level, name: levelName } = calculateLevel(totalPts);
+  const { tier: rankTier } = calculateRankTier(quarterlyPts);
+
+  await supabase
+    .from("employee_points")
+    .update({
+      total_points: totalPts,
+      quarterly_points: quarterlyPts,
+      level,
+      level_name: levelName,
+      rank_tier: rankTier,
+      current_streak: currentStreak,
+      longest_streak: longestStreak,
+      last_streak_date: lastStreakDate,
+    })
+    .eq("employee_id", employeeId);
+
+  // Award badges last — badge bonus points go through awardPoints→RPC which
+  // adds a small amount to both total and quarterly. This is acceptable since
+  // badges are re-evaluated now and their bonuses are small.
   await checkAndAwardBadges(employeeId);
 }
