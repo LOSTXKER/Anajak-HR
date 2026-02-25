@@ -968,21 +968,37 @@ export async function recalculateEmployeePoints(employeeId: string): Promise<voi
     .eq("employee_id", employeeId)
     .order("work_date", { ascending: true });
 
+  const workStartSetting = await getWorkStartTime();
+  const earlyMinutes = parseInt(settings.gamify_early_minutes || "15");
+
   for (const log of (attendanceLogs || []) as AttendanceLogFullRow[]) {
     if (!log.is_late) {
       const pts = parseInt(settings.gamify_points_on_time || "10");
       await awardPoints(employeeId, "on_time_checkin", pts, "เช็กอินตรงเวลา", log.id, "attendance");
+
+      // Early check-in bonus (same logic as processCheckinGamification)
+      if (workStartSetting && (log as any).clock_in_time) {
+        const [h, m] = workStartSetting.split(":").map(Number);
+        const workStartMinutes = h * 60 + m;
+        const clockIn = new Date((log as any).clock_in_time);
+        const checkinMinutes = clockIn.getHours() * 60 + clockIn.getMinutes();
+        if (workStartMinutes - checkinMinutes >= earlyMinutes) {
+          const earlyPts = parseInt(settings.gamify_points_early || "5");
+          await awardPoints(employeeId, "early_checkin", earlyPts, `เข้างานก่อนเวลา ${earlyMinutes} นาที`, log.id, "attendance");
+        }
+      }
+
+      await updateStreak(employeeId, log.work_date);
     } else {
       const penalty = parseInt(settings.gamify_points_late_penalty || "-5");
       await awardPoints(employeeId, "late_penalty", penalty, "มาสาย", log.id, "attendance");
+      await resetStreak(employeeId);
     }
 
     if (log.clock_out_time) {
       const pts = parseInt(settings.gamify_points_full_day || "5");
       await awardPoints(employeeId, "full_attendance_day", pts, "เข้า-ออกงานครบวัน", log.id, "attendance");
     }
-
-    await updateStreak(employeeId, log.work_date);
   }
 
   const { data: otRequests } = await supabase
