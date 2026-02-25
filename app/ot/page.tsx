@@ -126,7 +126,7 @@ function OTPageContent() {
         .update({ status: "cancelled" })
         .eq("id", id)
         .eq("employee_id", employee.id)
-        .eq("status", "pending");
+        .in("status", ["pending", "approved"]);
 
       if (error) throw error;
       setCancelTarget(null);
@@ -271,19 +271,33 @@ function OTPageContent() {
                               {format(new Date(ot.requested_start_time), "HH:mm")} - {format(new Date(ot.requested_end_time), "HH:mm")} น.
                             </div>
                           </div>
-                          {canStart ? (
-                            <Link href={`/ot/start/${ot.id}`}>
-                              <Button size="sm" className="bg-[#34c759] hover:bg-[#30b350]">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setCancelTarget(ot.id)}
+                              disabled={canceling === ot.id}
+                              className="flex items-center gap-1 px-3 py-2 text-[13px] text-[#ff3b30] bg-[#ff3b30]/10 rounded-lg hover:bg-[#ff3b30]/20 transition-colors disabled:opacity-50"
+                            >
+                              {canceling === ot.id ? (
+                                <div className="w-4 h-4 border-2 border-[#ff3b30] border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                              ยกเลิก
+                            </button>
+                            {canStart ? (
+                              <Link href={`/ot/start/${ot.id}`}>
+                                <Button size="sm" className="bg-[#34c759] hover:bg-[#30b350]">
+                                  <Play className="w-4 h-4" />
+                                  เริ่ม
+                                </Button>
+                              </Link>
+                            ) : (
+                              <Button size="sm" disabled className="bg-[#86868b]/50 cursor-not-allowed">
                                 <Play className="w-4 h-4" />
-                                เริ่ม
+                                รอวัน
                               </Button>
-                            </Link>
-                          ) : (
-                            <Button size="sm" disabled className="bg-[#86868b]/50 cursor-not-allowed">
-                              <Play className="w-4 h-4" />
-                              รอวัน
-                            </Button>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </Card>
                     );
