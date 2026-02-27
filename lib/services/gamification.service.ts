@@ -1119,8 +1119,6 @@ export async function recalculateEmployeePoints(employeeId: string): Promise<voi
     })
     .eq("employee_id", employeeId);
 
-  // Award badges last — badge bonus points go through awardPoints→RPC which
-  // adds a small amount to both total and quarterly. This is acceptable since
-  // badges are re-evaluated now and their bonuses are small.
+  // Award badges last (honorary only — no points awarded for badges)
   await checkAndAwardBadges(employeeId);
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { sendLineMessage } from "@/lib/line/messaging";
+import { getTodayTH, getNowTH } from "@/lib/utils/date";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 
@@ -20,21 +21,36 @@ export async function GET(request: NextRequest) {
 
   try {
     // ดึงการตั้งค่าเวลาเลิกงานและ auto checkout
-    const { data: settings } = await supabaseServer
+    const { data: settings, error: settingsError } = await supabaseServer
       .from("system_settings")
       .select("setting_key, setting_value")
       .in("setting_key", [
         "work_end_time",
         "auto_checkout_enabled",
         "auto_checkout_time",
-        "auto_checkout_skip_if_ot", // เพิ่ม setting สำหรับข้าม OT
-        "notify_admin_on_auto_checkout", // แจ้งเตือน Admin เมื่อ auto checkout
+        "auto_checkout_skip_if_ot",
+        "notify_admin_on_auto_checkout",
       ]);
 
+    if (settingsError) {
+      console.error("[Auto Checkout] Error fetching settings:", settingsError);
+      throw settingsError;
+    }
+
+    if (!settings || settings.length === 0) {
+      console.error("[Auto Checkout] No settings found in system_settings table — auto checkout cannot determine configuration");
+      return NextResponse.json(
+        { success: false, error: "No system settings found. Please check the system_settings table." },
+        { status: 500 }
+      );
+    }
+
     const settingsMap: Record<string, string> = {};
-    settings?.forEach((s: { setting_key: string; setting_value: string }) => {
+    settings.forEach((s: { setting_key: string; setting_value: string }) => {
       settingsMap[s.setting_key] = s.setting_value;
     });
+
+    console.log("[Auto Checkout] Settings loaded:", JSON.stringify(settingsMap));
 
     // ถ้า auto checkout ไม่เปิดใช้งาน
     if (settingsMap.auto_checkout_enabled !== "true") {
@@ -46,28 +62,19 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // เวลาที่ cron ทำงาน (ใช้ตรวจสอบว่าจะ auto checkout หรือยัง)
     const autoCheckoutTimeStr = settingsMap.auto_checkout_time || "22:00";
-    // เวลาเลิกงานตามบริษัทตั้งไว้ (ใช้เป็นเวลาเช็คเอาท์จริง)
     let workEndTimeStr = settingsMap.work_end_time || "18:00";
-    const skipIfOT = settingsMap.auto_checkout_skip_if_ot !== "false"; // default true
-    const notifyAdminOnAutoCheckout = settingsMap.notify_admin_on_auto_checkout !== "false"; // default true
+    const skipIfOT = settingsMap.auto_checkout_skip_if_ot !== "false";
+    const notifyAdminOnAutoCheckout = settingsMap.notify_admin_on_auto_checkout !== "false";
     
-    // ตรวจสอบรูปแบบเวลา
     const workEndMatch = workEndTimeStr.match(/^(\d{1,2}):(\d{2})$/);
     if (!workEndMatch) {
       console.error(`[Auto Checkout] Invalid work_end_time format: ${workEndTimeStr}, using default 18:00`);
       workEndTimeStr = "18:00";
     }
     
-    // คำนวณวันที่ในเขตเวลาไทย (UTC+7)
-    const now = new Date();
-    const bangkokOffset = 7 * 60; // UTC+7 in minutes
-    const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
-    const bangkokTime = new Date(utcTime + bangkokOffset * 60000);
-    const today = format(bangkokTime, "yyyy-MM-dd");
-    const currentBangkokHour = bangkokTime.getHours();
-    const currentBangkokMinute = bangkokTime.getMinutes();
+    const today = getTodayTH();
+    const bangkokTime = getNowTH();
 
     console.log(`[Auto Checkout] Current Bangkok time: ${format(bangkokTime, "yyyy-MM-dd HH:mm:ss")}`);
     console.log(`[Auto Checkout] Processing for date: ${today}, work_end_time: ${workEndTimeStr}, auto_checkout_time: ${autoCheckoutTimeStr}, skip_if_ot: ${skipIfOT}`);
@@ -164,18 +171,20 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
+        if (!attendance.clock_in_time) {
+          console.warn(`[Auto Checkout] Skipping ${attendance.id} — no clock_in_time`);
+          continue;
+        }
+
         const clockInTime = new Date(attendance.clock_in_time);
-        
-        // ใช้เวลาเลิกงานตามบริษัทตั้งไว้เป็นเวลาเช็คเอาท์
-        // (ไม่ใช้เวลาที่ cron ทำงาน เพราะจะทำให้ชั่วโมงทำงานเกินจริง)
         const checkoutTime = new Date(`${today}T${workEndTimeStr}:00+07:00`);
 
         // คำนวณ total hours จาก clock_in ถึง work_end_time
         const diffMs = checkoutTime.getTime() - clockInTime.getTime();
         const totalHours = Math.max(0, Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100);
 
-        // อัปเดต attendance log
-        const { error: updateError } = await supabaseServer
+        // อัปเดต attendance log (guard: clock_out_time IS NULL เพื่อป้องกัน overwrite ถ้า manual checkout เกิดขึ้นระหว่าง query กับ update)
+        const { data: updateData, error: updateError } = await supabaseServer
           .from("attendance_logs")
           .update({
             clock_out_time: checkoutTime.toISOString(),
@@ -183,7 +192,9 @@ export async function GET(request: NextRequest) {
             auto_checkout: true,
             auto_checkout_reason: `เช็คเอาท์อัตโนมัติเวลา ${workEndTimeStr} น. (เวลาเลิกงาน) เนื่องจากไม่มีการเช็คเอาท์ก่อนเวลา ${autoCheckoutTimeStr} น.`,
           })
-          .eq("id", attendance.id);
+          .eq("id", attendance.id)
+          .is("clock_out_time", null)
+          .select("id");
 
         if (updateError) {
           console.error(
@@ -191,6 +202,11 @@ export async function GET(request: NextRequest) {
             updateError
           );
           errors.push(`${attendance.id}: ${updateError.message}`);
+          continue;
+        }
+
+        if (!updateData || updateData.length === 0) {
+          console.log(`[Auto Checkout] Skipping ${employee?.name || attendance.employee_id} — already checked out manually`);
           continue;
         }
 
