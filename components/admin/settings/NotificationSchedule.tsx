@@ -3,7 +3,6 @@
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { SettingsToggle } from "./SettingsToggle";
-import { TimeInput } from "@/components/ui/TimeInput";
 import { Timer, Bell, Save, Info, Clock } from "lucide-react";
 import type { NotificationSettings } from "./types";
 
@@ -22,7 +21,7 @@ export function NotificationSchedule({
 }: NotificationScheduleProps) {
   return (
     <div className="space-y-6">
-      {/* Auto-checkout */}
+      {/* Auto-checkout notification */}
       <Card elevated>
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 bg-[#af52de]/10 rounded-xl flex items-center justify-center">
@@ -30,55 +29,25 @@ export function NotificationSchedule({
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">Auto Check-out</h3>
+              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">แจ้งเตือน Auto Check-out</h3>
               <span className="px-2 py-0.5 bg-[#34c759] text-white text-[10px] font-bold rounded">LINE</span>
             </div>
-            <p className="text-[13px] text-[#86868b]">เช็คเอาท์อัตโนมัติสำหรับคนลืม</p>
+            <p className="text-[13px] text-[#86868b]">แจ้งเตือนเมื่อระบบ auto checkout ให้พนักงาน</p>
           </div>
         </div>
 
         <div className="space-y-4">
           <SettingsToggle
-            label="เปิด Auto Check-out"
-            description="ระบบจะเช็คเอาท์ให้อัตโนมัติ"
-            enabled={settings.autoCheckoutEnabled}
-            onChange={() => onChange({ autoCheckoutEnabled: !settings.autoCheckoutEnabled })}
+            label="แจ้ง Admin เมื่อ Auto Check-out"
+            description="ส่ง LINE สรุปให้ Admin ทุกครั้งที่มี Auto Checkout"
+            enabled={settings.notifyAdminOnAutoCheckout}
+            onChange={() => onChange({ notifyAdminOnAutoCheckout: !settings.notifyAdminOnAutoCheckout })}
           />
 
-          {settings.autoCheckoutEnabled && (
-            <div className="space-y-4">
-              <div>
-                <TimeInput
-                  label="เวลาที่ระบบรัน Auto Check-out"
-                  value={settings.autoCheckoutTime}
-                  onChange={(val) => onChange({ autoCheckoutTime: val })}
-                />
-                <p className="text-[11px] text-[#86868b] mt-1.5 flex items-start gap-1">
-                  <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                  <span>
-                    ระบบจะรันทุกวันตามเวลานี้ แต่บันทึกเวลาเช็คเอาท์เป็น
-                    <strong> เวลาเลิกงาน ({settings.workEndTime} น.)</strong>
-                  </span>
-                </p>
-              </div>
-
-              <div className="border-t border-[#e5e5ea] pt-4 space-y-3">
-                <SettingsToggle
-                  label="ข้ามถ้ากำลังทำ OT"
-                  description="ไม่ auto checkout พนักงานที่มี OT อนุมัติแล้ว"
-                  enabled={settings.autoCheckoutSkipIfOt}
-                  onChange={() => onChange({ autoCheckoutSkipIfOt: !settings.autoCheckoutSkipIfOt })}
-                />
-
-                <SettingsToggle
-                  label="แจ้ง Admin เมื่อ Auto Check-out"
-                  description="ส่ง LINE สรุปให้ Admin ทุกครั้งที่มี Auto Checkout"
-                  enabled={settings.notifyAdminOnAutoCheckout}
-                  onChange={() => onChange({ notifyAdminOnAutoCheckout: !settings.notifyAdminOnAutoCheckout })}
-                />
-              </div>
-            </div>
-          )}
+          <p className="text-[11px] text-[#86868b] flex items-start gap-1">
+            <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
+            <span>ตั้งค่าเปิด/ปิด Auto Check-out และเวลาได้ที่หน้า <strong>ตั้งค่าเวลาทำงาน</strong></span>
+          </p>
         </div>
       </Card>
 
@@ -111,7 +80,7 @@ export function NotificationSchedule({
                 เตือนก่อน Auto Check-out (นาที)
               </label>
               <div className="grid grid-cols-3 gap-3">
-                <div className="relative">
+                <div>
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <Clock className="w-3 h-3 text-[#86868b]" />
                     <span className="text-[11px] text-[#86868b]">ครั้งที่ 1</span>
@@ -124,7 +93,7 @@ export function NotificationSchedule({
                     className="w-full px-3 py-2.5 bg-[#f5f5f7] rounded-xl text-[14px] text-center"
                   />
                 </div>
-                <div className="relative">
+                <div>
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <Clock className="w-3 h-3 text-[#86868b]" />
                     <span className="text-[11px] text-[#86868b]">ครั้งที่ 2</span>
@@ -137,7 +106,7 @@ export function NotificationSchedule({
                     className="w-full px-3 py-2.5 bg-[#f5f5f7] rounded-xl text-[14px] text-center"
                   />
                 </div>
-                <div className="relative">
+                <div>
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <Clock className="w-3 h-3 text-[#86868b]" />
                     <span className="text-[11px] text-[#86868b]">ครั้งที่ 3</span>

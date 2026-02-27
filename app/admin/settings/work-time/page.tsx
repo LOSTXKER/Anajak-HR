@@ -12,6 +12,8 @@ import {
   Save,
   Shield,
   Calendar,
+  Timer,
+  Info,
 } from "lucide-react";
 import { TimeInput } from "@/components/ui/TimeInput";
 
@@ -107,6 +109,9 @@ function WorkTimeSettingsContent() {
     requirePhoto: true,
     requireGPS: true,
     requireAccountApproval: true,
+    autoCheckoutEnabled: true,
+    autoCheckoutTime: "22:00",
+    autoCheckoutSkipIfOt: true,
   });
 
   useEffect(() => {
@@ -142,6 +147,9 @@ function WorkTimeSettingsContent() {
           requirePhoto: settingsMap.require_photo === "true",
           requireGPS: settingsMap.require_gps === "true",
           requireAccountApproval: settingsMap.require_account_approval !== "false",
+          autoCheckoutEnabled: settingsMap.auto_checkout_enabled === "true",
+          autoCheckoutTime: settingsMap.auto_checkout_time || "22:00",
+          autoCheckoutSkipIfOt: settingsMap.auto_checkout_skip_if_ot !== "false",
         });
       }
     } catch (error) {
@@ -167,6 +175,9 @@ function WorkTimeSettingsContent() {
         { key: "require_photo", value: settings.requirePhoto.toString() },
         { key: "require_gps", value: settings.requireGPS.toString() },
         { key: "require_account_approval", value: settings.requireAccountApproval.toString() },
+        { key: "auto_checkout_enabled", value: settings.autoCheckoutEnabled.toString() },
+        { key: "auto_checkout_time", value: settings.autoCheckoutTime },
+        { key: "auto_checkout_skip_if_ot", value: settings.autoCheckoutSkipIfOt.toString() },
       ];
 
       for (const update of updates) {
@@ -306,6 +317,62 @@ function WorkTimeSettingsContent() {
                   onChange={(val) => setSettings({ ...settings, checkoutTimeEnd: val })}
                 />
               </div>
+            </div>
+          </Card>
+
+          {/* Auto Check-out */}
+          <Card elevated>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-[#af52de]/10 rounded-xl flex items-center justify-center">
+                <Timer className="w-5 h-5 text-[#af52de]" />
+              </div>
+              <div>
+                <h3 className="text-[17px] font-semibold text-[#1d1d1f]">Auto Check-out</h3>
+                <p className="text-[13px] text-[#86868b]">เช็คเอาท์อัตโนมัติสำหรับคนลืม</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
+                <div>
+                  <span className="text-[14px] text-[#1d1d1f] block">เปิด Auto Check-out</span>
+                  <span className="text-[11px] text-[#86868b]">ระบบจะเช็คเอาท์ให้อัตโนมัติ</span>
+                </div>
+                <ToggleSwitch
+                  enabled={settings.autoCheckoutEnabled}
+                  onChange={() => setSettings({ ...settings, autoCheckoutEnabled: !settings.autoCheckoutEnabled })}
+                />
+              </div>
+
+              {settings.autoCheckoutEnabled && (
+                <div className="space-y-4">
+                  <div>
+                    <TimeInput
+                      label="เวลาที่ระบบรัน Auto Check-out"
+                      value={settings.autoCheckoutTime}
+                      onChange={(val) => setSettings({ ...settings, autoCheckoutTime: val })}
+                    />
+                    <p className="text-[11px] text-[#86868b] mt-1.5 flex items-start gap-1">
+                      <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                      <span>
+                        ระบบจะรันทุกวันตามเวลานี้ แต่บันทึกเวลาเช็คเอาท์เป็น
+                        <strong> เวลาเลิกงาน ({settings.workEndTime} น.)</strong>
+                      </span>
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
+                    <div>
+                      <span className="text-[14px] text-[#1d1d1f] block">ข้ามถ้ากำลังทำ OT</span>
+                      <span className="text-[11px] text-[#86868b]">ไม่ auto checkout พนักงานที่มี OT อนุมัติแล้ว</span>
+                    </div>
+                    <ToggleSwitch
+                      enabled={settings.autoCheckoutSkipIfOt}
+                      onChange={() => setSettings({ ...settings, autoCheckoutSkipIfOt: !settings.autoCheckoutSkipIfOt })}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
 
