@@ -330,12 +330,32 @@ export function formatLateCheckInReminder(employeeName: string) {
 /**
  * Format forgot check-out reminder
  */
-export function formatForgotCheckOutReminder(employeeName: string) {
-  return `⏰ เตือนความจำ
+export function formatForgotCheckOutReminder(
+  employeeName: string,
+  options?: {
+    reminderNumber?: number;
+    totalReminders?: number;
+    clockInTime?: string;
+    workEndTime?: string;
+    autoCheckoutTime?: string;
+  }
+) {
+  const o = options;
+  const header = o?.reminderNumber
+    ? `⏰ เตือนลืมเช็คเอาท์ (ครั้งที่ ${o.reminderNumber}/${o.totalReminders || 3})`
+    : `⏰ เตือนความจำ`;
+
+  let details = "";
+  if (o?.clockInTime) details += `\n⏱ เวลาเข้างาน: ${o.clockInTime} น.`;
+  if (o?.workEndTime) details += `\n🏢 เวลาเลิกงาน: ${o.workEndTime} น.`;
+  if (o?.autoCheckoutTime) details += `\n🤖 Auto Check-out เวลา: ${o.autoCheckoutTime} น.`;
+
+  return `${header}
 
 👤 ${employeeName}
-คุณยังไม่ได้เช็คเอาท์เลิกงาน
-กรุณาเช็คเอาท์เพื่อบันทึกเวลาทำงาน`;
+คุณยังไม่ได้เช็คเอาท์วันนี้${details}
+
+กรุณาเช็คเอาท์ก่อนระบบจะเช็คเอาท์อัตโนมัติ`;
 }
 
 /**

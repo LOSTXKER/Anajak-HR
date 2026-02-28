@@ -5,6 +5,10 @@
       "schedule": "0 2 * * *"
     },
     {
+      "path": "/api/checkout-reminders",
+      "schedule": "*/15 11-14 * * *"
+    },
+    {
       "path": "/api/auto-checkout",
       "schedule": "0 15 * * *"
     }

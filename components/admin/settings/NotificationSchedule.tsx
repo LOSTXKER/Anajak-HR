@@ -60,18 +60,18 @@ export function NotificationSchedule({
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <h3 className="text-[17px] font-semibold text-[#1d1d1f]">เตือนลืมเช็คเอาท์</h3>
-              <span className="px-2 py-0.5 bg-[#ff9500] text-white text-[10px] font-bold rounded">เร็วๆ นี้</span>
+              <span className="px-2 py-0.5 bg-[#34c759] text-white text-[10px] font-bold rounded">LINE</span>
             </div>
-            <p className="text-[13px] text-[#86868b]">ส่ง LINE เตือนก่อน Auto Check-out</p>
+            <p className="text-[13px] text-[#86868b]">ส่ง LINE เตือนพนักงานก่อน Auto Check-out</p>
           </div>
         </div>
 
-        <div className="space-y-4 opacity-60 pointer-events-none">
+        <div className="space-y-4">
           <SettingsToggle
             label="เปิดการเตือน"
+            description="ส่ง LINE เตือนพนักงานที่ลืมเช็คเอาท์"
             enabled={settings.reminderEnabled}
             onChange={() => onChange({ reminderEnabled: !settings.reminderEnabled })}
-            disabled
           />
 
           {settings.reminderEnabled && (
@@ -89,8 +89,8 @@ export function NotificationSchedule({
                     type="number"
                     min="5"
                     value={settings.reminderFirstMinutes}
-                    disabled
-                    className="w-full px-3 py-2.5 bg-[#f5f5f7] rounded-xl text-[14px] text-center"
+                    onChange={(e) => onChange({ reminderFirstMinutes: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-[#f5f5f7] rounded-xl text-[14px] text-center focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
                   />
                 </div>
                 <div>
@@ -102,8 +102,8 @@ export function NotificationSchedule({
                     type="number"
                     min="5"
                     value={settings.reminderSecondMinutes}
-                    disabled
-                    className="w-full px-3 py-2.5 bg-[#f5f5f7] rounded-xl text-[14px] text-center"
+                    onChange={(e) => onChange({ reminderSecondMinutes: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-[#f5f5f7] rounded-xl text-[14px] text-center focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
                   />
                 </div>
                 <div>
@@ -115,20 +115,17 @@ export function NotificationSchedule({
                     type="number"
                     min="5"
                     value={settings.reminderThirdMinutes}
-                    disabled
-                    className="w-full px-3 py-2.5 bg-[#f5f5f7] rounded-xl text-[14px] text-center"
+                    onChange={(e) => onChange({ reminderThirdMinutes: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-[#f5f5f7] rounded-xl text-[14px] text-center focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
                   />
                 </div>
               </div>
+              <p className="text-[11px] text-[#86868b] flex items-start gap-1">
+                <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                <span>ตัวเลขคือ "นาทีก่อนเวลา Auto Check-out" เช่น 60 = เตือน 1 ชม.ก่อน</span>
+              </p>
             </div>
           )}
-        </div>
-
-        <div className="mt-4 p-3 bg-[#ff9500]/5 rounded-xl border border-[#ff9500]/20">
-          <p className="text-[12px] text-[#ff9500] flex items-center gap-1.5">
-            <Info className="w-3.5 h-3.5 flex-shrink-0" />
-            ฟีเจอร์เตือนก่อน Auto Check-out กำลังพัฒนา จะเปิดให้ใช้งานเร็วๆ นี้
-          </p>
         </div>
       </Card>
 
