@@ -69,31 +69,37 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Invalid auto_checkout_time" }, { status: 500 });
     }
 
+    // Settings = "นาทีหลังเวลาเลิกงาน" เช่น เลิกงาน 18:00, setting 15 -> เตือนตอน 18:15
     const reminderMinutes = [
-      parseInt(s.reminder_first_minutes || "60", 10),
+      parseInt(s.reminder_first_minutes || "15", 10),
       parseInt(s.reminder_second_minutes || "30", 10),
-      parseInt(s.reminder_third_minutes || "15", 10),
-    ].sort((a, b) => b - a); // descending: first reminder is earliest (most minutes before)
+      parseInt(s.reminder_third_minutes || "60", 10),
+    ].sort((a, b) => a - b); // ascending: first reminder is earliest (least minutes after)
 
-    const acMinutes = timeToMinutesSinceMidnight(acTime.hours, acTime.minutes);
-    const reminderTimes = reminderMinutes.map((minBefore) => acMinutes - minBefore);
+    const weTime = parseHHMM(workEndTimeStr);
+    if (!weTime) {
+      console.error("[Checkout Reminder] Invalid work_end_time:", workEndTimeStr);
+      return NextResponse.json({ success: false, error: "Invalid work_end_time" }, { status: 500 });
+    }
+
+    const weMinutes = timeToMinutesSinceMidnight(weTime.hours, weTime.minutes);
+    const reminderTimes = reminderMinutes.map((minAfter) => weMinutes + minAfter);
 
     const bangkokNow = getNowTH();
     const nowMinutes = timeToMinutesSinceMidnight(bangkokNow.getHours(), bangkokNow.getMinutes());
     const today = getTodayTH();
 
-    // How many reminders should have been sent by now?
     let shouldHaveSent = 0;
     for (const rt of reminderTimes) {
       if (nowMinutes >= rt) shouldHaveSent++;
     }
 
     if (shouldHaveSent === 0) {
-      console.log(`[Checkout Reminder] Too early for reminders (now=${nowMinutes}, first reminder at ${reminderTimes[0]})`);
+      console.log(`[Checkout Reminder] Too early (now=${nowMinutes}, first reminder at ${reminderTimes[0]})`);
       return NextResponse.json({ success: true, message: "Too early for reminders", sent: 0 });
     }
 
-    console.log(`[Checkout Reminder] Bangkok time: ${format(bangkokNow, "HH:mm")}, should have sent: ${shouldHaveSent}, auto_checkout: ${autoCheckoutTimeStr}`);
+    console.log(`[Checkout Reminder] Bangkok time: ${format(bangkokNow, "HH:mm")}, should have sent: ${shouldHaveSent}, work_end: ${workEndTimeStr}, auto_checkout: ${autoCheckoutTimeStr}`);
 
     // Find employees checked in but not out
     const { data: uncheckedOut, error: fetchError } = await supabaseServer

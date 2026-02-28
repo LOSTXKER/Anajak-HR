@@ -62,7 +62,7 @@ export function NotificationSchedule({
               <h3 className="text-[17px] font-semibold text-[#1d1d1f]">เตือนลืมเช็คเอาท์</h3>
               <span className="px-2 py-0.5 bg-[#34c759] text-white text-[10px] font-bold rounded">LINE</span>
             </div>
-            <p className="text-[13px] text-[#86868b]">ส่ง LINE เตือนพนักงานก่อน Auto Check-out</p>
+            <p className="text-[13px] text-[#86868b]">ส่ง LINE เตือนพนักงานหลังเวลาเลิกงาน</p>
           </div>
         </div>
 
@@ -77,7 +77,7 @@ export function NotificationSchedule({
           {settings.reminderEnabled && (
             <div className="space-y-3">
               <label className="block text-[13px] font-medium text-[#1d1d1f]">
-                เตือนก่อน Auto Check-out (นาที)
+                เตือนหลังเวลาเลิกงาน (นาที)
               </label>
               <div className="grid grid-cols-3 gap-3">
                 <div>
@@ -122,7 +122,7 @@ export function NotificationSchedule({
               </div>
               <p className="text-[11px] text-[#86868b] flex items-start gap-1">
                 <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                <span>ตัวเลขคือ "นาทีก่อนเวลา Auto Check-out" เช่น 60 = เตือน 1 ชม.ก่อน</span>
+                <span>ตัวเลขคือ "นาทีหลังเวลาเลิกงาน" เช่น 15 = เตือน 15 นาทีหลังเลิกงาน</span>
               </p>
             </div>
           )}

@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/checkout-reminders",
-      "schedule": "*/15 11-14 * * *"
+      "schedule": "*/15 10-14 * * *"
     },
     {
       "path": "/api/auto-checkout",
