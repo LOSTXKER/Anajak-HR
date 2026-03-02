@@ -51,11 +51,11 @@ export async function GET(request: NextRequest) {
       s[row.setting_key] = row.setting_value;
     });
 
-    if (s.reminder_enabled !== "true") {
+    if (s.reminder_enabled === "false") {
       return NextResponse.json({ success: true, message: "Reminders disabled", sent: 0 });
     }
 
-    if (s.auto_checkout_enabled !== "true") {
+    if (s.auto_checkout_enabled === "false") {
       return NextResponse.json({ success: true, message: "Auto checkout disabled, skipping reminders", sent: 0 });
     }
 
@@ -184,30 +184,38 @@ export async function GET(request: NextRequest) {
 
         const message = formatForgotCheckOutReminder(employee.name, {
           reminderNumber: nextReminderNumber,
-          totalReminders: 3,
+          totalReminders: reminderMinutes.length,
           clockInTime: clockInStr,
           workEndTime: workEndTimeStr,
           autoCheckoutTime: autoCheckoutTimeStr,
         });
 
-        await sendLineMessage(message, employee.line_user_id);
+        const lineSuccess = await sendLineMessage(message, employee.line_user_id);
 
-        // Update reminder_count
+        if (!lineSuccess) {
+          console.warn(`[Checkout Reminder] LINE send failed for ${employee.name} (${employee.line_user_id})`);
+        }
+
+        // Always update reminder_count to avoid retrying endlessly
         await supabaseServer
           .from("attendance_logs")
           .update({ reminder_count: shouldHaveSent })
           .eq("id", att.id);
 
         // Record in checkout_reminders table
-        await supabaseServer.from("checkout_reminders").insert({
-          attendance_id: att.id,
-          employee_id: att.employee_id,
-          reminder_number: nextReminderNumber,
-          sent_via: "line",
-        });
+        try {
+          await supabaseServer.from("checkout_reminders").insert({
+            attendance_id: att.id,
+            employee_id: att.employee_id,
+            reminder_number: nextReminderNumber,
+            sent_via: "line",
+          });
+        } catch (insertErr) {
+          console.warn(`[Checkout Reminder] Failed to insert reminder record:`, insertErr);
+        }
 
-        sent++;
-        console.log(`[Checkout Reminder] Sent reminder #${nextReminderNumber} to ${employee.name}`);
+        if (lineSuccess) sent++;
+        console.log(`[Checkout Reminder] ${lineSuccess ? "Sent" : "Failed"} reminder #${nextReminderNumber} to ${employee.name}`);
       } catch (err) {
         console.error(`[Checkout Reminder] Error for ${att.id}:`, err);
         errors.push(att.id);

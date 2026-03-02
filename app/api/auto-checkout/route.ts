@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     console.log("[Auto Checkout] Settings loaded:", JSON.stringify(settingsMap));
 
     // ถ้า auto checkout ไม่เปิดใช้งาน
-    if (settingsMap.auto_checkout_enabled !== "true") {
+    if (settingsMap.auto_checkout_enabled === "false") {
       console.log("[Auto Checkout] Auto checkout is disabled");
       return NextResponse.json({
         success: true,

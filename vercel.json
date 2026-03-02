@@ -1,16 +1,16 @@
 {
   "crons": [
     {
-      "path": "/api/holiday-notifications",
-      "schedule": "0 2 * * *"
+      "path": "/api/auto-checkout",
+      "schedule": "0 15 * * *"
     },
     {
       "path": "/api/checkout-reminders",
-      "schedule": "*/15 10-14 * * *"
+      "schedule": "0 11,12,13,14 * * *"
     },
     {
-      "path": "/api/auto-checkout",
-      "schedule": "0 15 * * *"
+      "path": "/api/holiday-notifications",
+      "schedule": "0 2 * * *"
     }
   ]
 }
