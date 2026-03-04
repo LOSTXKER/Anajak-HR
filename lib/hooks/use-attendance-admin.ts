@@ -378,12 +378,11 @@ function buildSingleDayRows(
   const rows: AttendanceRow[] = [];
 
   employees.forEach((emp) => {
-    // Skip dates before employee joined (don't show as absent)
-    const empCreatedAt = emp.created_at ? new Date(emp.created_at) : null;
-    if (empCreatedAt) {
-      const selectedDateStart = new Date(dateStr + "T00:00:00");
-      if (selectedDateStart < empCreatedAt) {
-        return; // Employee hadn't joined yet - skip this row
+    // Skip dates before employee joined (compare date portion only)
+    if (emp.created_at) {
+      const empCreatedDate = emp.created_at.slice(0, 10); // "YYYY-MM-DD"
+      if (dateStr < empCreatedDate) {
+        return;
       }
     }
 

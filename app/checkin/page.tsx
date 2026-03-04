@@ -18,6 +18,7 @@ import {
   Navigation, Calendar, Timer, RotateCcw,
 } from "lucide-react";
 import { format } from "date-fns";
+import { getTodayTH } from "@/lib/utils/date";
 import { getDayType } from "@/lib/services/holiday.service";
 import { processCheckinGamification } from "@/lib/services/gamification.service";
 
@@ -82,7 +83,7 @@ function CheckinContent() {
 
   const fetchBranchAndSettings = async () => {
     if (!employee?.branch_id) return;
-    const today = format(new Date(), "yyyy-MM-dd");
+    const today = getTodayTH();
 
     const [branchRes, settingsRes, dayTypeRes, otRes, fieldWorkRes, wfhRes] = await Promise.all([
       supabase
@@ -167,7 +168,7 @@ function CheckinContent() {
       return;
     }
 
-    const today = format(new Date(), "yyyy-MM-dd");
+    const today = getTodayTH();
 
     if (!hasFieldWork && !hasWFH && radiusCheck && !radiusCheck.inRadius) {
       setError(`คุณอยู่นอกรัศมีที่อนุญาต (ห่าง ${formatDistance(radiusCheck.distance)} จากสาขา ${branch.name})`);
@@ -196,7 +197,7 @@ function CheckinContent() {
       const lateThresholdMinutes = parseInt(settingsMap.late_threshold_minutes || "0");
       const [workStartHour, workStartMinute] = workStartTime.split(":").map(Number);
 
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const currentMinutes = bangkokNow.getHours() * 60 + bangkokNow.getMinutes();
       const workStartMinutes = workStartHour * 60 + workStartMinute;
       const minutesLate = currentMinutes - workStartMinutes;
       const isLate = minutesLate > lateThresholdMinutes;

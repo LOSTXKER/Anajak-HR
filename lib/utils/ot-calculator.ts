@@ -37,7 +37,7 @@ export function calculateOTAmount(params: OTCalcParams): OTCalcResult {
   ) / 100;
 
   if (baseSalary <= 0 || daysPerMonth <= 0 || hoursPerDay <= 0) {
-    return { hours, hourlyRate: 0, amount: null };
+    return { hours, hourlyRate: 0, amount: 0 };
   }
 
   const hourlyRate = baseSalary / daysPerMonth / hoursPerDay;

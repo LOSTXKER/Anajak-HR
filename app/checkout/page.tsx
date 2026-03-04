@@ -18,6 +18,7 @@ import {
   Clock, Navigation, RotateCcw,
 } from "lucide-react";
 import { format } from "date-fns";
+import { getTodayTH } from "@/lib/utils/date";
 import { processCheckoutGamification } from "@/lib/services/gamification.service";
 
 function CheckoutContent() {
@@ -81,7 +82,7 @@ function CheckoutContent() {
 
   const fetchBranch = async () => {
     if (!employee?.branch_id) return;
-    const today = format(new Date(), "yyyy-MM-dd");
+    const today = getTodayTH();
 
     const [branchRes, settingsRes, fieldWorkRes, wfhRes] = await Promise.all([
       supabase
@@ -127,7 +128,7 @@ function CheckoutContent() {
   const checkTodayLog = async () => {
     if (!employee) return;
     setTodayLogLoading(true);
-    const today = format(new Date(), "yyyy-MM-dd");
+    const today = getTodayTH();
     const { data } = await supabase
       .from("attendance_logs")
       .select("*")

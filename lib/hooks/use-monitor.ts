@@ -8,7 +8,8 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useToast } from "@/components/ui/Toast";
-import { format, differenceInMinutes } from "date-fns";
+import { differenceInMinutes } from "date-fns";
+import { getTodayTH } from "@/lib/utils/date";
 
 export type ViewMode = "realtime" | "anomalies";
 
@@ -99,7 +100,7 @@ export function useMonitor() {
     setRefreshing(true);
     setError(null);
     try {
-      const today = format(new Date(), "yyyy-MM-dd");
+      const today = getTodayTH();
       const dayOfWeek = new Date().getDay();
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 

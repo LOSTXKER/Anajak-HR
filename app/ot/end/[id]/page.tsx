@@ -216,7 +216,7 @@ function OTEndContent({ id }: { id: string }) {
       const { data: payrollSettingsData } = await supabase
         .from("system_settings")
         .select("setting_key, setting_value")
-        .in("setting_key", ["work_hours_per_day", "days_per_month"]);
+        .in("setting_key", ["hours_per_day", "days_per_month"]);
 
       const payrollSettings: Record<string, string> = {};
       (payrollSettingsData || []).forEach((s: { setting_key: string; setting_value: string }) => {
@@ -224,7 +224,7 @@ function OTEndContent({ id }: { id: string }) {
       });
 
       const baseSalary = empData?.base_salary || 0;
-      const hoursPerDay = parseFloat(payrollSettings.work_hours_per_day || "8");
+      const hoursPerDay = parseFloat(payrollSettings.hours_per_day || "8");
       const daysPerMonth = parseFloat(payrollSettings.days_per_month || "26");
 
       const calc = calculateOTAmount({
