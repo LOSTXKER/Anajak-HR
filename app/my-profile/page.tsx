@@ -61,7 +61,7 @@ export default function MyProfilePage() {
         await Promise.all([
           supabase.from("attendance_logs").select("*").eq("employee_id", employee.id).gte("work_date", startDate).lte("work_date", endDate).order("work_date", { ascending: false }),
           supabase.from("ot_requests").select("*").eq("employee_id", employee.id).gte("request_date", startDate).lte("request_date", endDate).order("request_date", { ascending: false }),
-          supabase.from("leave_requests").select("*").eq("employee_id", employee.id).or(`start_date.lte.${endDate},end_date.gte.${startDate}`).order("start_date", { ascending: false }),
+          supabase.from("leave_requests").select("*").eq("employee_id", employee.id).lte("start_date", endDate).gte("end_date", startDate).order("start_date", { ascending: false }),
           supabase.from("wfh_requests").select("*").eq("employee_id", employee.id).gte("date", startDate).lte("date", endDate).order("date", { ascending: false }),
           supabase.from("late_requests").select("*").eq("employee_id", employee.id).gte("request_date", startDate).lte("request_date", endDate).order("request_date", { ascending: false }),
           supabase.from("ot_requests").select("id", { count: "exact", head: true }).eq("employee_id", employee.id).eq("status", "pending"),

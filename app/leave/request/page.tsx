@@ -146,7 +146,8 @@ function LeaveRequestContent() {
         .select("id")
         .eq("employee_id", employee.id)
         .in("status", ["pending", "approved"])
-        .or(`start_date.lte.${formData.endDate},end_date.gte.${formData.startDate}`);
+        .lte("start_date", formData.endDate)
+        .gte("end_date", formData.startDate);
 
       if (existingLeave && existingLeave.length > 0) {
         throw new Error("คุณมีคำขอลาในช่วงวันนี้แล้ว");

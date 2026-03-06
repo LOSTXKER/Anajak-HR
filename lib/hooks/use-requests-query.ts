@@ -53,9 +53,17 @@ export function useRequestsQuery(): UseRequestsQueryReturn {
         return q.order("created_at", { ascending: false });
       };
 
+      const buildLeaveQuery = () => {
+        let q = supabase.from("leave_requests").select(SELECT_QUERY);
+        if (dateRange) {
+          q = q.lte("start_date", dateRange.end).gte("end_date", dateRange.start);
+        }
+        return q.order("created_at", { ascending: false });
+      };
+
       const [otRes, leaveRes, wfhRes, lateRes, fieldWorkRes] = await Promise.all([
         buildQuery("ot_requests", "request_date"),
-        buildQuery("leave_requests", "start_date"),
+        buildLeaveQuery(),
         buildQuery("wfh_requests", "date"),
         buildQuery("late_requests", "request_date"),
         buildQuery("field_work_requests", "date"),
