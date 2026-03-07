@@ -13,10 +13,12 @@ import type {
   AddAttendanceForm,
   DateMode,
 } from "@/components/admin/attendance/types";
+import { useWorkSettings } from "@/lib/hooks/use-settings";
 
 export function useAttendanceAdmin() {
   const { employee: currentAdmin } = useAuth();
   const toast = useToast();
+  const { settings: workSettings } = useWorkSettings();
 
   // Date state
   const [dateMode, setDateMode] = useState<DateMode>("single");
@@ -147,6 +149,8 @@ export function useAttendanceAdmin() {
       const isTodayNotOver = isTodayOrFuture;
 
       // Build rows based on date mode
+      const settingsWorkingDays = workSettings?.workingDays || [1, 2, 3, 4, 5];
+
       if (dateMode === "single") {
         const rows = buildSingleDayRows(
           employees,
@@ -158,7 +162,8 @@ export function useAttendanceAdmin() {
           lateReqData,
           holidayDates,
           selectedDate,
-          isTodayNotOver
+          isTodayNotOver,
+          settingsWorkingDays
         );
         setAttendanceRows(rows);
       } else {
@@ -180,7 +185,7 @@ export function useAttendanceAdmin() {
     } finally {
       setLoading(false);
     }
-  }, [employees, dateMode, selectedDate, startDate, endDate, toast]);
+  }, [employees, dateMode, selectedDate, startDate, endDate, toast, workSettings]);
 
   useEffect(() => {
     if (employees.length > 0) fetchAttendance();
@@ -367,12 +372,14 @@ function buildSingleDayRows(
   lateReqData: any[],
   holidayDates: Set<string>,
   selectedDate: Date,
-  isBeforeWorkStart: boolean
+  isBeforeWorkStart: boolean,
+  workingDays: number[]
 ): AttendanceRow[] {
   const dateStr = format(selectedDate, "yyyy-MM-dd");
   const isHoliday = holidayDates.has(dateStr);
   const dayOfWeek = selectedDate.getDay();
-  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+  const ourDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
+  const isWeekend = !workingDays.includes(ourDayOfWeek);
   const isNonWorkingDay = isHoliday || isWeekend;
 
   const rows: AttendanceRow[] = [];
