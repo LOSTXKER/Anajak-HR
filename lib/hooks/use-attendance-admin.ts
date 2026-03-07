@@ -140,11 +140,11 @@ export function useAttendanceAdmin() {
       const fieldWorkData = fieldWorkRes.data || [];
       const lateReqData = lateReqRes.data || [];
 
-      // ถ้าเป็นวันนี้ → ยังไม่ตัดสินว่า "ขาด" จนกว่าจะจบวันทำงาน
       const now = new Date();
-      const isTodaySelected =
-        format(selectedDate, "yyyy-MM-dd") === format(now, "yyyy-MM-dd");
-      const isTodayNotOver = isTodaySelected; // วันนี้ยังไม่จบ = ไม่ควรแสดง "ขาด"
+      const todayStr = format(now, "yyyy-MM-dd");
+      const selectedStr = format(selectedDate, "yyyy-MM-dd");
+      const isTodayOrFuture = selectedStr >= todayStr;
+      const isTodayNotOver = isTodayOrFuture;
 
       // Build rows based on date mode
       if (dateMode === "single") {

@@ -42,6 +42,10 @@ next-env.d.ts
 **/public/workbox-*.js.map
 **/public/worker-*.js.map
 
+# Migration sensitive files
+scripts/migration/.env.migration
+scripts/migration/backup/
+
 
 
 
