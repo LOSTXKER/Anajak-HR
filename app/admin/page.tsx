@@ -110,7 +110,9 @@ function AdminDashboardContent() {
     try {
       const today = format(new Date(), "yyyy-MM-dd");
       const dayOfWeek = new Date().getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const ourDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
+      const settingsWorkingDays = workSettings?.workingDays || [1, 2, 3, 4, 5];
+      const isWeekend = !settingsWorkingDays.includes(ourDayOfWeek);
 
       // ตรวจสอบว่าวันนี้เป็นวันหยุดหรือไม่
       const { data: holidayData } = await supabase

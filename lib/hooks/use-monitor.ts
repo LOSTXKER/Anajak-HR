@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
+import { useWorkSettings } from "@/lib/hooks/use-settings";
 import { useToast } from "@/components/ui/Toast";
 import { differenceInMinutes } from "date-fns";
 import { getTodayTH } from "@/lib/utils/date";
@@ -60,6 +61,7 @@ export interface RecentActivity {
 
 export function useMonitor() {
   const { employee: currentAdmin } = useAuth();
+  const { settings: workSettings } = useWorkSettings();
   const toast = useToast();
 
   // View State
@@ -102,7 +104,9 @@ export function useMonitor() {
     try {
       const today = getTodayTH();
       const dayOfWeek = new Date().getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const ourDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
+      const settingsWorkingDays = workSettings?.workingDays || [1, 2, 3, 4, 5];
+      const isWeekend = !settingsWorkingDays.includes(ourDayOfWeek);
 
       const [
         employeesResult,
@@ -180,7 +184,8 @@ export function useMonitor() {
 
       const now = new Date();
       const currentHour = now.getHours();
-      const workStartHour = 9;
+      const workStartTime = workSettings?.workStartTime || "09:00";
+      const workStartHour = parseInt(workStartTime.split(":")[0], 10);
       const isBeforeWorkStart = currentHour < workStartHour;
       const notCheckedIn =
         isNonWorkingDay || isBeforeWorkStart ? 0 : totalEmployees - checkedIn;
@@ -206,7 +211,7 @@ export function useMonitor() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [workSettings]);
 
   const fetchAnomalies = useCallback(async () => {
     setLoading(true);

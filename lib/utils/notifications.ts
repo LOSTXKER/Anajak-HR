@@ -10,6 +10,7 @@ export interface NotificationSettings {
   checkoutReminder: boolean;
   checkoutTime: string; // "17:00"
   workdaysOnly: boolean;
+  workingDays?: number[]; // [1,2,3,4,5,6] = Mon-Sat; uses system 1=Mon..7=Sun
 }
 
 /**
@@ -104,6 +105,12 @@ export function showCheckoutReminder(): void {
   });
 }
 
+function isNonWorkingDay(date: Date, workingDays: number[]): boolean {
+  const dow = date.getDay();
+  const ourDow = dow === 0 ? 7 : dow;
+  return !workingDays.includes(ourDow);
+}
+
 /**
  * Schedule daily notifications based on settings
  */
@@ -125,9 +132,10 @@ export function scheduleDailyNotifications(settings: NotificationSettings): void
       checkinTime.setDate(checkinTime.getDate() + 1);
     }
     
-    // Skip weekends if workdaysOnly
+    // Skip non-working days if workdaysOnly
     if (settings.workdaysOnly) {
-      while (checkinTime.getDay() === 0 || checkinTime.getDay() === 6) {
+      const wd = settings.workingDays || [1, 2, 3, 4, 5];
+      while (isNonWorkingDay(checkinTime, wd)) {
         checkinTime.setDate(checkinTime.getDate() + 1);
       }
     }
@@ -153,9 +161,10 @@ export function scheduleDailyNotifications(settings: NotificationSettings): void
       checkoutTime.setDate(checkoutTime.getDate() + 1);
     }
     
-    // Skip weekends if workdaysOnly
+    // Skip non-working days if workdaysOnly
     if (settings.workdaysOnly) {
-      while (checkoutTime.getDay() === 0 || checkoutTime.getDay() === 6) {
+      const wd = settings.workingDays || [1, 2, 3, 4, 5];
+      while (isNonWorkingDay(checkoutTime, wd)) {
         checkoutTime.setDate(checkoutTime.getDate() + 1);
       }
     }

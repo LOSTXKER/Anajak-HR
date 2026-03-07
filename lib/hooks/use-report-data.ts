@@ -7,9 +7,9 @@ import {
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
-  isWeekend,
 } from "date-fns";
 import { th } from "date-fns/locale";
+import { useWorkSettings } from "@/lib/hooks/use-settings";
 import type {
   Branch,
   Employee,
@@ -37,6 +37,8 @@ export function useReportData({
   selectedBranch,
   selectedRole,
 }: UseReportDataOptions) {
+  const { settings: workSettings } = useWorkSettings();
+
   // State
   const [loading, setLoading] = useState(true);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -194,9 +196,12 @@ export function useReportData({
           const effectiveEnd = leaveEnd > endDate ? endDate : leaveEnd;
 
           let days = 0;
+          const settingsWorkingDays = workSettings?.workingDays || [1, 2, 3, 4, 5];
           const current = new Date(effectiveStart);
           while (current <= effectiveEnd) {
-            if (!isWeekend(current)) {
+            const dow = current.getDay();
+            const ourDow = dow === 0 ? 7 : dow;
+            if (settingsWorkingDays.includes(ourDow)) {
               days++;
             }
             current.setDate(current.getDate() + 1);
@@ -244,6 +249,7 @@ export function useReportData({
     approvedLateRequests,
     currentMonth,
     getBranchName,
+    workSettings,
   ]);
 
   // Filter reports
