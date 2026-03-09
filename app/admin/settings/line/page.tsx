@@ -202,11 +202,13 @@ function LineSettingsContent() {
   const handleSaveAPI = async () => {
     setSaving(true);
     try {
+      const hasCredentials = apiSettings.lineChannelToken && apiSettings.lineRecipientId;
       const updates = [
         { key: "line_channel_access_token", value: apiSettings.lineChannelToken },
         { key: "line_recipient_id", value: apiSettings.lineRecipientId },
         { key: "line_recipient_type", value: apiSettings.lineRecipientType },
         { key: "enable_line_photo_notifications", value: sendPhotos ? "true" : "false" },
+        { key: "enable_notifications", value: hasCredentials ? "true" : "false" },
       ];
 
       for (const update of updates) {
