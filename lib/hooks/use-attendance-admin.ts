@@ -145,8 +145,17 @@ export function useAttendanceAdmin() {
       const now = new Date();
       const todayStr = format(now, "yyyy-MM-dd");
       const selectedStr = format(selectedDate, "yyyy-MM-dd");
-      const isTodayOrFuture = selectedStr >= todayStr;
-      const isTodayNotOver = isTodayOrFuture;
+      const isFuture = selectedStr > todayStr;
+      const isSameDay = selectedStr === todayStr;
+
+      let isWorkdayInProgress = isFuture;
+      if (isSameDay) {
+        const workEndTime = workSettings?.workEndTime || "18:00";
+        const [endH, endM] = workEndTime.split(":").map(Number);
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const endMinutes = endH * 60 + endM;
+        isWorkdayInProgress = nowMinutes < endMinutes;
+      }
 
       // Build rows based on date mode
       const settingsWorkingDays = workSettings?.workingDays || [1, 2, 3, 4, 5];
@@ -162,7 +171,7 @@ export function useAttendanceAdmin() {
           lateReqData,
           holidayDates,
           selectedDate,
-          isTodayNotOver,
+          isWorkdayInProgress,
           settingsWorkingDays
         );
         setAttendanceRows(rows);
