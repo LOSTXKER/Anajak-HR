@@ -20,40 +20,45 @@ export default function ResetPasswordPage() {
   const [invalidLink, setInvalidLink] = useState(false);
 
   useEffect(() => {
-    // Supabase automatically handles the token from the URL hash
-    // when detectSessionInUrl is true (which it is in our client config).
-    // We just need to wait for the session to be established.
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    let subscription: { unsubscribe: () => void } | null = null;
+    let timeout: NodeJS.Timeout | null = null;
+
+    const init = async () => {
+      // Listen for auth state change first (before getSession)
+      // so we don't miss the PASSWORD_RECOVERY event
+      const { data } = supabase.auth.onAuthStateChange(
+        (event: AuthChangeEvent, session: Session | null) => {
+          if (
+            (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") &&
+            session
+          ) {
+            setSessionReady(true);
+          }
+        }
+      );
+      subscription = data.subscription;
+
+      // Check if there's already an active session
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (session) {
         setSessionReady(true);
-      } else {
-        // Listen for auth state change (PASSWORD_RECOVERY event)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          (event: AuthChangeEvent, session: Session | null) => {
-            if (event === "PASSWORD_RECOVERY" && session) {
-              setSessionReady(true);
-            } else if (event === "SIGNED_IN" && session) {
-              setSessionReady(true);
-            }
-          }
-        );
-
-        // Give it a few seconds, then show invalid link
-        const timeout = setTimeout(() => {
-          if (!sessionReady) {
-            setInvalidLink(true);
-          }
-        }, 5000);
-
-        return () => {
-          subscription.unsubscribe();
-          clearTimeout(timeout);
-        };
+        return;
       }
+
+      // Give Supabase time to process the hash fragment
+      timeout = setTimeout(() => {
+        setInvalidLink(true);
+      }, 6000);
     };
 
-    checkSession();
+    init();
+
+    return () => {
+      subscription?.unsubscribe();
+      if (timeout) clearTimeout(timeout);
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {

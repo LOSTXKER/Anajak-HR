@@ -29,6 +29,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Detect password recovery from URL hash before Supabase processes it
+    if (typeof window !== 'undefined' && window.location.hash.includes('type=recovery')) {
+      if (!window.location.pathname.startsWith('/reset-password')) {
+        const hash = window.location.hash;
+        window.location.href = '/reset-password' + hash;
+        return;
+      }
+    }
+
     // Check active sessions and sets the user
     supabase.auth.getSession()
       .then(({ data: { session } }: { data: { session: Session | null } }) => {
@@ -56,6 +65,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (_event === 'TOKEN_REFRESHED') {
         console.log('Token refreshed successfully');
       }
+
+      // Handle password recovery - redirect to reset password page
+      if (_event === 'PASSWORD_RECOVERY' && session) {
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/reset-password')) {
+          window.location.href = '/reset-password';
+          return;
+        }
+      }
+
       if (_event === 'SIGNED_OUT' || session === null) {
         setUser(null);
         setEmployee(null);
