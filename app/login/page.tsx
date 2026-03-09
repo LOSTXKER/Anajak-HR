@@ -131,7 +131,16 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-8 text-center">
+          <div className="mt-6 text-center">
+            <Link
+              href="/forgot-password"
+              className="text-[15px] text-[#0071e3] hover:underline"
+            >
+              ลืมรหัสผ่าน?
+            </Link>
+          </div>
+
+          <div className="mt-4 text-center">
             <p className="text-[15px] text-[#86868b]">
               ยังไม่มีบัญชี?{" "}
               <Link

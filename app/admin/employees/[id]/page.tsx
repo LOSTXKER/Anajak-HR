@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -19,6 +20,7 @@ import {
   LateTab,
   GamificationTab,
   DeleteModal,
+  ResetPasswordModal,
 } from "@/components/admin/employee-detail";
 
 function EmployeeProfileContent() {
@@ -59,6 +61,8 @@ function EmployeeProfileContent() {
     handleDelete,
   } = useEmployeeDetail({ employeeId });
 
+  const [showResetPassword, setShowResetPassword] = useState(false);
+
   if (loading) {
     return (
       <AdminLayout title="โปรไฟล์พนักงาน">
@@ -93,6 +97,7 @@ function EmployeeProfileContent() {
         employee={employee}
         showEditButton={!editMode && activeTab === "info"}
         onEdit={() => setEditMode(true)}
+        onResetPassword={() => setShowResetPassword(true)}
       />
 
       {/* Quick Stats */}
@@ -162,6 +167,14 @@ function EmployeeProfileContent() {
         deleting={deleting}
         onClose={() => setDeleteModal(null)}
         onConfirm={handleDelete}
+      />
+
+      {/* Reset Password Modal */}
+      <ResetPasswordModal
+        isOpen={showResetPassword}
+        onClose={() => setShowResetPassword(false)}
+        employeeId={employeeId}
+        employeeName={employee.name}
       />
     </AdminLayout>
   );

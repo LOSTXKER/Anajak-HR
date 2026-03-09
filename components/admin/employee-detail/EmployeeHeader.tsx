@@ -12,6 +12,7 @@ import {
   Mail,
   Phone,
   Edit,
+  KeyRound,
 } from "lucide-react";
 import { Employee, getRoleLabel } from "./types";
 
@@ -19,12 +20,14 @@ interface EmployeeHeaderProps {
   employee: Employee;
   showEditButton?: boolean;
   onEdit?: () => void;
+  onResetPassword?: () => void;
 }
 
 export function EmployeeHeader({
   employee,
   showEditButton = false,
   onEdit,
+  onResetPassword,
 }: EmployeeHeaderProps) {
   return (
     <>
@@ -82,12 +85,20 @@ export function EmployeeHeader({
               )}
             </div>
           </div>
-          {showEditButton && onEdit && (
-            <Button onClick={onEdit}>
-              <Edit className="w-4 h-4" />
-              แก้ไข
-            </Button>
-          )}
+          <div className="flex gap-2 flex-shrink-0">
+            {onResetPassword && (
+              <Button variant="secondary" size="sm" onClick={onResetPassword}>
+                <KeyRound className="w-4 h-4" />
+                รีเซ็ตรหัสผ่าน
+              </Button>
+            )}
+            {showEditButton && onEdit && (
+              <Button onClick={onEdit} size="sm">
+                <Edit className="w-4 h-4" />
+                แก้ไข
+              </Button>
+            )}
+          </div>
         </div>
       </Card>
     </>

@@ -15,3 +15,4 @@ export { WFHTab } from "./WFHTab";
 export { LateTab } from "./LateTab";
 export { GamificationTab } from "./GamificationTab";
 export { DeleteModal } from "./DeleteModal";
+export { ResetPasswordModal } from "./ResetPasswordModal";
