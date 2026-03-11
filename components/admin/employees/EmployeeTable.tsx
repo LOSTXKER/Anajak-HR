@@ -145,12 +145,10 @@ export function EmployeeTable({
                       <p className="text-sm font-semibold text-[#34c759]">
                         {emp.annual_leave_quota || 10}
                       </p>
-                      {balance && (
-                        <p className="text-xs text-[#86868b]">
-                          ใช้ {balance.annual_used} | เหลือ{" "}
-                          {balance.annual_remaining}
-                        </p>
-                      )}
+                      <p className="text-xs text-[#86868b]">
+                        ใช้ {balance?.annual_used ?? 0} | เหลือ{" "}
+                        {balance?.annual_remaining ?? (emp.annual_leave_quota || 10)}
+                      </p>
                     </div>
                   </td>
                   <td className="px-3 py-4">
@@ -158,12 +156,10 @@ export function EmployeeTable({
                       <p className="text-sm font-semibold text-[#ff3b30]">
                         {emp.sick_leave_quota || 30}
                       </p>
-                      {balance && (
-                        <p className="text-xs text-[#86868b]">
-                          ใช้ {balance.sick_used} | เหลือ{" "}
-                          {balance.sick_remaining}
-                        </p>
-                      )}
+                      <p className="text-xs text-[#86868b]">
+                        ใช้ {balance?.sick_used ?? 0} | เหลือ{" "}
+                        {balance?.sick_remaining ?? (emp.sick_leave_quota || 30)}
+                      </p>
                     </div>
                   </td>
                   <td className="px-3 py-4">
@@ -171,12 +167,10 @@ export function EmployeeTable({
                       <p className="text-sm font-semibold text-[#ff9500]">
                         {emp.personal_leave_quota || 3}
                       </p>
-                      {balance && (
-                        <p className="text-xs text-[#86868b]">
-                          ใช้ {balance.personal_used} | เหลือ{" "}
-                          {balance.personal_remaining}
-                        </p>
-                      )}
+                      <p className="text-xs text-[#86868b]">
+                        ใช้ {balance?.personal_used ?? 0} | เหลือ{" "}
+                        {balance?.personal_remaining ?? (emp.personal_leave_quota || 3)}
+                      </p>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">

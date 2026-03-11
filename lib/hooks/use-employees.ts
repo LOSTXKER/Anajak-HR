@@ -99,13 +99,44 @@ export function useEmployees(
       (balanceData || []).forEach((b: any) => {
         balanceMap[b.employee_id] = {
           annual_used: b.annual_leave_used || 0,
-          annual_remaining: b.annual_leave_remaining || 0,
+          annual_remaining: b.annual_leave_remaining ?? b.annual_leave_quota ?? 0,
           sick_used: b.sick_leave_used || 0,
-          sick_remaining: b.sick_leave_remaining || 0,
+          sick_remaining: b.sick_leave_remaining ?? b.sick_leave_quota ?? 0,
           personal_used: b.personal_leave_used || 0,
-          personal_remaining: b.personal_leave_remaining || 0,
+          personal_remaining: b.personal_leave_remaining ?? b.personal_leave_quota ?? 0,
         };
       });
+
+      // Auto-create missing balance records for active employees
+      const activeEmployees = (empData || []).filter((e: any) => !e.deleted_at && e.account_status === "approved");
+      const missingBalances = activeEmployees.filter((e: any) => !balanceMap[e.id]);
+      if (missingBalances.length > 0) {
+        const newRecords = missingBalances.map((e: any) => ({
+          employee_id: e.id,
+          year: currentYear,
+          annual_leave_quota: e.annual_leave_quota || 10,
+          sick_leave_quota: e.sick_leave_quota || 30,
+          personal_leave_quota: e.personal_leave_quota || 3,
+          annual_leave_used: 0,
+          annual_leave_remaining: e.annual_leave_quota || 10,
+          sick_leave_used: 0,
+          sick_leave_remaining: e.sick_leave_quota || 30,
+          personal_leave_used: 0,
+          personal_leave_remaining: e.personal_leave_quota || 3,
+        }));
+        await supabase.from("leave_balances").upsert(newRecords, { onConflict: "employee_id,year" });
+        newRecords.forEach((r: typeof newRecords[0]) => {
+          balanceMap[r.employee_id] = {
+            annual_used: 0,
+            annual_remaining: r.annual_leave_remaining,
+            sick_used: 0,
+            sick_remaining: r.sick_leave_remaining,
+            personal_used: 0,
+            personal_remaining: r.personal_leave_remaining,
+          };
+        });
+      }
+
       setBalances(balanceMap);
     } catch (error) {
       console.error("Error fetching employees:", error);
