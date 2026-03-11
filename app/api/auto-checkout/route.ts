@@ -66,15 +66,30 @@ export async function GET(request: NextRequest) {
     let workEndTimeStr = settingsMap.work_end_time || "18:00";
     const skipIfOT = settingsMap.auto_checkout_skip_if_ot !== "false";
     const notifyAdminOnAutoCheckout = settingsMap.notify_admin_on_auto_checkout !== "false";
-    
+
     const workEndMatch = workEndTimeStr.match(/^(\d{1,2}):(\d{2})$/);
     if (!workEndMatch) {
       console.error(`[Auto Checkout] Invalid work_end_time format: ${workEndTimeStr}, using default 18:00`);
       workEndTimeStr = "18:00";
     }
-    
+
     const today = getTodayTH();
     const bangkokTime = getNowTH();
+
+    // ตรวจสอบว่าเวลาปัจจุบันถึง auto_checkout_time ที่ตั้งค่าไว้แล้วหรือยัง
+    const acMatch = autoCheckoutTimeStr.match(/^(\d{1,2}):(\d{2})$/);
+    if (acMatch) {
+      const acMinutes = parseInt(acMatch[1], 10) * 60 + parseInt(acMatch[2], 10);
+      const nowMinutes = bangkokTime.getHours() * 60 + bangkokTime.getMinutes();
+      if (nowMinutes < acMinutes) {
+        console.log(`[Auto Checkout] Too early — now ${format(bangkokTime, "HH:mm")}, configured auto_checkout_time: ${autoCheckoutTimeStr}`);
+        return NextResponse.json({
+          success: true,
+          message: `Too early for auto checkout (now: ${format(bangkokTime, "HH:mm")}, configured: ${autoCheckoutTimeStr})`,
+          processed: 0,
+        });
+      }
+    }
 
     console.log(`[Auto Checkout] Current Bangkok time: ${format(bangkokTime, "yyyy-MM-dd HH:mm:ss")}`);
     console.log(`[Auto Checkout] Processing for date: ${today}, work_end_time: ${workEndTimeStr}, auto_checkout_time: ${autoCheckoutTimeStr}, skip_if_ot: ${skipIfOT}`);

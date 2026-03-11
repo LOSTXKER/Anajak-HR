@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/auto-checkout",
-      "schedule": "0 15 * * *"
+      "schedule": "59 16 * * *"
     },
     {
       "path": "/api/checkout-reminders",
