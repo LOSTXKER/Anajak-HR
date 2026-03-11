@@ -3,7 +3,7 @@
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { SettingsToggle } from "./SettingsToggle";
-import { Timer, Bell, Save, Info, Clock } from "lucide-react";
+import { Timer, Bell, Save, Info, Clock, MapPinOff } from "lucide-react";
 import type { NotificationSettings } from "./types";
 
 interface NotificationScheduleProps {
@@ -126,6 +126,32 @@ export function NotificationSchedule({
               </p>
             </div>
           )}
+        </div>
+      </Card>
+
+      {/* Remote Checkout Setting */}
+      <Card elevated>
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-[#ff9500]/10 rounded-xl flex items-center justify-center">
+            <MapPinOff className="w-5 h-5 text-[#ff9500]" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-[17px] font-semibold text-[#1d1d1f]">เช็คเอาท์นอกรัศมี</h3>
+            <p className="text-[13px] text-[#86868b]">อนุญาตให้เช็คเอาท์จากที่ไหนก็ได้หลังเวลาเลิกงาน</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <SettingsToggle
+            label="อนุญาตเช็คเอาท์นอกรัศมีหลังเลิกงาน"
+            description="เมื่อเปิด พนักงานสามารถเช็คเอาท์จากที่ไหนก็ได้ หลังจากถึงเวลาเลิกงาน (ช่วยแก้ปัญหาลืมเช็คเอาท์ตอนกลับบ้านแล้ว)"
+            enabled={settings.allowRemoteCheckoutAfterHours}
+            onChange={() => onChange({ allowRemoteCheckoutAfterHours: !settings.allowRemoteCheckoutAfterHours })}
+          />
+          <p className="text-[11px] text-[#86868b] flex items-start gap-1">
+            <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
+            <span>ระบบจะบันทึกตำแหน่ง GPS จริงของพนักงาน และแสดงสถานะ "เช็คเอาท์จากระยะไกล" ในรายงาน</span>
+          </p>
         </div>
       </Card>
 

@@ -40,6 +40,7 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   reminderSecondMinutes: "30",
   reminderThirdMinutes: "60",
   notifyAdminOnAutoCheckout: true,
+  allowRemoteCheckoutAfterHours: false,
   workStartTime: "08:00",
   workEndTime: "17:00",
 };
@@ -91,6 +92,7 @@ function NotificationSettingsContent() {
           reminderSecondMinutes: map.reminder_second_minutes || "30",
           reminderThirdMinutes: map.reminder_third_minutes || "60",
           notifyAdminOnAutoCheckout: map.notify_admin_on_auto_checkout !== "false",
+          allowRemoteCheckoutAfterHours: map.allow_remote_checkout_after_hours === "true",
           workStartTime: map.work_start_time || "08:00",
           workEndTime: map.work_end_time || "17:00",
         });
@@ -134,6 +136,7 @@ function NotificationSettingsContent() {
         { key: "reminder_second_minutes", value: settings.reminderSecondMinutes },
         { key: "reminder_third_minutes", value: settings.reminderThirdMinutes },
         { key: "notify_admin_on_auto_checkout", value: settings.notifyAdminOnAutoCheckout.toString() },
+        { key: "allow_remote_checkout_after_hours", value: settings.allowRemoteCheckoutAfterHours.toString() },
       ];
 
       for (const update of updates) {

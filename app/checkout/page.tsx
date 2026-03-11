@@ -39,6 +39,8 @@ function CheckoutContent() {
   const [allowedTime, setAllowedTime] = useState({ checkoutStart: "15:00", checkoutEnd: "22:00" });
   const [hasFieldWork, setHasFieldWork] = useState(false);
   const [hasWFH, setHasWFH] = useState(false);
+  const [allowRemoteCheckout, setAllowRemoteCheckout] = useState(false);
+  const [workEndTime, setWorkEndTime] = useState("18:00");
 
   // Redirect admin accounts to admin panel
   useEffect(() => {
@@ -93,7 +95,7 @@ function CheckoutContent() {
       supabase
         .from("system_settings")
         .select("setting_key, setting_value")
-        .in("setting_key", ["checkout_time_start", "checkout_time_end"]),
+        .in("setting_key", ["checkout_time_start", "checkout_time_end", "allow_remote_checkout_after_hours", "work_end_time"]),
       supabase
         .from("field_work_requests")
         .select("id")
@@ -119,6 +121,8 @@ function CheckoutContent() {
         checkoutStart: settings.checkout_time_start || "15:00",
         checkoutEnd: settings.checkout_time_end || "22:00",
       });
+      setAllowRemoteCheckout(settings.allow_remote_checkout_after_hours === "true");
+      setWorkEndTime(settings.work_end_time || "18:00");
     }
 
     if (fieldWorkRes.data) setHasFieldWork(true);
@@ -139,10 +143,20 @@ function CheckoutContent() {
     setTodayLogLoading(false);
   };
 
+  const isAfterWorkEnd = (): boolean => {
+    const now = new Date();
+    const bangkokNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Bangkok" }));
+    const [endHour, endMinute] = workEndTime.split(":").map(Number);
+    const nowMinutes = bangkokNow.getHours() * 60 + bangkokNow.getMinutes();
+    return nowMinutes >= endHour * 60 + endMinute;
+  };
+
+  const hasRemoteCheckoutBypass = allowRemoteCheckout && isAfterWorkEnd();
+
   const handleCheckout = async () => {
     if (!photo || !location || !employee || !todayLog) return;
 
-    if (!hasFieldWork && !hasWFH && radiusCheck && !radiusCheck.inRadius) {
+    if (!hasFieldWork && !hasWFH && !hasRemoteCheckoutBypass && radiusCheck && !radiusCheck.inRadius) {
       setError(`คุณอยู่นอกรัศมีที่อนุญาต (ห่าง ${formatDistance(radiusCheck.distance)} จากสาขา ${branch?.name || "สาขา"})`);
       return;
     }
@@ -400,6 +414,19 @@ function CheckoutContent() {
             </div>
           )}
 
+          {/* Remote checkout badge */}
+          {hasRemoteCheckoutBypass && !hasWFH && !hasFieldWork && (
+            <div className="flex items-center gap-3 p-4 bg-[#ff9500]/10 rounded-xl border border-[#ff9500]/30">
+              <div className="w-10 h-10 rounded-full bg-[#ff9500]/20 flex items-center justify-center">
+                <span className="text-[18px]">📍</span>
+              </div>
+              <div>
+                <p className="text-[15px] font-medium text-[#ff9500]">เช็คเอาท์จากระยะไกล</p>
+                <p className="text-[13px] text-[#86868b]">หลังเวลาเลิกงาน ({workEndTime} น.) สามารถเช็คเอาท์จากที่ไหนก็ได้</p>
+              </div>
+            </div>
+          )}
+
           {/* GPS */}
           <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-[#e8e8ed]">
             <div className="flex items-center gap-3">
@@ -477,7 +504,7 @@ function CheckoutContent() {
                 variant="danger"
                 onClick={handleCheckout}
                 loading={loading}
-                disabled={!location || (!hasFieldWork && !hasWFH && radiusCheck !== null && !radiusCheck.inRadius)}
+                disabled={!location || (!hasFieldWork && !hasWFH && !hasRemoteCheckoutBypass && radiusCheck !== null && !radiusCheck.inRadius)}
                 size="lg"
               >
                 <CheckCircle className="w-5 h-5" />

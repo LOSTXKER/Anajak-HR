@@ -24,6 +24,7 @@ export interface NotificationSettings {
   reminderSecondMinutes: string;
   reminderThirdMinutes: string;
   notifyAdminOnAutoCheckout: boolean;
+  allowRemoteCheckoutAfterHours: boolean;
   workStartTime: string;
   workEndTime: string;
 }
