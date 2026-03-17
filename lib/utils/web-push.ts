@@ -225,17 +225,17 @@ export async function subscribeToPushNotifications(): Promise<PushSubscribeResul
           errorCode: 'SUBSCRIBE_FAILED',
         };
       }
+    }
 
-      try {
-        await sendSubscriptionToBackend(subscription);
-      } catch {
-        return {
-          success: false,
-          subscription: null,
-          error: 'บันทึก Push subscription ไปที่ server ไม่สำเร็จ',
-          errorCode: 'BACKEND_FAILED',
-        };
-      }
+    try {
+      await sendSubscriptionToBackend(subscription);
+    } catch (backendError: any) {
+      return {
+        success: false,
+        subscription: null,
+        error: `บันทึก Push subscription ไปที่ server ไม่สำเร็จ: ${backendError.message || ''}`,
+        errorCode: 'BACKEND_FAILED',
+      };
     }
 
     return { success: true, subscription };
@@ -300,37 +300,44 @@ export async function isPushSubscribed(): Promise<boolean> {
 
 async function sendSubscriptionToBackend(subscription: PushSubscription): Promise<void> {
   const { supabase } = await import('@/lib/supabase/client');
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
 
-  if (!user) {
-    throw new Error('User not authenticated');
+  if (!session) {
+    throw new Error('ไม่ได้เข้าสู่ระบบ');
   }
 
   const response = await fetch('/api/push/subscribe', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
     body: JSON.stringify({
       subscription: subscription.toJSON(),
-      employeeId: user.id,
+      employeeId: session.user.id,
     }),
   });
 
   if (!response.ok) {
-    throw new Error('Failed to send subscription to backend');
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'บันทึกไม่สำเร็จ');
   }
 }
 
 async function removeSubscriptionFromBackend(subscription: PushSubscription): Promise<void> {
   try {
     const { supabase } = await import('@/lib/supabase/client');
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
 
-    if (!user) return;
+    if (!session) return;
 
     await fetch('/api/push/unsubscribe', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ employeeId: user.id }),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ employeeId: session.user.id }),
     });
   } catch (error) {
     console.error('Error removing subscription from backend:', error);
