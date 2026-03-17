@@ -18,7 +18,7 @@ import {
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useToast } from "@/components/ui/Toast";
-import { showNotification, canShowNotifications } from "@/lib/utils/notifications";
+
 import type { AnnouncementFormData } from "@/types/announcement";
 
 interface Branch {
@@ -87,12 +87,21 @@ function CreateAnnouncementContent() {
 
       // Send notifications if published and enabled
       if (publish && formData.send_notification) {
-        // PWA notification
-        if (canShowNotifications()) {
-          showNotification(`📢 ${formData.title}`, {
-            body: formData.message,
-            tag: `announcement-${data.id}`,
+        // Push notification to all employees
+        try {
+          await fetch("/api/push/send-announcement", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: formData.title,
+              message: formData.message,
+              target_type: formData.target_type,
+              target_branch_id: formData.target_branch_id,
+              announcement_id: data.id,
+            }),
           });
+        } catch (pushError) {
+          console.error("Error sending push notification:", pushError);
         }
 
         // LINE notification

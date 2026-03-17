@@ -108,6 +108,42 @@ function AnnouncementsContent() {
 
       if (error) throw error;
 
+      if (newPublished && announcement.send_notification && !announcement.notification_sent_at) {
+        try {
+          await fetch("/api/push/send-announcement", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: announcement.title,
+              message: announcement.message,
+              target_type: announcement.target_type,
+              target_branch_id: announcement.target_branch_id,
+              announcement_id: announcement.id,
+            }),
+          });
+
+          await fetch("/api/notifications", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "announcement",
+              data: {
+                title: announcement.title,
+                content: announcement.message,
+                isPinned: false,
+              },
+            }),
+          });
+
+          await supabase
+            .from("announcements")
+            .update({ notification_sent_at: new Date().toISOString() })
+            .eq("id", announcement.id);
+        } catch (notifError) {
+          console.error("Error sending notifications:", notifError);
+        }
+      }
+
       toast.success(
         newPublished ? "เผยแพร่แล้ว" : "ยกเลิกการเผยแพร่",
         newPublished ? "ประกาศถูกเผยแพร่แล้ว" : "ประกาศถูกซ่อนแล้ว"
