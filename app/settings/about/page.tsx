@@ -1,10 +1,102 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { BottomNav } from "@/components/BottomNav";
-import { Info, Package, Code, Heart, Users, Sparkles, ArrowLeft } from "lucide-react";
+import {
+  Info,
+  Package,
+  Code,
+  Heart,
+  Users,
+  Sparkles,
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  Zap,
+  Bug,
+  TrendingUp,
+  Trash2,
+} from "lucide-react";
+import { APP_VERSION, CHANGELOG, type ChangelogEntry } from "@/lib/version";
+
+const categoryConfig = {
+  feat: { label: "ใหม่", icon: Zap, color: "text-[#34c759]", bg: "bg-[#34c759]/10" },
+  fix: { label: "แก้ไข", icon: Bug, color: "text-[#ff9500]", bg: "bg-[#ff9500]/10" },
+  improve: { label: "ปรับปรุง", icon: TrendingUp, color: "text-[#0071e3]", bg: "bg-[#0071e3]/10" },
+  remove: { label: "ลบ", icon: Trash2, color: "text-[#ff3b30]", bg: "bg-[#ff3b30]/10" },
+};
+
+function ChangelogCard({ entry, defaultOpen }: { entry: ChangelogEntry; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen ?? false);
+
+  const typeLabel = entry.type === "major" ? "Major" : entry.type === "minor" ? "Minor" : "Patch";
+  const typeBg =
+    entry.type === "major"
+      ? "bg-[#0071e3]/10 text-[#0071e3]"
+      : entry.type === "minor"
+      ? "bg-[#34c759]/10 text-[#34c759]"
+      : "bg-[#ff9500]/10 text-[#ff9500]";
+
+  return (
+    <Card elevated className="overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full p-4 flex items-center gap-3 text-left active:bg-[#f5f5f7] transition-colors"
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[17px] font-semibold text-[#1d1d1f]">
+              v{entry.version}
+            </span>
+            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${typeBg}`}>
+              {typeLabel}
+            </span>
+          </div>
+          <p className="text-[14px] text-[#1d1d1f] font-medium">{entry.title}</p>
+          <p className="text-[12px] text-[#86868b] mt-0.5">
+            {new Date(entry.date).toLocaleDateString("th-TH", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </p>
+        </div>
+        {open ? (
+          <ChevronUp className="w-5 h-5 text-[#86868b] flex-shrink-0" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-[#86868b] flex-shrink-0" />
+        )}
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-2 border-t border-[#e8e8ed] pt-3">
+          {entry.changes.map((change, i) => {
+            const config = categoryConfig[change.category];
+            const Icon = config.icon;
+            return (
+              <div key={i} className="flex items-start gap-3">
+                <div className={`w-7 h-7 rounded-lg ${config.bg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                  <Icon className={`w-3.5 h-3.5 ${config.color}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className={`text-[11px] font-semibold ${config.color}`}>
+                    {config.label}
+                  </span>
+                  <p className="text-[14px] text-[#1d1d1f] leading-snug">
+                    {change.description}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
 
 function AboutContent() {
   return (
@@ -34,10 +126,25 @@ function AboutContent() {
               ระบบบันทึกเวลาและจัดการ OT
             </p>
             <p className="text-[17px] font-semibold text-[#0071e3]">
-              เวอร์ชัน 1.0.0
+              เวอร์ชัน {APP_VERSION}
             </p>
           </div>
         </Card>
+
+        {/* Patch Notes / Changelog */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3 px-1">
+            <Info className="w-5 h-5 text-[#86868b]" />
+            <h3 className="text-[16px] font-semibold text-[#1d1d1f]">
+              อัปเดตล่าสุด
+            </h3>
+          </div>
+          <div className="space-y-3">
+            {CHANGELOG.map((entry, i) => (
+              <ChangelogCard key={entry.version} entry={entry} defaultOpen={i === 0} />
+            ))}
+          </div>
+        </div>
 
         {/* Features */}
         <div className="space-y-3 mb-6">
@@ -138,4 +245,3 @@ export default function AboutPage() {
     </ProtectedRoute>
   );
 }
-
