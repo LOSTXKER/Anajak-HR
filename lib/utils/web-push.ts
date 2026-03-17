@@ -39,6 +39,48 @@ function isStandalone(): boolean {
     (window.navigator as any).standalone === true;
 }
 
+async function ensureServiceWorkerReady(): Promise<ServiceWorkerRegistration | null> {
+  if (!('serviceWorker' in navigator)) return null;
+
+  let reg = await navigator.serviceWorker.getRegistration('/');
+
+  if (!reg) {
+    try {
+      reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    } catch {
+      return null;
+    }
+  }
+
+  if (reg.active) return reg;
+
+  const installing = reg.installing || reg.waiting;
+  if (installing) {
+    await new Promise<void>((resolve) => {
+      const onStateChange = () => {
+        if (installing.state === 'activated' || installing.state === 'redundant') {
+          installing.removeEventListener('statechange', onStateChange);
+          resolve();
+        }
+      };
+      installing.addEventListener('statechange', onStateChange);
+      setTimeout(() => {
+        installing.removeEventListener('statechange', onStateChange);
+        resolve();
+      }, 10000);
+    });
+  }
+
+  if (reg.active) return reg;
+
+  const ready = await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+  ]);
+
+  return ready;
+}
+
 /**
  * Subscribe to push notifications with detailed error reporting
  */
@@ -89,10 +131,7 @@ export async function subscribeToPushNotifications(): Promise<PushSubscribeResul
       };
     }
 
-    const registration = await Promise.race([
-      navigator.serviceWorker.ready,
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
-    ]);
+    const registration = await ensureServiceWorkerReady();
 
     if (!registration) {
       return {
@@ -160,14 +199,7 @@ export async function subscribeToPushNotifications(): Promise<PushSubscribeResul
  */
 export async function unsubscribeFromPushNotifications(): Promise<boolean> {
   try {
-    if (!('serviceWorker' in navigator)) {
-      return false;
-    }
-
-    const registration = await Promise.race([
-      navigator.serviceWorker.ready,
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
-    ]);
+    const registration = await ensureServiceWorkerReady();
 
     if (!registration) {
       return false;
@@ -193,14 +225,11 @@ export async function unsubscribeFromPushNotifications(): Promise<boolean> {
  */
 export async function isPushSubscribed(): Promise<boolean> {
   try {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    if (!('PushManager' in window)) {
       return false;
     }
 
-    const registration = await Promise.race([
-      navigator.serviceWorker.ready,
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
-    ]);
+    const registration = await ensureServiceWorkerReady();
 
     if (!registration) {
       return false;
@@ -255,14 +284,7 @@ async function removeSubscriptionFromBackend(subscription: PushSubscription): Pr
 
 export async function getPushSubscription(): Promise<PushSubscription | null> {
   try {
-    if (!('serviceWorker' in navigator)) {
-      return null;
-    }
-
-    const registration = await Promise.race([
-      navigator.serviceWorker.ready,
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
-    ]);
+    const registration = await ensureServiceWorkerReady();
 
     if (!registration) {
       return null;
