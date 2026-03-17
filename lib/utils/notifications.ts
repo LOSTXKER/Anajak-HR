@@ -11,6 +11,9 @@ export interface NotificationSettings {
   checkoutTime: string; // "17:00"
   workdaysOnly: boolean;
   workingDays?: number[]; // [1,2,3,4,5,6] = Mon-Sat; uses system 1=Mon..7=Sun
+  pushAnnouncements: boolean;
+  pushApprovals: boolean;
+  pushLeave: boolean;
 }
 
 /**
@@ -266,7 +269,10 @@ export async function getDefaultNotificationSettingsFromDB(): Promise<Notificati
         checkinTime: map.work_start_time || '08:30',
         checkoutReminder: true,
         checkoutTime: map.work_end_time || '17:30',
-        workdaysOnly: true, // Always check holidays from database
+        workdaysOnly: true,
+        pushAnnouncements: true,
+        pushApprovals: true,
+        pushLeave: true,
       };
     }
   } catch (error) {
@@ -286,7 +292,10 @@ export function getDefaultNotificationSettings(): NotificationSettings {
     checkinTime: '08:30',
     checkoutReminder: true,
     checkoutTime: '17:30',
-    workdaysOnly: true, // Always check holidays
+    workdaysOnly: true,
+    pushAnnouncements: true,
+    pushApprovals: true,
+    pushLeave: true,
   };
 }
 
