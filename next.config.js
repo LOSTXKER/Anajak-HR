@@ -3,7 +3,20 @@ const withPWA = require('next-pwa')({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
+  publicExcludes: ['!icons/**/*', '!sw-push.js'],
+  buildExcludes: [/chunks\/.*\.js$/, /media\/.*/, /\.map$/],
   runtimeCaching: [
+    {
+      urlPattern: /\/_next\/static\/.*/i,
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'next-static',
+        expiration: {
+          maxEntries: 200,
+          maxAgeSeconds: 30 * 24 * 60 * 60,
+        },
+      },
+    },
     {
       urlPattern: /^https:\/\/.*\.supabase\.co\/.*$/i,
       handler: 'NetworkFirst',
@@ -11,7 +24,7 @@ const withPWA = require('next-pwa')({
         cacheName: 'supabase-cache',
         expiration: {
           maxEntries: 64,
-          maxAgeSeconds: 24 * 60 * 60, // 24 hours
+          maxAgeSeconds: 24 * 60 * 60,
         },
       },
     },

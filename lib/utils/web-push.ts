@@ -53,25 +53,47 @@ async function ensureServiceWorkerReady(): Promise<ServiceWorkerRegistration | n
 
   const debugParts: string[] = [];
 
-  let reg = await navigator.serviceWorker.getRegistration('/');
-  debugParts.push(reg ? `reg:found(scope=${reg.scope})` : 'reg:none');
-
-  if (!reg) {
-    try {
-      reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-      debugParts.push(`register:ok(scope=${reg.scope})`);
-    } catch (e: any) {
-      _swDebugInfo = `register failed: ${e.message}`;
-      return null;
-    }
-  }
-
   const getState = (r: ServiceWorkerRegistration) => {
     if (r.active) return `active(${r.active.state})`;
     if (r.waiting) return `waiting(${r.waiting.state})`;
     if (r.installing) return `installing(${r.installing.state})`;
     return 'no-worker';
   };
+
+  const waitForActivation = (reg: ServiceWorkerRegistration): Promise<'activated' | 'redundant' | 'timeout'> => {
+    return new Promise((resolve) => {
+      const worker = reg.installing || reg.waiting;
+      if (!worker) { resolve('timeout'); return; }
+
+      const check = () => {
+        if (worker.state === 'activated') { worker.removeEventListener('statechange', check); resolve('activated'); }
+        else if (worker.state === 'redundant') { worker.removeEventListener('statechange', check); resolve('redundant'); }
+      };
+      worker.addEventListener('statechange', check);
+      if (worker.state === 'activated') { resolve('activated'); return; }
+      if (worker.state === 'redundant') { resolve('redundant'); return; }
+      setTimeout(() => { worker.removeEventListener('statechange', check); resolve('timeout'); }, 20000);
+    });
+  };
+
+  let reg = await navigator.serviceWorker.getRegistration('/');
+  debugParts.push(reg ? `reg:found(scope=${reg.scope})` : 'reg:none');
+
+  if (reg && !reg.active && !reg.installing && !reg.waiting) {
+    debugParts.push('stale-reg:unregistering');
+    await reg.unregister();
+    reg = undefined;
+  }
+
+  if (!reg) {
+    try {
+      reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      debugParts.push(`register:ok`);
+    } catch (e: any) {
+      _swDebugInfo = `register failed: ${e.message}`;
+      return null;
+    }
+  }
 
   debugParts.push(`state:${getState(reg)}`);
 
@@ -80,23 +102,22 @@ async function ensureServiceWorkerReady(): Promise<ServiceWorkerRegistration | n
     return reg;
   }
 
-  const worker = reg.installing || reg.waiting;
-  if (worker) {
-    debugParts.push(`waiting-for:${worker.state}`);
-    await new Promise<void>((resolve) => {
-      const check = () => {
-        if (worker.state === 'activated' || worker.state === 'redundant') {
-          worker.removeEventListener('statechange', check);
-          resolve();
-        }
-      };
-      worker.addEventListener('statechange', check);
-      setTimeout(() => {
-        worker.removeEventListener('statechange', check);
-        resolve();
-      }, 15000);
-    });
-    debugParts.push(`after-wait:${getState(reg)}`);
+  const result = await waitForActivation(reg);
+  debugParts.push(`wait-result:${result}`);
+
+  if (result === 'redundant') {
+    debugParts.push('retry:unregister');
+    await reg.unregister();
+    try {
+      reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      debugParts.push('retry:register-ok');
+      const retryResult = await waitForActivation(reg);
+      debugParts.push(`retry-result:${retryResult}`);
+    } catch (e: any) {
+      debugParts.push(`retry:register-fail(${e.message})`);
+      _swDebugInfo = debugParts.join(' | ');
+      return null;
+    }
   }
 
   if (reg.active) {
