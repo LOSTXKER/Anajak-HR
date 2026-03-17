@@ -39,45 +39,79 @@ function isStandalone(): boolean {
     (window.navigator as any).standalone === true;
 }
 
+let _swDebugInfo = '';
+
+export function getSwDebugInfo(): string {
+  return _swDebugInfo;
+}
+
 async function ensureServiceWorkerReady(): Promise<ServiceWorkerRegistration | null> {
-  if (!('serviceWorker' in navigator)) return null;
+  if (!('serviceWorker' in navigator)) {
+    _swDebugInfo = 'serviceWorker not in navigator';
+    return null;
+  }
+
+  const debugParts: string[] = [];
 
   let reg = await navigator.serviceWorker.getRegistration('/');
+  debugParts.push(reg ? `reg:found(scope=${reg.scope})` : 'reg:none');
 
   if (!reg) {
     try {
       reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-    } catch {
+      debugParts.push(`register:ok(scope=${reg.scope})`);
+    } catch (e: any) {
+      _swDebugInfo = `register failed: ${e.message}`;
       return null;
     }
   }
 
-  if (reg.active) return reg;
+  const getState = (r: ServiceWorkerRegistration) => {
+    if (r.active) return `active(${r.active.state})`;
+    if (r.waiting) return `waiting(${r.waiting.state})`;
+    if (r.installing) return `installing(${r.installing.state})`;
+    return 'no-worker';
+  };
 
-  const installing = reg.installing || reg.waiting;
-  if (installing) {
+  debugParts.push(`state:${getState(reg)}`);
+
+  if (reg.active) {
+    _swDebugInfo = debugParts.join(' | ');
+    return reg;
+  }
+
+  const worker = reg.installing || reg.waiting;
+  if (worker) {
+    debugParts.push(`waiting-for:${worker.state}`);
     await new Promise<void>((resolve) => {
-      const onStateChange = () => {
-        if (installing.state === 'activated' || installing.state === 'redundant') {
-          installing.removeEventListener('statechange', onStateChange);
+      const check = () => {
+        if (worker.state === 'activated' || worker.state === 'redundant') {
+          worker.removeEventListener('statechange', check);
           resolve();
         }
       };
-      installing.addEventListener('statechange', onStateChange);
+      worker.addEventListener('statechange', check);
       setTimeout(() => {
-        installing.removeEventListener('statechange', onStateChange);
+        worker.removeEventListener('statechange', check);
         resolve();
-      }, 10000);
+      }, 15000);
     });
+    debugParts.push(`after-wait:${getState(reg)}`);
   }
 
-  if (reg.active) return reg;
+  if (reg.active) {
+    _swDebugInfo = debugParts.join(' | ');
+    return reg;
+  }
 
+  debugParts.push('trying-ready');
   const ready = await Promise.race([
     navigator.serviceWorker.ready,
-    new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 10000)),
   ]);
 
+  debugParts.push(ready ? `ready:ok` : 'ready:timeout');
+  _swDebugInfo = debugParts.join(' | ');
   return ready;
 }
 
@@ -137,7 +171,7 @@ export async function subscribeToPushNotifications(): Promise<PushSubscribeResul
       return {
         success: false,
         subscription: null,
-        error: 'Service Worker ยังไม่พร้อม — ลองปิดแอปแล้วเปิดใหม่',
+        error: `Service Worker ยังไม่พร้อม — ลองปิดแอปแล้วเปิดใหม่ [${_swDebugInfo}]`,
         errorCode: 'SW_NOT_READY',
       };
     }
