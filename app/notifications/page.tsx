@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/Button";
 import { Toggle } from "@/components/ui/Toggle";
 import { BottomNav } from "@/components/BottomNav";
 import {
-  Bell,
   BellOff,
   BellRing,
   Clock,
@@ -27,7 +26,6 @@ import {
   RefreshCw,
 } from "lucide-react";
 import {
-  requestNotificationPermission,
   getNotificationSettingsAsync,
   getDefaultNotificationSettingsFromDB,
   saveNotificationSettings,
@@ -118,30 +116,25 @@ function NotificationSettingsContent() {
     setSubscribing(true);
 
     try {
-      if (permissionStatus !== "granted") {
-        const granted = await requestNotificationPermission();
-        if (!granted) {
-          setError("ไม่ได้รับอนุญาตการแจ้งเตือน กรุณาเปิดใน Settings ของ Browser/อุปกรณ์");
-          setSubscribing(false);
-          return;
-        }
-        setPermissionStatus("granted");
-      }
+      const result = await subscribeToPushNotifications();
 
-      const subscription = await subscribeToPushNotifications();
-      if (subscription) {
+      if (result.success && result.subscription) {
         setIsPushActive(true);
+        setPermissionStatus("granted");
         setSettings((prev) => ({ ...prev, enabled: true }));
         saveNotificationSettings({ ...settings, enabled: true });
       } else {
-        setError("ไม่สามารถเชื่อมต่อ Push Notification ได้ ลองใหม่อีกครั้ง");
+        setError(result.error || "ไม่สามารถเชื่อมต่อ Push Notification ได้");
+        if (result.errorCode === "PERMISSION_DENIED") {
+          setPermissionStatus("denied");
+        }
       }
-    } catch (err) {
-      setError("เกิดข้อผิดพลาดในการเปิดการแจ้งเตือน");
+    } catch (err: any) {
+      setError(`เกิดข้อผิดพลาด: ${err.message || "ไม่ทราบสาเหตุ"}`);
     } finally {
       setSubscribing(false);
     }
-  }, [permissionStatus, settings]);
+  }, [settings]);
 
   const handleDisablePush = useCallback(async () => {
     setSubscribing(true);

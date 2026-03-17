@@ -3,13 +3,8 @@
  * Using Web Push API for persistent notifications
  */
 
-// VAPID public key - ต้องสร้างจาก backend
-// ตอนนี้ใช้ค่า placeholder ก่อน Admin ต้องไปสร้าง VAPID keys ที่หน้า settings
 export const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 
-/**
- * Convert VAPID key from base64 to Uint8Array
- */
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding)
@@ -25,61 +20,138 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+export interface PushSubscribeResult {
+  success: boolean;
+  subscription: PushSubscription | null;
+  error?: string;
+  errorCode?: 'NOT_SUPPORTED' | 'PERMISSION_DENIED' | 'SW_NOT_READY' | 'VAPID_MISSING' | 'SUBSCRIBE_FAILED' | 'BACKEND_FAILED';
+}
+
+function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
+}
+
+function isStandalone(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (window.matchMedia('(display-mode: standalone)').matches) ||
+    (window.navigator as any).standalone === true;
+}
+
 /**
- * Subscribe to push notifications
+ * Subscribe to push notifications with detailed error reporting
  */
-export async function subscribeToPushNotifications(): Promise<PushSubscription | null> {
+export async function subscribeToPushNotifications(): Promise<PushSubscribeResult> {
   try {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      console.warn('Push notifications are not supported');
-      return null;
+    if (!('serviceWorker' in navigator)) {
+      return {
+        success: false,
+        subscription: null,
+        error: isIOS()
+          ? 'กรุณาติดตั้งแอปผ่าน "Add to Home Screen" ใน Safari ก่อน'
+          : 'Browser นี้ไม่รองรับ Push Notification',
+        errorCode: 'NOT_SUPPORTED',
+      };
     }
 
-    // Request notification permission
+    if (!('PushManager' in window)) {
+      return {
+        success: false,
+        subscription: null,
+        error: isIOS() && !isStandalone()
+          ? 'ต้องเปิดแอปจาก Home Screen (ติดตั้งผ่าน Safari → Share → "Add to Home Screen")'
+          : 'Browser นี้ไม่รองรับ Push Notification',
+        errorCode: 'NOT_SUPPORTED',
+      };
+    }
+
+    if (!('Notification' in window)) {
+      return {
+        success: false,
+        subscription: null,
+        error: isIOS() && !isStandalone()
+          ? 'ต้องเปิดแอปจาก Home Screen เพื่อใช้การแจ้งเตือน'
+          : 'Browser ไม่รองรับ Notification API',
+        errorCode: 'NOT_SUPPORTED',
+      };
+    }
+
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
-      console.warn('Notification permission denied');
-      return null;
+      return {
+        success: false,
+        subscription: null,
+        error: permission === 'denied'
+          ? 'การแจ้งเตือนถูกบล็อก — ไปที่ Settings ของอุปกรณ์เพื่อเปิดการแจ้งเตือนสำหรับแอปนี้'
+          : 'ไม่ได้รับอนุญาตการแจ้งเตือน กรุณาลองใหม่อีกครั้ง',
+        errorCode: 'PERMISSION_DENIED',
+      };
     }
 
     const registration = await Promise.race([
       navigator.serviceWorker.ready,
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
     ]);
 
     if (!registration) {
-      console.warn('Service worker not ready (timeout)');
-      return null;
+      return {
+        success: false,
+        subscription: null,
+        error: 'Service Worker ยังไม่พร้อม — ลองปิดแอปแล้วเปิดใหม่',
+        errorCode: 'SW_NOT_READY',
+      };
     }
 
     let subscription = await registration.pushManager.getSubscription();
-    
+
     if (!subscription) {
-      // Subscribe to push notifications
       const vapidPublicKey = VAPID_PUBLIC_KEY;
-      
+
       if (!vapidPublicKey) {
-        console.error('VAPID public key not configured');
-        return null;
+        return {
+          success: false,
+          subscription: null,
+          error: 'ระบบยังไม่ได้ตั้งค่า VAPID Key — กรุณาแจ้งผู้ดูแลระบบ',
+          errorCode: 'VAPID_MISSING',
+        };
       }
 
-      const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+      try {
+        const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: convertedVapidKey as BufferSource,
+        });
+      } catch (subError: any) {
+        return {
+          success: false,
+          subscription: null,
+          error: `สมัคร Push ไม่สำเร็จ: ${subError.message || 'ไม่ทราบสาเหตุ'}`,
+          errorCode: 'SUBSCRIBE_FAILED',
+        };
+      }
 
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: convertedVapidKey as BufferSource,
-      });
-
-      console.debug('Push notification subscription created:', subscription);
-
-      // Send subscription to backend
-      await sendSubscriptionToBackend(subscription);
+      try {
+        await sendSubscriptionToBackend(subscription);
+      } catch {
+        return {
+          success: false,
+          subscription: null,
+          error: 'บันทึก Push subscription ไปที่ server ไม่สำเร็จ',
+          errorCode: 'BACKEND_FAILED',
+        };
+      }
     }
 
-    return subscription;
-  } catch (error) {
-    console.error('Error subscribing to push notifications:', error);
-    return null;
+    return { success: true, subscription };
+  } catch (error: any) {
+    return {
+      success: false,
+      subscription: null,
+      error: `เกิดข้อผิดพลาด: ${error.message || 'ไม่ทราบสาเหตุ'}`,
+      errorCode: 'SUBSCRIBE_FAILED',
+    };
   }
 }
 
@@ -105,11 +177,7 @@ export async function unsubscribeFromPushNotifications(): Promise<boolean> {
 
     if (subscription) {
       await subscription.unsubscribe();
-      
-      // Remove subscription from backend
       await removeSubscriptionFromBackend(subscription);
-      
-      console.debug('Unsubscribed from push notifications');
       return true;
     }
 
@@ -146,76 +214,45 @@ export async function isPushSubscribed(): Promise<boolean> {
   }
 }
 
-/**
- * Send subscription to backend
- */
 async function sendSubscriptionToBackend(subscription: PushSubscription): Promise<void> {
-  try {
-    // Get employee ID from auth
-    const { supabase } = await import('@/lib/supabase/client');
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
+  const { supabase } = await import('@/lib/supabase/client');
+  const { data: { user } } = await supabase.auth.getUser();
 
-    const response = await fetch('/api/push/subscribe', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        subscription: subscription.toJSON(),
-        employeeId: user.id, // Send employee ID
-      }),
-    });
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
 
-    if (!response.ok) {
-      throw new Error('Failed to send subscription to backend');
-    }
+  const response = await fetch('/api/push/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      subscription: subscription.toJSON(),
+      employeeId: user.id,
+    }),
+  });
 
-    console.debug('Subscription sent to backend successfully');
-  } catch (error) {
-    console.error('Error sending subscription to backend:', error);
+  if (!response.ok) {
+    throw new Error('Failed to send subscription to backend');
   }
 }
 
-/**
- * Remove subscription from backend
- */
 async function removeSubscriptionFromBackend(subscription: PushSubscription): Promise<void> {
   try {
-    // Get employee ID from auth
     const { supabase } = await import('@/lib/supabase/client');
     const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
 
-    const response = await fetch('/api/push/unsubscribe', {
+    if (!user) return;
+
+    await fetch('/api/push/unsubscribe', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        employeeId: user.id, // Send employee ID
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ employeeId: user.id }),
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to remove subscription from backend');
-    }
-
-    console.debug('Subscription removed from backend successfully');
   } catch (error) {
     console.error('Error removing subscription from backend:', error);
   }
 }
 
-/**
- * Get push subscription
- */
 export async function getPushSubscription(): Promise<PushSubscription | null> {
   try {
     if (!('serviceWorker' in navigator)) {
@@ -237,4 +274,3 @@ export async function getPushSubscription(): Promise<PushSubscription | null> {
     return null;
   }
 }
-
