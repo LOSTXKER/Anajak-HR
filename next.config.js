@@ -4,7 +4,7 @@ const withPWA = require('next-pwa')({
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
   publicExcludes: ['!icons/**/*', '!sw-push.js'],
-  buildExcludes: [/chunks\/.*\.js$/, /media\/.*/, /\.map$/],
+  buildExcludes: [/chunks\/.*\.js$/, /media\/.*/, /\.map$/, /app-build-manifest\.json$/],
   runtimeCaching: [
     {
       urlPattern: /\/_next\/static\/.*/i,
