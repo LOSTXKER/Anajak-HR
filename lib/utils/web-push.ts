@@ -42,10 +42,16 @@ export async function subscribeToPushNotifications(): Promise<PushSubscription |
       return null;
     }
 
-    // Get service worker registration
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+    ]);
 
-    // Check if already subscribed
+    if (!registration) {
+      console.warn('Service worker not ready (timeout)');
+      return null;
+    }
+
     let subscription = await registration.pushManager.getSubscription();
     
     if (!subscription) {
@@ -86,7 +92,15 @@ export async function unsubscribeFromPushNotifications(): Promise<boolean> {
       return false;
     }
 
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+    ]);
+
+    if (!registration) {
+      return false;
+    }
+
     const subscription = await registration.pushManager.getSubscription();
 
     if (subscription) {
@@ -115,9 +129,16 @@ export async function isPushSubscribed(): Promise<boolean> {
       return false;
     }
 
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
+    const registration = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+    ]);
 
+    if (!registration) {
+      return false;
+    }
+
+    const subscription = await registration.pushManager.getSubscription();
     return subscription !== null;
   } catch (error) {
     console.error('Error checking push subscription:', error);
@@ -201,7 +222,15 @@ export async function getPushSubscription(): Promise<PushSubscription | null> {
       return null;
     }
 
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+    ]);
+
+    if (!registration) {
+      return null;
+    }
+
     return await registration.pushManager.getSubscription();
   } catch (error) {
     console.error('Error getting push subscription:', error);

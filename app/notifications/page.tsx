@@ -68,7 +68,19 @@ function NotificationSettingsContent() {
       setLoading(true);
       try {
         const storedSettings = await getNotificationSettingsAsync();
-        const adminSettings = await getDefaultNotificationSettingsFromDB();
+
+        let adminSettings = { checkinTime: "08:30", checkoutTime: "17:30" };
+        try {
+          const dbSettings = await Promise.race([
+            getDefaultNotificationSettingsFromDB(),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+          ]);
+          if (dbSettings) {
+            adminSettings = { checkinTime: dbSettings.checkinTime, checkoutTime: dbSettings.checkoutTime };
+          }
+        } catch {
+          // use defaults
+        }
 
         setSettings({
           ...{
