@@ -26,6 +26,7 @@ import {
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { getOTRateForDate } from "@/lib/services/holiday.service";
+import { authFetch } from "@/lib/utils/auth-fetch";
 
 interface OTRequest {
   id: string;
@@ -424,9 +425,8 @@ function OTStartContent({ id }: { id: string }) {
 
       // Send LINE notification with GPS
       try {
-        await fetch("/api/notifications", {
+        await authFetch("/api/notifications", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "ot_start",
             data: {

@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { Bell, ArrowLeft, Send, Users, CheckCircle } from "lucide-react";
+import { authFetch } from "@/lib/utils/auth-fetch";
 import Link from "next/link";
 
 interface Employee {
@@ -79,9 +80,8 @@ function PushTestContent() {
 
     setSending(true);
     try {
-      const response = await fetch("/api/push/send", {
+      const response = await authFetch("/api/push/send", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           employeeId: selectedEmployee,
           title,

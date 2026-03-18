@@ -16,6 +16,7 @@ import {
   Megaphone,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
+import { authFetch } from "@/lib/utils/auth-fetch";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useToast } from "@/components/ui/Toast";
 
@@ -89,9 +90,8 @@ function CreateAnnouncementContent() {
       if (publish && formData.send_notification) {
         // Push notification to all employees
         try {
-          await fetch("/api/push/send-announcement", {
+          await authFetch("/api/push/send-announcement", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               title: formData.title,
               message: formData.message,
@@ -106,9 +106,8 @@ function CreateAnnouncementContent() {
 
         // LINE notification
         try {
-          await fetch("/api/notifications", {
+          await authFetch("/api/notifications", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               type: "announcement",
               data: {

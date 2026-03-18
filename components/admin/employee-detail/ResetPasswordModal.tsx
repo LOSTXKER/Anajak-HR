@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Lock, Eye, EyeOff, Copy, Check } from "lucide-react";
+import { authFetch } from "@/lib/utils/auth-fetch";
 
 interface ResetPasswordModalProps {
   isOpen: boolean;
@@ -63,9 +64,8 @@ export function ResetPasswordModal({
     setLoading(true);
 
     try {
-      const response = await fetch("/api/admin/reset-password", {
+      const response = await authFetch("/api/admin/reset-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ employeeId, newPassword }),
       });
 

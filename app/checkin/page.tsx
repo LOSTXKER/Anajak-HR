@@ -21,6 +21,7 @@ import { format } from "date-fns";
 import { getTodayTH } from "@/lib/utils/date";
 import { getDayType } from "@/lib/services/holiday.service";
 import { processCheckinGamification } from "@/lib/services/gamification.service";
+import { authFetch } from "@/lib/utils/auth-fetch";
 
 function CheckinContent() {
   const { employee } = useAuth();
@@ -230,13 +231,8 @@ function CheckinContent() {
 
       // Send LINE notification (fire-and-forget)
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        fetch("/api/checkin-notification", {
+        authFetch("/api/checkin-notification", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
-          },
           body: JSON.stringify({
             employeeName: employee.name,
             time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false }),

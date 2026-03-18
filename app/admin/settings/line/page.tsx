@@ -26,6 +26,7 @@ import {
   Send,
 } from "lucide-react";
 import Link from "next/link";
+import { authFetch } from "@/lib/utils/auth-fetch";
 
 // Tabs Component
 const Tabs = ({
@@ -252,13 +253,8 @@ function LineSettingsContent() {
 
     setTesting(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const response = await fetch("/api/line/test", {
+      const response = await authFetch("/api/line/test", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` }),
-        },
         body: JSON.stringify({
           token: apiSettings.lineChannelToken,
           to: apiSettings.lineRecipientId,

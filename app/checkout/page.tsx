@@ -20,6 +20,7 @@ import {
 import { format } from "date-fns";
 import { getTodayTH } from "@/lib/utils/date";
 import { processCheckoutGamification } from "@/lib/services/gamification.service";
+import { authFetch } from "@/lib/utils/auth-fetch";
 
 function CheckoutContent() {
   const { employee } = useAuth();
@@ -230,13 +231,8 @@ function CheckoutContent() {
         });
 
         try {
-          const { data: { session: earlySession } } = await supabase.auth.getSession();
-          fetch("/api/notifications", {
+          authFetch("/api/notifications", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...(earlySession?.access_token ? { "Authorization": `Bearer ${earlySession.access_token}` } : {}),
-            },
             body: JSON.stringify({
               type: "early_checkout",
               data: {
@@ -255,13 +251,8 @@ function CheckoutContent() {
 
       // Regular checkout notification (fire-and-forget)
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        fetch("/api/checkout-notification", {
+        authFetch("/api/checkout-notification", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
-          },
           body: JSON.stringify({
             employeeName: employee.name,
             time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false }),

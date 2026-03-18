@@ -22,6 +22,7 @@ import {
   BellOff,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
+import { authFetch } from "@/lib/utils/auth-fetch";
 import { useToast } from "@/components/ui/Toast";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
@@ -110,9 +111,8 @@ function AnnouncementsContent() {
 
       if (newPublished && announcement.send_notification && !announcement.notification_sent_at) {
         try {
-          await fetch("/api/push/send-announcement", {
+          await authFetch("/api/push/send-announcement", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               title: announcement.title,
               message: announcement.message,
@@ -122,9 +122,8 @@ function AnnouncementsContent() {
             }),
           });
 
-          await fetch("/api/notifications", {
+          await authFetch("/api/notifications", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               type: "announcement",
               data: {

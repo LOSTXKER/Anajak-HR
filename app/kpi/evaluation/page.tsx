@@ -17,6 +17,7 @@ import { KPIRadarChart } from "@/components/kpi/KPIRadarChart";
 import { scoreToGrade } from "@/lib/services/kpi.service";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import type { KPITemplate, KPIGoal, AutoMetrics, KPIEvaluation, EvaluationItem } from "@/lib/services/kpi.service";
+import { authFetch } from "@/lib/utils/auth-fetch";
 
 interface FormItem {
   template_id?: string;
@@ -144,9 +145,8 @@ function SelfEvaluationContent() {
         comment: item.comment || null,
       }));
 
-      const res = await fetch("/api/kpi/evaluations", {
+      const res = await authFetch("/api/kpi/evaluations", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           employee_id: employee!.id,
           period_id: activePeriodId,

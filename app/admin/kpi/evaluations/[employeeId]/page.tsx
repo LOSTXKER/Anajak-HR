@@ -16,6 +16,7 @@ import { GoalCard } from "@/components/kpi/GoalCard";
 import { KPIRadarChart } from "@/components/kpi/KPIRadarChart";
 import { scoreToGrade } from "@/lib/services/kpi.service";
 import type { KPITemplate, KPIGoal, AutoMetrics, KPIEvaluation, EvaluationItem } from "@/lib/services/kpi.service";
+import { authFetch } from "@/lib/utils/auth-fetch";
 
 interface EvalFormItem {
   template_id?: string;
@@ -139,9 +140,8 @@ function EvaluateEmployeeContent() {
         comment: item.comment || null,
       }));
 
-      const res = await fetch("/api/kpi/evaluations", {
+      const res = await authFetch("/api/kpi/evaluations", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           employee_id: employeeId,
           period_id: periodId,

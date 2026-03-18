@@ -7,6 +7,7 @@ import { SettingsLayout } from "@/components/admin/SettingsLayout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
+import { authFetch } from "@/lib/utils/auth-fetch";
 import {
   Trophy,
   Save,
@@ -137,13 +138,8 @@ function GamificationSettingsContent() {
 
     setRecalculating(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch("/api/gamification/recalculate", {
+      const res = await authFetch("/api/gamification/recalculate", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-        },
         body: JSON.stringify({}),
       });
 

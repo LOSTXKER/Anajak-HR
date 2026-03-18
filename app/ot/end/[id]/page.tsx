@@ -26,6 +26,7 @@ import { format, differenceInMinutes } from "date-fns";
 import { th } from "date-fns/locale";
 import { processOTGamification } from "@/lib/services/gamification.service";
 import { calculateOTAmount } from "@/lib/utils/ot-calculator";
+import { authFetch } from "@/lib/utils/auth-fetch";
 
 interface OTRequest {
   id: string;
@@ -255,9 +256,8 @@ function OTEndContent({ id }: { id: string }) {
 
       // Send LINE notification with GPS
       try {
-        await fetch("/api/notifications", {
+        await authFetch("/api/notifications", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "ot_end",
             data: {
