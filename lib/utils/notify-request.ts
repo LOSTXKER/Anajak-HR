@@ -5,6 +5,8 @@
  * Previously copy-pasted inside every form's handleSubmit.
  */
 
+import { authFetch } from "@/lib/utils/auth-fetch";
+
 type NotificationPayload = {
   type: string;
   data: Record<string, unknown>;
@@ -16,9 +18,8 @@ type NotificationPayload = {
  */
 export async function sendRequestNotification(payload: NotificationPayload): Promise<void> {
   try {
-    await fetch("/api/notifications", {
+    await authFetch("/api/notifications", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
   } catch (err) {

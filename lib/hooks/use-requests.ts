@@ -69,9 +69,9 @@ interface UseRequestsReturn {
 
 async function sendNotification(type: string, data: Record<string, unknown>) {
   try {
-    await fetch("/api/notifications", {
+    const { authFetch } = await import("@/lib/utils/auth-fetch");
+    await authFetch("/api/notifications", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, data }),
     });
   } catch (error) {
