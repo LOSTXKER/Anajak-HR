@@ -34,7 +34,6 @@ export function notifyNewLeaveRequest(data: {
   leaveType: string;
   startDate: string;
   endDate: string;
-  reason: string;
 }) {
   return sendRequestNotification({ type: "new_leave_request", data });
 }
@@ -42,7 +41,6 @@ export function notifyNewLeaveRequest(data: {
 export function notifyNewWFHRequest(data: {
   employeeName: string;
   date: string;
-  reason: string;
 }) {
   return sendRequestNotification({ type: "new_wfh_request", data });
 }
@@ -52,7 +50,6 @@ export function notifyNewOTRequest(data: {
   date: string;
   startTime: string;
   endTime: string;
-  reason: string;
 }) {
   return sendRequestNotification({ type: "new_ot_request", data });
 }
@@ -61,7 +58,6 @@ export function notifyNewFieldWorkRequest(data: {
   employeeName: string;
   date: string;
   location: string;
-  reason: string;
 }) {
   return sendRequestNotification({ type: "new_field_work_request", data });
 }
@@ -70,7 +66,6 @@ export function notifyNewLateRequest(data: {
   employeeName: string;
   date: string;
   lateMinutes: number;
-  reason: string;
 }) {
   return sendRequestNotification({ type: "late_request", data });
 }

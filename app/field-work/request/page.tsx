@@ -68,7 +68,6 @@ function FieldWorkRequestContent() {
         employeeName: employee.name,
         date: formData.date,
         location: formData.location.trim(),
-        reason: formData.reason.trim(),
       });
     });
   };

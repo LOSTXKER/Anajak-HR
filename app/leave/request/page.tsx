@@ -180,7 +180,6 @@ function LeaveRequestContent() {
         leaveType: formData.leaveType,
         startDate: formData.startDate,
         endDate: formData.endDate,
-        reason: formData.reason,
       });
 
       setIsAutoApproved(isAutoApprove);

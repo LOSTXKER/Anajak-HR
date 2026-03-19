@@ -105,7 +105,6 @@ function LateRequestContent() {
         employeeName: employee!.name,
         date: selectedDate,
         lateMinutes: attendance?.late_minutes || 0,
-        reason: reason.trim(),
       });
 
       setSuccess(true);

@@ -104,7 +104,6 @@ function OTRequestContent() {
         date: formData.date,
         startTime: formData.startTime,
         endTime: formData.endTime,
-        reason: formData.reason,
       });
 
       setIsAutoApproved(isAutoApprove);

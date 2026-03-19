@@ -66,7 +66,7 @@ function WFHRequestContent() {
       const { error: insertError } = await supabase.from("wfh_requests").insert(insertData);
       if (insertError) throw insertError;
 
-      notifyNewWFHRequest({ employeeName: employee.name, date: formData.date, reason: formData.reason });
+      notifyNewWFHRequest({ employeeName: employee.name, date: formData.date });
     });
   };
 
