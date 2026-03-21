@@ -23,6 +23,7 @@ import { useRequestsQuery } from "./use-requests-query";
 import { useRequestFilters } from "./use-request-filters";
 import { calculateOTAmount, buildLocalISO } from "@/lib/utils/ot-calculator";
 import { TIME_CONSTANTS } from "@/lib/constants";
+import { authFetch } from "@/lib/utils/auth-fetch";
 
 // ─── Options & Return Types ──────────────────────────────
 
@@ -58,7 +59,7 @@ interface UseRequestsReturn {
   fetchAll: () => Promise<void>;
   handleApprove: (request: RequestItem, adminId: string) => Promise<boolean>;
   handleReject: (request: RequestItem, adminId: string, reason?: string) => Promise<boolean>;
-  handleCancel: (request: RequestItem, adminId: string, cancelReason: string) => Promise<boolean>;
+  handleCancel: (request: RequestItem, adminId: string, cancelReason: string) => Promise<{ success: boolean; error?: string }>;
   handleCreateRequest: (type: RequestType, formData: CreateFormData, adminId: string) => Promise<boolean>;
   handleEditRequest: (request: RequestItem, editData: any, adminId: string) => Promise<boolean>;
   detectOTRate: (dateStr: string) => OTRateInfo;
@@ -218,64 +219,24 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
   // ── Cancel ──────────────────────────────────────────
 
   const handleCancel = useCallback(
-    async (request: RequestItem, adminId: string, cancelReason: string): Promise<boolean> => {
-      if (!cancelReason.trim()) return false;
+    async (request: RequestItem, adminId: string, cancelReason: string): Promise<{ success: boolean; error?: string }> => {
+      if (!cancelReason.trim()) return { success: false, error: "กรุณาระบุเหตุผล" };
       setProcessing(true);
       try {
-        const { error } = await supabase
-          .from(tableMap[request.type])
-          .update({
-            status: "cancelled",
-            cancelled_by: adminId,
-            cancelled_at: new Date().toISOString(),
-            cancel_reason: cancelReason.trim(),
-          })
-          .eq("id", request.id);
+        const res = await authFetch("/api/admin/cancel-request", {
+          method: "POST",
+          body: JSON.stringify({
+            requestId: request.id,
+            requestType: request.type,
+            cancelReason: cancelReason.trim(),
+            currentStatus: request.status,
+            employeeId: request.employeeId,
+          }),
+        });
 
-        if (error) throw error;
-
-        // Restore leave balance when cancelling an approved leave
-        if (request.type === "leave" && (request.status === "approved")) {
-          const raw = request.rawData;
-          const leaveType = raw.leave_type as string;
-          const year = new Date(raw.start_date).getFullYear();
-          let daysToRestore = 0;
-          if (raw.is_half_day) {
-            daysToRestore = 0.5;
-          } else {
-            const start = new Date(raw.start_date);
-            const end = new Date(raw.end_date);
-            daysToRestore = Math.ceil((end.getTime() - start.getTime()) / TIME_CONSTANTS.MS_PER_DAY) + 1;
-          }
-
-          const columnMap: Record<string, { used: string; remaining: string }> = {
-            annual: { used: "annual_leave_used", remaining: "annual_leave_remaining" },
-            sick: { used: "sick_leave_used", remaining: "sick_leave_remaining" },
-            personal: { used: "personal_leave_used", remaining: "personal_leave_remaining" },
-          };
-
-          const cols = columnMap[leaveType];
-          if (cols) {
-            const { data: balance } = await supabase
-              .from("leave_balances")
-              .select("*")
-              .eq("employee_id", request.employeeId)
-              .eq("year", year)
-              .maybeSingle();
-
-            if (balance) {
-              const currentUsed = (balance as any)[cols.used] || 0;
-              const currentRemaining = (balance as any)[cols.remaining] || 0;
-              await supabase
-                .from("leave_balances")
-                .update({
-                  [cols.used]: Math.max(0, currentUsed - daysToRestore),
-                  [cols.remaining]: currentRemaining + daysToRestore,
-                })
-                .eq("employee_id", request.employeeId)
-                .eq("year", year);
-            }
-          }
+        const data = await res.json();
+        if (!res.ok) {
+          return { success: false, error: data.error || `HTTP ${res.status}` };
         }
 
         query.setRequests((prev) =>
@@ -284,10 +245,10 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
             : r
           )
         );
-        return true;
-      } catch (error) {
+        return { success: true };
+      } catch (error: any) {
         console.error("Error cancelling request:", error);
-        return false;
+        return { success: false, error: error?.message || "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้" };
       } finally {
         setProcessing(false);
       }

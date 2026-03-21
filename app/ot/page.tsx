@@ -123,7 +123,11 @@ function OTPageContent() {
     try {
       const { error } = await supabase
         .from("ot_requests")
-        .update({ status: "cancelled" })
+        .update({
+          status: "cancelled",
+          cancelled_by: employee.id,
+          cancelled_at: new Date().toISOString(),
+        })
         .eq("id", id)
         .eq("employee_id", employee.id)
         .in("status", ["pending", "approved"]);

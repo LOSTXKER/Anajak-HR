@@ -96,12 +96,12 @@ function RequestsPageContent() {
   const onCancelConfirm = useCallback(
     async (request: RequestItem, reason: string) => {
       if (!currentAdmin) return;
-      const success = await handleCancel(request, currentAdmin.id, reason);
-      if (success) {
+      const result = await handleCancel(request, currentAdmin.id, reason);
+      if (result.success) {
         toast.success("ยกเลิกสำเร็จ", `${typeConfig[request.type].label} ของ ${request.employeeName}`);
         setCancelModal(null);
       } else {
-        toast.error("เกิดข้อผิดพลาด", "ไม่สามารถยกเลิกได้");
+        toast.error("ไม่สามารถยกเลิกได้", result.error || "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ");
       }
     },
     [currentAdmin, handleCancel, toast]
