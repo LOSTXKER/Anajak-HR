@@ -121,6 +121,11 @@ export function EmployeeTable({
                           <p className="text-sm font-medium text-[#1d1d1f] group-hover:text-[#0071e3] transition-colors">
                             {emp.name}
                           </p>
+                          {emp.work_arrangement === "wfh" && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#0071e3]/10 text-[#0071e3]">
+                              WFH
+                            </span>
+                          )}
                           <ChevronRight className="w-4 h-4 text-[#86868b] opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                         <div className="flex items-center gap-2 mt-1">

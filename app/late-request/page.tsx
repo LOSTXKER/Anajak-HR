@@ -12,7 +12,7 @@ import {
   type LateRequest,
   type LateAttendance,
 } from "@/lib/services/late-request.service";
-import { notifyNewLateRequest } from "@/lib/utils/notify-request";
+import { notifyNewLateRequest, notifyAutoApprovedLate } from "@/lib/utils/notify-request";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -101,11 +101,20 @@ function LateRequestContent() {
 
       if (!createResult.success) throw new Error(createResult.error);
 
-      notifyNewLateRequest({
-        employeeName: employee!.name,
-        date: selectedDate,
-        lateMinutes: attendance?.late_minutes || 0,
-      });
+      const autoApproved = createResult.data?.isAutoApproved ?? false;
+      if (autoApproved) {
+        notifyAutoApprovedLate({
+          employeeName: employee!.name,
+          date: selectedDate,
+          lateMinutes: attendance?.late_minutes || 0,
+        });
+      } else {
+        notifyNewLateRequest({
+          employeeName: employee!.name,
+          date: selectedDate,
+          lateMinutes: attendance?.late_minutes || 0,
+        });
+      }
 
       setSuccess(true);
       setSelectedDate("");

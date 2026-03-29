@@ -150,6 +150,7 @@ model employees {
   personal_leave_quota                                             Int?                   @default(3)
   deleted_at                                                       DateTime?              @db.Timestamptz(6)
   deleted_by                                                       String?                @db.Uuid
+  work_arrangement                                                 String?                @default("onsite") @db.VarChar(20)
   announcement_reads                                               announcement_reads[]
   announcements                                                    announcements[]
   attendance_anomalies_attendance_anomalies_employee_idToemployees attendance_anomalies[] @relation("attendance_anomalies_employee_idToemployees")

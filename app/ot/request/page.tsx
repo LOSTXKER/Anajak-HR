@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { checkAutoApprove, applyAutoApproveFields, AUTO_APPROVE_SETTINGS } from "@/lib/utils/auto-approve";
 import { useFormSubmit } from "@/lib/hooks/use-form-submit";
-import { notifyNewOTRequest } from "@/lib/utils/notify-request";
+import { notifyNewOTRequest, notifyAutoApprovedOT } from "@/lib/utils/notify-request";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -99,12 +99,21 @@ function OTRequestContent() {
       const { error: insertError } = await supabase.from("ot_requests").insert(insertData);
       if (insertError) throw insertError;
 
-      notifyNewOTRequest({
-        employeeName: employee.name,
-        date: formData.date,
-        startTime: formData.startTime,
-        endTime: formData.endTime,
-      });
+      if (isAutoApprove) {
+        notifyAutoApprovedOT({
+          employeeName: employee.name,
+          date: formData.date,
+          startTime: startDateTime.toISOString(),
+          endTime: endDateTime.toISOString(),
+        });
+      } else {
+        notifyNewOTRequest({
+          employeeName: employee.name,
+          date: formData.date,
+          startTime: formData.startTime,
+          endTime: formData.endTime,
+        });
+      }
 
       setIsAutoApproved(isAutoApprove);
     });

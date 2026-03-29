@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { checkAutoApprove, applyAutoApproveFields, AUTO_APPROVE_SETTINGS } from "@/lib/utils/auto-approve";
 import { useFormSubmit } from "@/lib/hooks/use-form-submit";
-import { notifyNewWFHRequest } from "@/lib/utils/notify-request";
+import { notifyNewWFHRequest, notifyAutoApprovedWFH } from "@/lib/utils/notify-request";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -19,6 +19,7 @@ function WFHRequestContent() {
   const { employee } = useAuth();
   const router = useRouter();
   const { loading, error, success, handleSubmit } = useFormSubmit({ redirectTo: "/" });
+  const [isAutoApproved, setIsAutoApproved] = useState(false);
 
   const [formData, setFormData] = useState({
     date: "",
@@ -66,7 +67,13 @@ function WFHRequestContent() {
       const { error: insertError } = await supabase.from("wfh_requests").insert(insertData);
       if (insertError) throw insertError;
 
-      notifyNewWFHRequest({ employeeName: employee.name, date: formData.date });
+      if (isAutoApprove) {
+        notifyAutoApprovedWFH({ employeeName: employee.name, date: formData.date });
+      } else {
+        notifyNewWFHRequest({ employeeName: employee.name, date: formData.date });
+      }
+
+      setIsAutoApproved(isAutoApprove);
     });
   };
 
@@ -77,8 +84,14 @@ function WFHRequestContent() {
           <div className="w-20 h-20 bg-[#0071e3] rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-10 h-10 text-white" strokeWidth={2.5} />
           </div>
-          <h2 className="text-[28px] font-semibold text-[#1d1d1f] mb-2">ส่งคำขอสำเร็จ</h2>
-          <p className="text-[17px] text-[#86868b]">รอการอนุมัติจากหัวหน้างาน</p>
+          <h2 className="text-[28px] font-semibold text-[#1d1d1f] mb-2">
+            {isAutoApproved ? "อนุมัติอัตโนมัติ" : "ส่งคำขอสำเร็จ"}
+          </h2>
+          <p className="text-[17px] text-[#86868b]">
+            {isAutoApproved
+              ? "คำขอของคุณได้รับการอนุมัติทันที"
+              : "รอการอนุมัติจากหัวหน้างาน"}
+          </p>
         </div>
       </div>
     );

@@ -95,14 +95,26 @@ export function EmployeeEditModal({
           </div>
         )}
 
-        <Input
-          label="เงินเดือน (฿)"
-          type="number"
-          value={formData.baseSalary}
-          onChange={(e) =>
-            onFormChange({ ...formData, baseSalary: e.target.value })
-          }
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="เงินเดือน (฿)"
+            type="number"
+            value={formData.baseSalary}
+            onChange={(e) =>
+              onFormChange({ ...formData, baseSalary: e.target.value })
+            }
+          />
+          <Select
+            label="รูปแบบการทำงาน"
+            value={formData.workArrangement}
+            onChange={(v) => onFormChange({ ...formData, workArrangement: v })}
+            options={[
+              { value: "onsite", label: "Onsite (ทำงานที่ออฟฟิศ)" },
+              { value: "wfh", label: "WFH 100%" },
+              { value: "hybrid", label: "Hybrid (ผสม)" },
+            ]}
+          />
+        </div>
 
         {/* Leave Quotas */}
         <div className="border-t border-[#e8e8ed] pt-4">

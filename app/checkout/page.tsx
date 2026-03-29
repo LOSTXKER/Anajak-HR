@@ -41,6 +41,9 @@ function CheckoutContent() {
   const [hasFieldWork, setHasFieldWork] = useState(false);
   const [hasWFH, setHasWFH] = useState(false);
   const [allowRemoteCheckout, setAllowRemoteCheckout] = useState(false);
+
+  const isPermanentWFH = employee?.work_arrangement === "wfh";
+  const isWFH = hasWFH || isPermanentWFH;
   const [workEndTime, setWorkEndTime] = useState("18:00");
 
   // Redirect admin accounts to admin panel
@@ -157,7 +160,7 @@ function CheckoutContent() {
   const handleCheckout = async () => {
     if (!photo || !location || !employee || !todayLog) return;
 
-    if (!hasFieldWork && !hasWFH && !hasRemoteCheckoutBypass && radiusCheck && !radiusCheck.inRadius) {
+    if (!hasFieldWork && !isWFH && !hasRemoteCheckoutBypass && radiusCheck && !radiusCheck.inRadius) {
       setError(`คุณอยู่นอกรัศมีที่อนุญาต (ห่าง ${formatDistance(radiusCheck.distance)} จากสาขา ${branch?.name || "สาขา"})`);
       return;
     }
@@ -393,20 +396,22 @@ function CheckoutContent() {
         {/* Status items */}
         <div className="space-y-3 mb-6">
           {/* WFH badge */}
-          {hasWFH && (
+          {isWFH && (
             <div className="flex items-center gap-3 p-4 bg-[#0071e3]/10 rounded-xl border border-[#0071e3]/30">
               <div className="w-10 h-10 rounded-full bg-[#0071e3]/20 flex items-center justify-center">
                 <span className="text-[18px]">🏠</span>
               </div>
               <div>
-                <p className="text-[15px] font-medium text-[#0071e3]">ทำงานจากบ้าน (WFH)</p>
+                <p className="text-[15px] font-medium text-[#0071e3]">
+                  {isPermanentWFH ? "WFH ถาวร" : "ทำงานจากบ้าน (WFH)"}
+                </p>
                 <p className="text-[13px] text-[#86868b]">ไม่ต้องอยู่ในรัศมีสาขา</p>
               </div>
             </div>
           )}
 
           {/* Remote checkout badge */}
-          {hasRemoteCheckoutBypass && !hasWFH && !hasFieldWork && (
+          {hasRemoteCheckoutBypass && !isWFH && !hasFieldWork && (
             <div className="flex items-center gap-3 p-4 bg-[#ff9500]/10 rounded-xl border border-[#ff9500]/30">
               <div className="w-10 h-10 rounded-full bg-[#ff9500]/20 flex items-center justify-center">
                 <span className="text-[18px]">📍</span>
@@ -495,7 +500,7 @@ function CheckoutContent() {
                 variant="danger"
                 onClick={handleCheckout}
                 loading={loading}
-                disabled={!location || (!hasFieldWork && !hasWFH && !hasRemoteCheckoutBypass && radiusCheck !== null && !radiusCheck.inRadius)}
+                disabled={!location || (!hasFieldWork && !isWFH && !hasRemoteCheckoutBypass && radiusCheck !== null && !radiusCheck.inRadius)}
                 size="lg"
               >
                 <CheckCircle className="w-5 h-5" />

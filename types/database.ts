@@ -32,6 +32,7 @@ export interface Database {
           updated_at: string
           deleted_at: string | null
           deleted_by: string | null
+          work_arrangement: 'onsite' | 'wfh' | 'hybrid' | null
         }
         Insert: {
           id?: string
@@ -55,6 +56,7 @@ export interface Database {
           updated_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
+          work_arrangement?: 'onsite' | 'wfh' | 'hybrid' | null
         }
         Update: {
           id?: string
@@ -78,6 +80,7 @@ export interface Database {
           updated_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
+          work_arrangement?: 'onsite' | 'wfh' | 'hybrid' | null
         }
       }
       branches: {

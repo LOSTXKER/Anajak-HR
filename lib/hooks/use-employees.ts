@@ -206,6 +206,7 @@ export function useEmployees(
             base_salary: formData.baseSalary
               ? parseFloat(formData.baseSalary)
               : null,
+            work_arrangement: formData.workArrangement || "onsite",
             annual_leave_quota: formData.annualQuota,
             sick_leave_quota: formData.sickQuota,
             personal_leave_quota: formData.personalQuota,

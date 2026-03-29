@@ -43,6 +43,9 @@ function CheckinContent() {
   const [hasFieldWork, setHasFieldWork] = useState(false);
   const [hasWFH, setHasWFH] = useState(false);
 
+  const isPermanentWFH = employee?.work_arrangement === "wfh";
+  const isWFH = hasWFH || isPermanentWFH;
+
   // Redirect admin accounts to admin panel
   useEffect(() => {
     if (employee?.role === "admin") {
@@ -171,7 +174,7 @@ function CheckinContent() {
 
     const today = getTodayTH();
 
-    if (!hasFieldWork && !hasWFH && radiusCheck && !radiusCheck.inRadius) {
+    if (!hasFieldWork && !isWFH && radiusCheck && !radiusCheck.inRadius) {
       setError(`คุณอยู่นอกรัศมีที่อนุญาต (ห่าง ${formatDistance(radiusCheck.distance)} จากสาขา ${branch.name})`);
       return;
     }
@@ -215,7 +218,7 @@ function CheckinContent() {
           clock_in_photo_url: photoUrl,
           is_late: isLate,
           late_minutes: lateMinutes,
-          work_mode: hasFieldWork ? "field" : hasWFH ? "wfh" : "onsite",
+          work_mode: hasFieldWork ? "field" : isWFH ? "wfh" : "onsite",
           status: "present",
         })
         .select("id")
@@ -400,13 +403,15 @@ function CheckinContent() {
           )}
 
           {/* WFH badge */}
-          {hasWFH && (
+          {isWFH && (
             <div className="flex items-center gap-3 p-4 bg-[#0071e3]/10 rounded-xl border border-[#0071e3]/30">
               <div className="w-10 h-10 rounded-full bg-[#0071e3]/20 flex items-center justify-center">
                 <span className="text-[18px]">🏠</span>
               </div>
               <div>
-                <p className="text-[15px] font-medium text-[#0071e3]">ทำงานจากบ้าน (WFH)</p>
+                <p className="text-[15px] font-medium text-[#0071e3]">
+                  {isPermanentWFH ? "WFH ถาวร" : "ทำงานจากบ้าน (WFH)"}
+                </p>
                 <p className="text-[13px] text-[#86868b]">ไม่ต้องอยู่ในรัศมีสาขา</p>
               </div>
             </div>
@@ -458,7 +463,7 @@ function CheckinContent() {
                 fullWidth
                 onClick={handleCheckin}
                 loading={loading}
-                disabled={!location || !branch || (!hasFieldWork && !hasWFH && radiusCheck !== null && !radiusCheck.inRadius)}
+                disabled={!location || !branch || (!hasFieldWork && !isWFH && radiusCheck !== null && !radiusCheck.inRadius)}
                 size="lg"
               >
                 <CheckCircle className="w-5 h-5" />

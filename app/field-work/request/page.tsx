@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth/auth-context";
 import { createFieldWorkRequest } from "@/lib/services/field-work.service";
 import { useFormSubmit } from "@/lib/hooks/use-form-submit";
-import { notifyNewFieldWorkRequest } from "@/lib/utils/notify-request";
+import { notifyNewFieldWorkRequest, notifyAutoApprovedFieldWork } from "@/lib/utils/notify-request";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -26,6 +26,7 @@ function FieldWorkRequestContent() {
   const { employee } = useAuth();
   const router = useRouter();
   const { loading, error, success, handleSubmit } = useFormSubmit({ redirectTo: "/" });
+  const [isAutoApproved, setIsAutoApproved] = useState(false);
 
   // Admin is system account - redirect to admin panel
   useEffect(() => {
@@ -64,11 +65,21 @@ function FieldWorkRequestContent() {
 
       if (!result.success) throw new Error(result.error);
 
-      notifyNewFieldWorkRequest({
-        employeeName: employee.name,
-        date: formData.date,
-        location: formData.location.trim(),
-      });
+      const autoApproved = result.data?.isAutoApproved ?? false;
+      if (autoApproved) {
+        notifyAutoApprovedFieldWork({
+          employeeName: employee.name,
+          date: formData.date,
+          location: formData.location.trim(),
+        });
+      } else {
+        notifyNewFieldWorkRequest({
+          employeeName: employee.name,
+          date: formData.date,
+          location: formData.location.trim(),
+        });
+      }
+      setIsAutoApproved(autoApproved);
     });
   };
 
@@ -80,10 +91,12 @@ function FieldWorkRequestContent() {
             <CheckCircle className="w-10 h-10 text-white" strokeWidth={2.5} />
           </div>
           <h2 className="text-[28px] font-semibold text-[#1d1d1f] mb-2">
-            ส่งคำขอสำเร็จ
+            {isAutoApproved ? "อนุมัติอัตโนมัติ" : "ส่งคำขอสำเร็จ"}
           </h2>
           <p className="text-[17px] text-[#86868b]">
-            รอการอนุมัติจากหัวหน้างาน
+            {isAutoApproved
+              ? "คำขอของคุณได้รับการอนุมัติทันที"
+              : "รอการอนุมัติจากหัวหน้างาน"}
           </p>
         </div>
       </div>

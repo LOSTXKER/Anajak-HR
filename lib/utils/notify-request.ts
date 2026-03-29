@@ -69,3 +69,48 @@ export function notifyNewLateRequest(data: {
 }) {
   return sendRequestNotification({ type: "late_request", data });
 }
+
+// ─── Auto-approve approval notifications ─────────────────
+// When auto-approve is enabled, also send the *_approval notification
+// so the LINE channel shows the same approval message as manual approval.
+
+export function notifyAutoApprovedLeave(data: {
+  employeeName: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+}) {
+  return sendRequestNotification({ type: "leave_approval", data: { ...data, approved: true } });
+}
+
+export function notifyAutoApprovedWFH(data: {
+  employeeName: string;
+  date: string;
+}) {
+  return sendRequestNotification({ type: "wfh_approval", data: { ...data, approved: true } });
+}
+
+export function notifyAutoApprovedOT(data: {
+  employeeName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+}) {
+  return sendRequestNotification({ type: "ot_approval", data: { ...data, approved: true } });
+}
+
+export function notifyAutoApprovedFieldWork(data: {
+  employeeName: string;
+  date: string;
+  location: string;
+}) {
+  return sendRequestNotification({ type: "field_work_approval", data: { ...data, approved: true } });
+}
+
+export function notifyAutoApprovedLate(data: {
+  employeeName: string;
+  date: string;
+  lateMinutes: number;
+}) {
+  return sendRequestNotification({ type: "late_approval", data: { ...data, approved: true } });
+}

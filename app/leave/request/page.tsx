@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { checkAutoApprove, applyAutoApproveFields, AUTO_APPROVE_SETTINGS } from "@/lib/utils/auto-approve";
 import { useFormSubmit } from "@/lib/hooks/use-form-submit";
-import { notifyNewLeaveRequest } from "@/lib/utils/notify-request";
+import { notifyNewLeaveRequest, notifyAutoApprovedLeave } from "@/lib/utils/notify-request";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -175,12 +175,21 @@ function LeaveRequestContent() {
       const { error: insertError } = await supabase.from("leave_requests").insert(insertData);
       if (insertError) throw insertError;
 
-      notifyNewLeaveRequest({
-        employeeName: employee.name,
-        leaveType: formData.leaveType,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-      });
+      if (isAutoApprove) {
+        notifyAutoApprovedLeave({
+          employeeName: employee.name,
+          leaveType: formData.leaveType,
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+        });
+      } else {
+        notifyNewLeaveRequest({
+          employeeName: employee.name,
+          leaveType: formData.leaveType,
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+        });
+      }
 
       setIsAutoApproved(isAutoApprove);
     });

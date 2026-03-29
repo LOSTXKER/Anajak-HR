@@ -17,6 +17,7 @@ export interface Employee {
   branch_id: string | null;
   branch?: { name: string } | null;
   is_system_account?: boolean;
+  work_arrangement?: string | null;
   created_at?: string;
   deleted_at?: string | null;
   deleted_by?: string | null;
@@ -45,6 +46,7 @@ export interface EditFormData {
   phone: string;
   role: string;
   baseSalary: string;
+  workArrangement: string;
   annualQuota: number;
   sickQuota: number;
   personalQuota: number;

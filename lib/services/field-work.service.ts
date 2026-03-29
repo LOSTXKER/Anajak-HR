@@ -84,7 +84,7 @@ export async function checkExistingFieldWorkRequest(
  */
 export async function createFieldWorkRequest(
   data: CreateFieldWorkRequestData
-): Promise<Result<FieldWorkRequest>> {
+): Promise<Result<FieldWorkRequest & { isAutoApproved?: boolean }>> {
   try {
     const existingResult = await checkExistingFieldWorkRequest(data.employee_id, data.date);
     if (existingResult.success && existingResult.data) {
@@ -109,7 +109,7 @@ export async function createFieldWorkRequest(
       .single();
 
     if (error) throw error;
-    return success(result as FieldWorkRequest);
+    return success({ ...(result as FieldWorkRequest), isAutoApproved: isAutoApprove });
   } catch (err: any) {
     return resultError(err.message || "Failed to create field work request");
   }

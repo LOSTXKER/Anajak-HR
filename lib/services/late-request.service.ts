@@ -110,7 +110,7 @@ export async function getLateAttendances(
  */
 export async function createLateRequest(
   data: CreateLateRequestData
-): Promise<Result<LateRequest>> {
+): Promise<Result<LateRequest & { isAutoApproved?: boolean }>> {
   try {
     const isAutoApprove = await checkAutoApprove(AUTO_APPROVE_SETTINGS.LATE);
 
@@ -130,7 +130,7 @@ export async function createLateRequest(
       .single();
 
     if (error) throw error;
-    return success(result as LateRequest);
+    return success({ ...(result as LateRequest), isAutoApproved: isAutoApprove });
   } catch (err: any) {
     return resultError(err.message || "Failed to create late request");
   }
