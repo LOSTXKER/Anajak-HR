@@ -10,6 +10,7 @@ import { GradeBadge } from "@/components/kpi/GradeBadge";
 import { supabase } from "@/lib/supabase/client";
 import { ArrowLeft, History, TrendingUp } from "lucide-react";
 import type { KPIPeriod, KPIEvaluation, AutoMetrics } from "@/lib/services/kpi.service";
+import { useToast } from "@/components/ui/Toast";
 
 interface HistoryItem {
   period: KPIPeriod;
@@ -20,56 +21,65 @@ interface HistoryItem {
 function KPIHistoryContent() {
   const { employee } = useAuth();
   const router = useRouter();
+  const toast = useToast();
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (employee?.id) fetchHistory();
-  }, [employee?.id]);
+    if (!employee?.id) return;
+    let cancelled = false;
 
-  const fetchHistory = async () => {
-    try {
-      const { data: periods } = await supabase
-        .from("kpi_periods")
-        .select("*")
-        .eq("status", "closed")
-        .order("end_date", { ascending: false });
+    const fetchHistory = async () => {
+      setLoading(true);
+      try {
+        const { data: periods, error: periodsError } = await supabase
+          .from("kpi_periods")
+          .select("*")
+          .eq("status", "closed")
+          .order("end_date", { ascending: false });
 
-      if (!periods || periods.length === 0) {
-        setLoading(false);
-        return;
+        if (periodsError) throw periodsError;
+        if (!periods || periods.length === 0) {
+          if (!cancelled) setLoading(false);
+          return;
+        }
+
+        const periodIds = (periods as KPIPeriod[]).map((p) => p.id);
+
+        const [evalsRes, metricsRes] = await Promise.all([
+          supabase
+            .from("kpi_evaluations")
+            .select("*")
+            .eq("employee_id", employee.id)
+            .eq("evaluation_type", "supervisor")
+            .eq("status", "submitted")
+            .in("period_id", periodIds),
+          supabase
+            .from("kpi_auto_metrics")
+            .select("*")
+            .eq("employee_id", employee.id)
+            .in("period_id", periodIds),
+        ]);
+
+        if (cancelled) return;
+
+        const items: HistoryItem[] = (periods as KPIPeriod[]).map((period) => ({
+          period,
+          evaluation: ((evalsRes.data || []) as KPIEvaluation[]).find((e) => e.period_id === period.id) || null,
+          metrics: ((metricsRes.data || []) as AutoMetrics[]).find((m) => m.period_id === period.id) || null,
+        }));
+
+        setHistory(items);
+      } catch {
+        if (!cancelled) toast.error("เกิดข้อผิดพลาด", "ไม่สามารถโหลดประวัติ KPI ได้");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
+    };
 
-      const periodIds = periods.map((p: KPIPeriod) => p.id);
-
-      const [evalsRes, metricsRes] = await Promise.all([
-        supabase
-          .from("kpi_evaluations")
-          .select("*")
-          .eq("employee_id", employee!.id)
-          .eq("evaluation_type", "supervisor")
-          .eq("status", "submitted")
-          .in("period_id", periodIds),
-        supabase
-          .from("kpi_auto_metrics")
-          .select("*")
-          .eq("employee_id", employee!.id)
-          .in("period_id", periodIds),
-      ]);
-
-      const items: HistoryItem[] = (periods as KPIPeriod[]).map((period) => ({
-        period,
-        evaluation: ((evalsRes.data || []) as KPIEvaluation[]).find((e) => e.period_id === period.id) || null,
-        metrics: ((metricsRes.data || []) as AutoMetrics[]).find((m) => m.period_id === period.id) || null,
-      }));
-
-      setHistory(items);
-    } catch (error) {
-      console.error("Error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchHistory();
+    return () => { cancelled = true; };
+  }, [employee?.id, toast]);
 
   return (
     <div className="min-h-screen bg-[#f5f5f7] pb-24">

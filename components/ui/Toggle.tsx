@@ -1,11 +1,17 @@
 "use client";
 
+const ACTIVE_COLORS = {
+  blue: "bg-[#0071e3]",
+  green: "bg-[#34c759]",
+} as const;
+
 interface ToggleProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
   disabled?: boolean;
   label?: string;
   size?: "sm" | "md" | "lg";
+  color?: keyof typeof ACTIVE_COLORS;
 }
 
 export function Toggle({
@@ -14,6 +20,7 @@ export function Toggle({
   disabled = false,
   label,
   size = "md",
+  color = "blue",
 }: ToggleProps) {
   const sizes = {
     sm: { toggle: "w-9 h-5", dot: "w-4 h-4", translate: "translate-x-4" },
@@ -35,16 +42,8 @@ export function Toggle({
         relative inline-flex shrink-0 cursor-pointer items-center rounded-full
         transition-colors duration-200 ease-in-out
         focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:ring-offset-2
-        ${
-          disabled
-            ? "opacity-50 cursor-not-allowed"
-            : ""
-        }
-        ${
-          checked
-            ? "bg-[#0071e3]"
-            : "bg-[#d2d2d7]"
-        }
+        ${disabled ? "opacity-50 cursor-not-allowed" : ""}
+        ${checked ? ACTIVE_COLORS[color] : "bg-[#d2d2d7]"}
       `}
     >
       {label && <span className="sr-only">{label}</span>}
@@ -53,11 +52,7 @@ export function Toggle({
           ${s.dot}
           pointer-events-none inline-block rounded-full bg-white shadow-lg
           ring-0 transition duration-200 ease-in-out
-          ${
-            checked
-              ? s.translate
-              : "translate-x-0.5"
-          }
+          ${checked ? s.translate : "translate-x-0.5"}
         `}
       />
     </button>

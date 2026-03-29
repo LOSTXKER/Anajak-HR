@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SettingsLayout } from "@/components/admin/SettingsLayout";
@@ -163,18 +163,14 @@ function LineSettingsContent() {
   // Message Templates
   const [messages, setMessages] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await supabase.from("system_settings").select("*");
 
       if (data) {
         const map: Record<string, string> = {};
-        data.forEach((item: any) => {
+        data.forEach((item: { setting_key: string; setting_value: string }) => {
           map[item.setting_key] = item.setting_value;
         });
 
@@ -186,19 +182,22 @@ function LineSettingsContent() {
 
         setSendPhotos(map.enable_line_photo_notifications !== "false");
 
-        // Load message templates
         const msgs: Record<string, string> = {};
         MESSAGE_TEMPLATES.forEach((template) => {
           msgs[template.key] = map[template.key] || template.defaultValue;
         });
         setMessages(msgs);
       }
-    } catch (error) {
+    } catch {
       toast.error("เกิดข้อผิดพลาด", "ไม่สามารถโหลดการตั้งค่าได้");
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
 
   const handleSaveAPI = async () => {
     setSaving(true);

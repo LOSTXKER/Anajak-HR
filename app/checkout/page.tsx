@@ -1,126 +1,66 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
-import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { uploadAttendancePhoto } from "@/lib/utils/upload-photo";
 import { formatDistance } from "@/lib/utils/geo";
-import { useCamera } from "@/lib/hooks/use-camera";
-import { useLocation, BranchInfo } from "@/lib/hooks/use-location";
+import { useAttendanceFlow } from "@/lib/hooks/use-attendance-flow";
 import { TIME_CONSTANTS, UI_DELAYS } from "@/lib/constants";
 import {
-  Camera, MapPin, ArrowLeft, CheckCircle, AlertCircle,
-  Clock, Navigation, RotateCcw,
+  Camera, ArrowLeft, CheckCircle, AlertCircle, Clock,
 } from "lucide-react";
 import { format } from "date-fns";
-import { getTodayTH } from "@/lib/utils/date";
+import { getTodayTH, getNowTH } from "@/lib/utils/date";
+import { checkOut } from "@/lib/services/attendance.service";
 import { processCheckoutGamification } from "@/lib/services/gamification.service";
 import { authFetch } from "@/lib/utils/auth-fetch";
+import type { Database } from "@/types/database";
+import {
+  GPSStatus, RadiusStatus, WFHBadge, CameraStatus, ErrorBanner,
+} from "@/components/attendance/StatusPanel";
 
 function CheckoutContent() {
-  const { employee } = useAuth();
-  const router = useRouter();
+  const flow = useAttendanceFlow();
+  const {
+    employee, router, camera, location, gpsLoading, getLocation,
+    radiusCheck, loading, setLoading, error, setError, success, setSuccess,
+    currentTime, branch, hasFieldWork, isWFH, isPermanentWFH,
+    initCameraAndLocation, fetchCommonData,
+  } = flow;
 
-  const { stream, photo, cameraError, startCamera, stopCamera, capturePhoto, clearPhoto, videoRef } = useCamera();
-  const { location, gpsLoading, locationError, radiusCheck, getLocation, checkRadius } = useLocation();
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [todayLog, setTodayLog] = useState<any>(null);
+  const [todayLog, setTodayLog] = useState<Database["public"]["Tables"]["attendance_logs"]["Row"] | null>(null);
   const [todayLogLoading, setTodayLogLoading] = useState(true);
-
-  const [branch, setBranch] = useState<BranchInfo | null>(null);
   const [allowedTime, setAllowedTime] = useState({ checkoutStart: "15:00", checkoutEnd: "22:00" });
-  const [hasFieldWork, setHasFieldWork] = useState(false);
-  const [hasWFH, setHasWFH] = useState(false);
   const [allowRemoteCheckout, setAllowRemoteCheckout] = useState(false);
-
-  const isPermanentWFH = employee?.work_arrangement === "wfh";
-  const isWFH = hasWFH || isPermanentWFH;
   const [workEndTime, setWorkEndTime] = useState("18:00");
 
-  // Redirect admin accounts to admin panel
   useEffect(() => {
-    if (employee?.role === "admin") {
-      router.replace("/admin");
-    }
-  }, [employee, router]);
-
-  // Clock ticker
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), TIME_CONSTANTS.CLOCK_INTERVAL);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Initialise camera, GPS, today's log and branch data
-  useEffect(() => {
-    startCamera();
-    getLocation();
+    const cleanup = initCameraAndLocation();
     checkTodayLog();
-    fetchBranch();
-    return () => stopCamera();
+    fetchCheckoutData();
+    return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employee]);
 
-  // Run radius check whenever location or branch changes
-  useEffect(() => {
-    if (location && branch) {
-      checkRadius(location, branch);
-    }
-  }, [location, branch, checkRadius]);
-
-  // Propagate camera errors into the shared error state
-  useEffect(() => {
-    if (cameraError) setError(cameraError);
-  }, [cameraError]);
-
-  // Propagate GPS errors into the shared error state
-  useEffect(() => {
-    if (locationError) setError(locationError);
-  }, [locationError]);
-
-  const fetchBranch = async () => {
+  const fetchCheckoutData = async () => {
     if (!employee?.branch_id) return;
-    const today = getTodayTH();
 
-    const [branchRes, settingsRes, fieldWorkRes, wfhRes] = await Promise.all([
-      supabase
-        .from("branches")
-        .select("id, name, gps_lat, gps_lng, radius_meters")
-        .eq("id", employee.branch_id)
-        .maybeSingle(),
-      supabase
-        .from("system_settings")
-        .select("setting_key, setting_value")
-        .in("setting_key", ["checkout_time_start", "checkout_time_end", "allow_remote_checkout_after_hours", "work_end_time"]),
-      supabase
-        .from("field_work_requests")
-        .select("id")
-        .eq("employee_id", employee.id)
-        .eq("date", today)
-        .eq("status", "approved")
-        .maybeSingle(),
-      supabase
-        .from("wfh_requests")
-        .select("id")
-        .eq("employee_id", employee.id)
-        .eq("date", today)
-        .eq("status", "approved")
-        .maybeSingle(),
-    ]);
+    await fetchCommonData(employee.branch_id, employee.id);
 
-    if (branchRes.data) setBranch(branchRes.data);
+    const { data: settingsData } = await supabase
+      .from("system_settings")
+      .select("setting_key, setting_value")
+      .in("setting_key", ["checkout_time_start", "checkout_time_end", "allow_remote_checkout_after_hours", "work_end_time"]);
 
-    if (settingsRes.data) {
+    if (settingsData) {
       const settings: Record<string, string> = {};
-      settingsRes.data.forEach((s: any) => { settings[s.setting_key] = s.setting_value; });
+      settingsData.forEach((s: { setting_key: string; setting_value: string }) => {
+        settings[s.setting_key] = s.setting_value;
+      });
       setAllowedTime({
         checkoutStart: settings.checkout_time_start || "15:00",
         checkoutEnd: settings.checkout_time_end || "22:00",
@@ -128,9 +68,6 @@ function CheckoutContent() {
       setAllowRemoteCheckout(settings.allow_remote_checkout_after_hours === "true");
       setWorkEndTime(settings.work_end_time || "18:00");
     }
-
-    if (fieldWorkRes.data) setHasFieldWork(true);
-    if (wfhRes.data) setHasWFH(true);
   };
 
   const checkTodayLog = async () => {
@@ -148,8 +85,7 @@ function CheckoutContent() {
   };
 
   const isAfterWorkEnd = (): boolean => {
-    const now = new Date();
-    const bangkokNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Bangkok" }));
+    const bangkokNow = getNowTH();
     const [endHour, endMinute] = workEndTime.split(":").map(Number);
     const nowMinutes = bangkokNow.getHours() * 60 + bangkokNow.getMinutes();
     return nowMinutes >= endHour * 60 + endMinute;
@@ -158,7 +94,7 @@ function CheckoutContent() {
   const hasRemoteCheckoutBypass = allowRemoteCheckout && isAfterWorkEnd();
 
   const handleCheckout = async () => {
-    if (!photo || !location || !employee || !todayLog) return;
+    if (!camera.photo || !location || !employee || !todayLog) return;
 
     if (!hasFieldWork && !isWFH && !hasRemoteCheckoutBypass && radiusCheck && !radiusCheck.inRadius) {
       setError(`คุณอยู่นอกรัศมีที่อนุญาต (ห่าง ${formatDistance(radiusCheck.distance)} จากสาขา ${branch?.name || "สาขา"})`);
@@ -174,9 +110,7 @@ function CheckoutContent() {
         return;
       }
 
-      // Validate allowed time window (Bangkok timezone)
-      const now = new Date();
-      const bangkokNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Bangkok" }));
+      const bangkokNow = getNowTH();
       const currentTimeInMinutes = bangkokNow.getHours() * 60 + bangkokNow.getMinutes();
       const [startHour, startMinute] = allowedTime.checkoutStart.split(":").map(Number);
       const [endHour, endMinute] = allowedTime.checkoutEnd.split(":").map(Number);
@@ -193,36 +127,28 @@ function CheckoutContent() {
         return;
       }
 
-      const photoUrl = await uploadAttendancePhoto(photo, employee.id, "checkout");
+      const photoUrl = await uploadAttendancePhoto(camera.photo, employee.id, "checkout");
       if (!photoUrl) {
         setError("ไม่สามารถอัปโหลดรูปภาพได้");
         return;
       }
 
-      const clockIn = new Date(todayLog.clock_in_time);
-      const totalHours = (now.getTime() - clockIn.getTime()) / TIME_CONSTANTS.MS_PER_HOUR;
+      const result = await checkOut(employee.id, location, photoUrl);
 
-      const { data: updateData, error: updateError } = await supabase
-        .from("attendance_logs")
-        .update({
-          clock_out_time: now.toISOString(),
-          clock_out_gps_lat: location.lat,
-          clock_out_gps_lng: location.lng,
-          clock_out_photo_url: photoUrl,
-          total_hours: totalHours,
-        })
-        .eq("id", todayLog.id)
-        .is("clock_out_time", null)
-        .select("id");
-
-      if (updateError) throw updateError;
-
-      if (!updateData || updateData.length === 0) {
-        setError("คุณได้เช็คเอาท์ไปแล้ว กรุณารีเฟรชหน้า");
+      if (!result.success) {
+        const errMsg = result.error;
+        if (errMsg?.includes("already") || errMsg?.includes("no check-in")) {
+          setError("คุณได้เช็คเอาท์ไปแล้ว กรุณารีเฟรชหน้า");
+        } else {
+          setError(errMsg || "เกิดข้อผิดพลาด");
+        }
         return;
       }
 
-      // Early checkout: record anomaly and notify admin
+      const now = new Date();
+      const clockIn = new Date(todayLog.clock_in_time!);
+      const totalHours = (now.getTime() - clockIn.getTime()) / TIME_CONSTANTS.MS_PER_HOUR;
+
       if (isEarlyCheckout) {
         await supabase.from("attendance_anomalies").insert({
           attendance_id: todayLog.id,
@@ -233,50 +159,40 @@ function CheckoutContent() {
           status: "pending",
         });
 
-        try {
-          authFetch("/api/notifications", {
-            method: "POST",
-            body: JSON.stringify({
-              type: "early_checkout",
-              data: {
-                employeeName: employee.name,
-                time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false }),
-                totalHours,
-                expectedTime: allowedTime.checkoutStart,
-                location: branch?.name || "สำนักงาน",
-              },
-            }),
-          }).catch((err) => console.error("Failed to send early checkout notification:", err));
-        } catch (notifyError) {
-          console.error("Early checkout notification error:", notifyError);
-        }
-      }
-
-      // Regular checkout notification (fire-and-forget)
-      try {
-        authFetch("/api/checkout-notification", {
+        authFetch("/api/notifications", {
           method: "POST",
           body: JSON.stringify({
-            employeeName: employee.name,
-            time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false }),
-            totalHours,
-            location: branch?.name || "สำนักงาน",
-            photoUrl,
+            type: "early_checkout",
+            data: {
+              employeeName: employee.name,
+              time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false }),
+              totalHours,
+              expectedTime: allowedTime.checkoutStart,
+              location: branch?.name || "สำนักงาน",
+            },
           }),
-        }).catch((err) => console.error("Failed to send check-out notification:", err));
-      } catch (notifyError) {
-        console.error("Notification error:", notifyError);
+        }).catch((err) => console.error("Failed to send early checkout notification:", err));
       }
 
-      // Gamification (fire-and-forget)
+      authFetch("/api/checkout-notification", {
+        method: "POST",
+        body: JSON.stringify({
+          employeeName: employee.name,
+          time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false }),
+          totalHours,
+          location: branch?.name || "สำนักงาน",
+          photoUrl,
+        }),
+      }).catch((err) => console.error("Failed to send check-out notification:", err));
+
       processCheckoutGamification(employee.id, todayLog.id)
         .catch((err) => console.error("Gamification error:", err));
 
       setSuccess(true);
-      stopCamera();
+      camera.stopCamera();
       setTimeout(() => router.push("/"), UI_DELAYS.SUCCESS_REDIRECT);
-    } catch (err: any) {
-      setError(err.message || "เกิดข้อผิดพลาด");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
     } finally {
       setLoading(false);
     }
@@ -376,7 +292,7 @@ function CheckoutContent() {
             <div>
               <p className="text-[13px] text-[#86868b]">เช็กอินเมื่อ</p>
               <p className="text-[17px] font-medium text-[#1d1d1f]">
-                {new Date(todayLog.clock_in_time).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false })} น.
+                {new Date(todayLog.clock_in_time!).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false })} น.
               </p>
             </div>
           </div>
@@ -385,32 +301,18 @@ function CheckoutContent() {
         {/* Camera */}
         <Card elevated className="overflow-hidden mb-6">
           <div className="aspect-[4/3] bg-black relative">
-            {photo ? (
-              <img src={photo} alt="Captured" className="w-full h-full object-cover" />
+            {camera.photo ? (
+              <img src={camera.photo} alt="Captured" className="w-full h-full object-cover" />
             ) : (
-              <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+              <video ref={camera.videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
             )}
           </div>
         </Card>
 
         {/* Status items */}
         <div className="space-y-3 mb-6">
-          {/* WFH badge */}
-          {isWFH && (
-            <div className="flex items-center gap-3 p-4 bg-[#0071e3]/10 rounded-xl border border-[#0071e3]/30">
-              <div className="w-10 h-10 rounded-full bg-[#0071e3]/20 flex items-center justify-center">
-                <span className="text-[18px]">🏠</span>
-              </div>
-              <div>
-                <p className="text-[15px] font-medium text-[#0071e3]">
-                  {isPermanentWFH ? "WFH ถาวร" : "ทำงานจากบ้าน (WFH)"}
-                </p>
-                <p className="text-[13px] text-[#86868b]">ไม่ต้องอยู่ในรัศมีสาขา</p>
-              </div>
-            </div>
-          )}
+          {isWFH && <WFHBadge isPermanent={isPermanentWFH} />}
 
-          {/* Remote checkout badge */}
           {hasRemoteCheckoutBypass && !isWFH && !hasFieldWork && (
             <div className="flex items-center gap-3 p-4 bg-[#ff9500]/10 rounded-xl border border-[#ff9500]/30">
               <div className="w-10 h-10 rounded-full bg-[#ff9500]/20 flex items-center justify-center">
@@ -423,73 +325,18 @@ function CheckoutContent() {
             </div>
           )}
 
-          {/* GPS */}
-          <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-[#e8e8ed]">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${location ? "bg-[#34c759]/10" : "bg-[#ff9500]/10"}`}>
-                {gpsLoading ? (
-                  <div className="w-5 h-5 border-2 border-[#ff9500] border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <MapPin className={`w-5 h-5 ${location ? "text-[#34c759]" : "text-[#ff9500]"}`} />
-                )}
-              </div>
-              <div>
-                <p className="text-[15px] font-medium text-[#1d1d1f]">
-                  {location ? "พบตำแหน่ง GPS" : gpsLoading ? "กำลังหาตำแหน่ง..." : "ไม่พบตำแหน่ง"}
-                </p>
-                {location && (
-                  <p className="text-[13px] text-[#86868b]">
-                    {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
-                  </p>
-                )}
-              </div>
-            </div>
-            {!location && !gpsLoading ? (
-              <button
-                onClick={getLocation}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[#0071e3] bg-[#0071e3]/10 rounded-lg hover:bg-[#0071e3]/15 transition-colors"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                ลองใหม่
-              </button>
-            ) : (
-              <div className={`w-3 h-3 rounded-full ${location ? "bg-[#34c759]" : "bg-[#ff9500] animate-pulse"}`} />
-            )}
-          </div>
-
-          {/* Radius check */}
+          <GPSStatus location={location} gpsLoading={gpsLoading} onRetry={getLocation} />
           {branch && radiusCheck && (
-            <div className={`flex items-center justify-between p-4 rounded-xl border ${radiusCheck.inRadius ? "bg-[#34c759]/10 border-[#34c759]/30" : "bg-[#ff9500]/10 border-[#ff9500]/30"}`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${radiusCheck.inRadius ? "bg-[#34c759]/20" : "bg-[#ff9500]/20"}`}>
-                  <Navigation className={`w-5 h-5 ${radiusCheck.inRadius ? "text-[#34c759]" : "text-[#ff9500]"}`} />
-                </div>
-                <div>
-                  <p className={`text-[15px] font-medium ${radiusCheck.inRadius ? "text-[#34c759]" : "text-[#ff9500]"}`}>
-                    {radiusCheck.inRadius ? "อยู่ในรัศมีสาขา ✓" : "อยู่นอกรัศมีสาขา"}
-                  </p>
-                  <p className="text-[13px] text-[#86868b] flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5" />
-                    {branch.name} • ห่าง {formatDistance(radiusCheck.distance)}
-                  </p>
-                </div>
-              </div>
-            </div>
+            <RadiusStatus branch={branch} radiusCheck={radiusCheck} variant="checkout" />
           )}
         </div>
 
-        {/* Error */}
-        {error && (
-          <div className="flex items-center gap-3 p-4 bg-[#ff3b30]/10 rounded-xl mb-6">
-            <AlertCircle className="w-5 h-5 text-[#ff3b30]" />
-            <span className="text-[15px] text-[#ff3b30]">{error}</span>
-          </div>
-        )}
+        <ErrorBanner message={error} />
 
         {/* Actions */}
         <div className="space-y-3">
-          {!photo ? (
-            <Button fullWidth variant="danger" onClick={capturePhoto} disabled={!stream} size="lg">
+          {!camera.photo ? (
+            <Button fullWidth variant="danger" onClick={camera.capturePhoto} disabled={!camera.stream} size="lg">
               <Camera className="w-5 h-5" />
               ถ่ายรูป
             </Button>
@@ -506,7 +353,7 @@ function CheckoutContent() {
                 <CheckCircle className="w-5 h-5" />
                 ยืนยันเช็กเอาท์
               </Button>
-              <Button fullWidth variant="secondary" onClick={clearPhoto} size="lg">
+              <Button fullWidth variant="secondary" onClick={camera.clearPhoto} size="lg">
                 ถ่ายใหม่
               </Button>
             </>

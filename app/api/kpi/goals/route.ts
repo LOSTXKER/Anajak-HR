@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { withAuth } from "@/lib/auth/api-middleware";
 import { getEmployeeGoals, createGoal, getPendingGoals } from "@/lib/services/kpi.service";
+import { isManagerRole } from "@/lib/constants/roles";
 
 export const GET = withAuth(async (request: NextRequest, auth) => {
   try {
@@ -8,7 +9,7 @@ export const GET = withAuth(async (request: NextRequest, auth) => {
     const employeeId = request.nextUrl.searchParams.get("employee_id") || auth.user.id;
     const pending = request.nextUrl.searchParams.get("pending") === "true";
 
-    if (pending && ["admin", "supervisor"].includes(auth.employee.role || "")) {
+    if (pending && isManagerRole(auth.employee.role)) {
       const goals = await getPendingGoals(periodId || undefined);
       return Response.json({ data: goals });
     }
@@ -17,7 +18,7 @@ export const GET = withAuth(async (request: NextRequest, auth) => {
       return Response.json({ error: "กรุณาระบุ period_id" }, { status: 400 });
     }
 
-    if (employeeId !== auth.user.id && !["admin", "supervisor"].includes(auth.employee.role || "")) {
+    if (employeeId !== auth.user.id && !isManagerRole(auth.employee.role)) {
       return Response.json({ error: "ไม่มีสิทธิ์ดูเป้าหมายของผู้อื่น" }, { status: 403 });
     }
 

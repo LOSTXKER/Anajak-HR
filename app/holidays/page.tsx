@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -18,11 +18,7 @@ function HolidaysContent() {
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  useEffect(() => {
-    fetchHolidays();
-  }, [selectedYear]);
-
-  const fetchHolidays = async () => {
+  const fetchHolidays = useCallback(async () => {
     setLoading(true);
     const yearStart = format(startOfYear(new Date(selectedYear, 0, 1)), "yyyy-MM-dd");
     const yearEnd = format(endOfYear(new Date(selectedYear, 0, 1)), "yyyy-MM-dd");
@@ -38,7 +34,11 @@ function HolidaysContent() {
       setHolidays(data);
     }
     setLoading(false);
-  };
+  }, [selectedYear]);
+
+  useEffect(() => {
+    fetchHolidays();
+  }, [fetchHolidays]);
 
   // Group consecutive holidays, then split by month
   const holidayGroups = groupHolidays(holidays);

@@ -1,15 +1,8 @@
 import { NextRequest } from "next/server";
-import { requireAdmin, handleAuthError } from "@/lib/auth/api-middleware";
+import { withAdmin } from "@/lib/auth/api-middleware";
 import { approveGoal, rejectGoal } from "@/lib/services/kpi.service";
 
-export async function PUT(request: NextRequest) {
-  let auth;
-  try {
-    auth = await requireAdmin(request);
-  } catch (error) {
-    return handleAuthError(error);
-  }
-
+export const PUT = withAdmin(async (request: NextRequest, auth) => {
   const segments = request.nextUrl.pathname.split("/");
   const goalId = segments[segments.length - 2];
 
@@ -32,4 +25,4 @@ export async function PUT(request: NextRequest) {
     console.error("Error approving/rejecting goal:", error);
     return Response.json({ error: "ไม่สามารถดำเนินการได้" }, { status: 500 });
   }
-}
+});

@@ -1,81 +1,58 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SettingsLayout } from "@/components/admin/SettingsLayout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
-import { Calendar, Save, Info, ArrowRight, ArrowLeft, Users } from "lucide-react";
+import { useSystemSettings } from "@/lib/hooks/use-system-settings";
+import { Calendar, Save, Info, ArrowRight, Users } from "lucide-react";
 import Link from "next/link";
+
+const LEAVE_QUOTA_KEYS = [
+  "default_annual_leave",
+  "default_sick_leave",
+  "default_personal_leave",
+];
+
+interface LeaveQuotaSettings {
+  defaultAnnual: number;
+  defaultSick: number;
+  defaultPersonal: number;
+}
+
+const DEFAULTS: LeaveQuotaSettings = {
+  defaultAnnual: 10,
+  defaultSick: 30,
+  defaultPersonal: 3,
+};
 
 function LeaveQuotaSettingsContent() {
   const toast = useToast();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [settings, setSettings] = useState({
-    defaultAnnual: 10,
-    defaultSick: 30,
-    defaultPersonal: 3,
-  });
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
-    setLoading(true);
-    try {
-      const { data } = await supabase
-        .from("system_settings")
-        .select("*")
-        .in("setting_key", ["default_annual_leave", "default_sick_leave", "default_personal_leave"]);
-
-      if (data) {
-        const settingsMap: any = {};
-        data.forEach((item: any) => {
-          settingsMap[item.setting_key] = item.setting_value;
-        });
-
-        setSettings({
-          defaultAnnual: parseInt(settingsMap.default_annual_leave) || 10,
-          defaultSick: parseInt(settingsMap.default_sick_leave) || 30,
-          defaultPersonal: parseInt(settingsMap.default_personal_leave) || 3,
-        });
-      }
-    } catch (error: any) {
-      toast.error("เกิดข้อผิดพลาด", error?.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { settings, setSettings, loading, saving, save, reload } =
+    useSystemSettings<LeaveQuotaSettings>({
+      keys: LEAVE_QUOTA_KEYS,
+      defaults: DEFAULTS,
+      deserialize: (raw) => ({
+        defaultAnnual: parseInt(raw.default_annual_leave) || DEFAULTS.defaultAnnual,
+        defaultSick: parseInt(raw.default_sick_leave) || DEFAULTS.defaultSick,
+        defaultPersonal: parseInt(raw.default_personal_leave) || DEFAULTS.defaultPersonal,
+      }),
+      serialize: (s) => ({
+        default_annual_leave: s.defaultAnnual.toString(),
+        default_sick_leave: s.defaultSick.toString(),
+        default_personal_leave: s.defaultPersonal.toString(),
+      }),
+    });
 
   const handleSave = async () => {
-    setSaving(true);
-    try {
-      const updates = [
-        { key: "default_annual_leave", value: settings.defaultAnnual.toString() },
-        { key: "default_sick_leave", value: settings.defaultSick.toString() },
-        { key: "default_personal_leave", value: settings.defaultPersonal.toString() },
-      ];
-
-      for (const update of updates) {
-        const { error } = await supabase
-          .from("system_settings")
-          .upsert(
-            { setting_key: update.key, setting_value: update.value },
-            { onConflict: "setting_key" }
-          );
-        if (error) throw error;
-      }
-
+    const ok = await save();
+    if (ok) {
       toast.success("บันทึกสำเร็จ", "อัพเดทค่าเริ่มต้นโควต้าวันลาเรียบร้อย");
-    } catch (error: any) {
-      toast.error("เกิดข้อผิดพลาด", error?.message);
-    } finally {
-      setSaving(false);
+    } else {
+      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถบันทึกการตั้งค่าได้");
     }
   };
 
@@ -114,7 +91,6 @@ function LeaveQuotaSettingsContent() {
       </Card>
 
       <div className="max-w-2xl">
-        {/* Default Quota Settings */}
         <Card elevated>
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 bg-[#0071e3]/10 rounded-xl flex items-center justify-center">
@@ -127,86 +103,44 @@ function LeaveQuotaSettingsContent() {
           </div>
 
           <div className="space-y-5">
-            {/* Annual Leave */}
-            <div>
-              <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                วันลาพักร้อนต่อปี
-              </label>
-              <div className="flex items-center gap-3">
-                <Input
-                  type="number"
-                  min="0"
-                  max="365"
-                  value={settings.defaultAnnual}
-                  onChange={(e) => setSettings({ ...settings, defaultAnnual: parseInt(e.target.value) || 0 })}
-                  className="flex-1"
-                />
-                <div className="px-4 py-3 bg-[#34c759]/10 rounded-xl min-w-[80px] text-center">
-                  <p className="text-2xl font-bold text-[#34c759]">{settings.defaultAnnual}</p>
-                  <p className="text-xs text-[#86868b]">วัน</p>
+            {[
+              { label: "วันลาพักร้อนต่อปี", key: "defaultAnnual" as const, color: "#34c759", hint: "โดยทั่วไปมักกำหนดไว้ที่ 6-10 วันต่อปี" },
+              { label: "วันลาป่วยต่อปี", key: "defaultSick" as const, color: "#ff3b30", hint: "โดยทั่วไปมักกำหนดไว้ที่ 30 วันต่อปี" },
+              { label: "วันลากิจส่วนตัวต่อปี", key: "defaultPersonal" as const, color: "#ff9500", hint: "โดยทั่วไปมักกำหนดไว้ที่ 3 วันต่อปี" },
+            ].map(({ label, key, color, hint }) => (
+              <div key={key}>
+                <label className="block text-sm font-medium text-[#1d1d1f] mb-2">{label}</label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="365"
+                    value={settings[key]}
+                    onChange={(e) =>
+                      setSettings((prev) => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))
+                    }
+                    className="flex-1"
+                  />
+                  <div className="px-4 py-3 rounded-xl min-w-[80px] text-center" style={{ backgroundColor: `${color}1a` }}>
+                    <p className="text-2xl font-bold" style={{ color }}>{settings[key]}</p>
+                    <p className="text-xs text-[#86868b]">วัน</p>
+                  </div>
                 </div>
+                <p className="text-xs text-[#86868b] mt-2 flex items-center gap-1">
+                  <Info className="w-3.5 h-3.5" />
+                  {hint}
+                </p>
               </div>
-              <p className="text-xs text-[#86868b] mt-2 flex items-center gap-1">
-                <Info className="w-3.5 h-3.5" />
-                โดยทั่วไปมักกำหนดไว้ที่ 6-10 วันต่อปี
-              </p>
-            </div>
-
-            {/* Sick Leave */}
-            <div>
-              <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                วันลาป่วยต่อปี
-              </label>
-              <div className="flex items-center gap-3">
-                <Input
-                  type="number"
-                  min="0"
-                  max="365"
-                  value={settings.defaultSick}
-                  onChange={(e) => setSettings({ ...settings, defaultSick: parseInt(e.target.value) || 0 })}
-                  className="flex-1"
-                />
-                <div className="px-4 py-3 bg-[#ff3b30]/10 rounded-xl min-w-[80px] text-center">
-                  <p className="text-2xl font-bold text-[#ff3b30]">{settings.defaultSick}</p>
-                  <p className="text-xs text-[#86868b]">วัน</p>
-                </div>
-              </div>
-              <p className="text-xs text-[#86868b] mt-2 flex items-center gap-1">
-                <Info className="w-3.5 h-3.5" />
-                โดยทั่วไปมักกำหนดไว้ที่ 30 วันต่อปี
-              </p>
-            </div>
-
-            {/* Personal Leave */}
-            <div>
-              <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
-                วันลากิจส่วนตัวต่อปี
-              </label>
-              <div className="flex items-center gap-3">
-                <Input
-                  type="number"
-                  min="0"
-                  max="365"
-                  value={settings.defaultPersonal}
-                  onChange={(e) => setSettings({ ...settings, defaultPersonal: parseInt(e.target.value) || 0 })}
-                  className="flex-1"
-                />
-                <div className="px-4 py-3 bg-[#ff9500]/10 rounded-xl min-w-[80px] text-center">
-                  <p className="text-2xl font-bold text-[#ff9500]">{settings.defaultPersonal}</p>
-                  <p className="text-xs text-[#86868b]">วัน</p>
-                </div>
-              </div>
-              <p className="text-xs text-[#86868b] mt-2 flex items-center gap-1">
-                <Info className="w-3.5 h-3.5" />
-                โดยทั่วไปมักกำหนดไว้ที่ 3 วันต่อปี
-              </p>
-            </div>
+            ))}
           </div>
 
-          <div className="mt-6 pt-6 border-t border-[#e8e8ed]">
-            <Button 
-              onClick={handleSave} 
-              size="lg" 
+          <div className="mt-6 pt-6 border-t border-[#e8e8ed] flex gap-3">
+            <Button variant="text" onClick={reload} disabled={saving}>
+              รีเซ็ต
+            </Button>
+            <Button
+              onClick={handleSave}
+              size="lg"
               loading={saving}
               fullWidth
               icon={!saving ? <Save className="w-5 h-5" /> : undefined}

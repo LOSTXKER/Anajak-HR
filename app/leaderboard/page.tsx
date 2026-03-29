@@ -27,6 +27,7 @@ import {
   Target,
   Award,
 } from "lucide-react";
+import { useToast } from "@/components/ui/Toast";
 
 // ─── Rank Visual Config ───────────────────────────────────────────────────────
 
@@ -224,6 +225,7 @@ interface PlayerProfile {
 
 function LeaderboardContent() {
   const { employee } = useAuth();
+  const toast = useToast();
 
   const [period, setPeriod] = useState<"quarterly" | "alltime">("quarterly");
   const [branchId, setBranchId] = useState<string | undefined>(undefined);
@@ -266,11 +268,12 @@ function LeaderboardContent() {
         });
       } catch (err) {
         console.error("Error fetching player profile:", err);
+        toast.error("โหลดข้อมูลล้มเหลว", "ไม่สามารถดึงข้อมูลผู้เล่นได้");
       } finally {
         setPlayerLoading(false);
       }
     },
-    [employee?.id]
+    [employee?.id, toast]
   );
 
   const top3 = leaderboard.slice(0, 3);

@@ -72,6 +72,7 @@ export function GamificationTab({ employeeId }: GamificationTabProps) {
   const [badges, setBadges] = useState<BadgeWithProgress[]>([]);
   const [transactions, setTransactions] = useState<PointTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -93,6 +94,7 @@ export function GamificationTab({ employeeId }: GamificationTabProps) {
         setTransactions((txnResult.data as PointTransaction[]) || []);
       } catch (err) {
         console.error("Error loading gamification data:", err);
+        setLoadError("ไม่สามารถโหลดข้อมูล Gamification ได้");
       } finally {
         setLoading(false);
       }
@@ -105,6 +107,15 @@ export function GamificationTab({ employeeId }: GamificationTabProps) {
     return (
       <div className="flex justify-center py-16">
         <div className="w-8 h-8 border-3 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center py-16 gap-2 text-[#ff3b30]">
+        <AlertCircle className="w-8 h-8" />
+        <p className="text-[14px]">{loadError}</p>
       </div>
     );
   }

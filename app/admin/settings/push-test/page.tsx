@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -32,40 +32,33 @@ function PushTestContent() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch employees
-      const { data: empData } = await supabase
-        .from("employees")
-        .select("id, name, email")
-        .is("deleted_at", null)
-        .eq("role", "staff")
-        .order("name");
+      const [empRes, subRes] = await Promise.all([
+        supabase
+          .from("employees")
+          .select("id, name, email")
+          .is("deleted_at", null)
+          .eq("role", "staff")
+          .order("name"),
+        supabase
+          .from("push_subscriptions")
+          .select("employee_id, created_at"),
+      ]);
 
-      if (empData) {
-        setEmployees(empData);
-      }
-
-      // Fetch push subscriptions
-      const { data: subData } = await supabase
-        .from("push_subscriptions")
-        .select("employee_id, created_at");
-
-      if (subData) {
-        setSubscriptions(subData);
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
+      if (empRes.data) setEmployees(empRes.data);
+      if (subRes.data) setSubscriptions(subRes.data);
+    } catch {
       toast.error("เกิดข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลได้");
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleSendTest = async () => {
     if (!selectedEmployee) {

@@ -11,16 +11,20 @@ export * from "./result";
 // DATABASE ENTITIES
 // =============================================
 
+export type EmployeeRole = "staff" | "supervisor" | "admin";
+
 export interface Employee {
     id: string;
     name: string;
     email: string;
-    role: "admin" | "employee";
+    role: EmployeeRole;
     branch_id: string | null;
     base_salary: number;
     commission: number;
     is_system_account?: boolean;
     phone?: string;
+    work_arrangement?: "onsite" | "wfh" | "hybrid" | null;
+    account_status?: string;
     created_at?: string;
     updated_at?: string;
 }
@@ -67,7 +71,7 @@ export interface OTRequest {
     actual_start_time?: string | null;
     actual_end_time?: string | null;
     actual_ot_hours?: number | null;
-    ot_type?: "workday" | "weekend" | "holiday";
+    ot_type?: "normal" | "holiday" | "pre_shift";
     ot_rate?: number | null;
     ot_amount?: number | null;
     approved_by?: string | null;

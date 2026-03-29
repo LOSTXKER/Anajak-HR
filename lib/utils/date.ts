@@ -10,7 +10,7 @@
 
 import { format } from "date-fns";
 
-const TH_TIMEZONE = "Asia/Bangkok";
+export const TH_TIMEZONE = "Asia/Bangkok";
 
 /**
  * Parse a date string as local timezone
@@ -70,6 +70,23 @@ export function getTodayTH(): string {
 export function getNowTH(): Date {
   const str = new Date().toLocaleString("en-US", { timeZone: TH_TIMEZONE });
   return new Date(str);
+}
+
+/**
+ * Convert any timestamp to a Date object in Thailand timezone.
+ * Useful for formatting clock-in/clock-out times in Thai local time.
+ */
+export function toThaiDate(timestamp: string | Date): Date {
+  const d = typeof timestamp === "string" ? new Date(timestamp) : timestamp;
+  return new Date(d.toLocaleString("en-US", { timeZone: TH_TIMEZONE }));
+}
+
+/**
+ * Get minutes of day (0-1439) for a timestamp in Thailand timezone.
+ */
+export function getThaiMinutesOfDay(timestamp: string | Date): number {
+  const d = toThaiDate(timestamp);
+  return d.getHours() * 60 + d.getMinutes();
 }
 
 /**

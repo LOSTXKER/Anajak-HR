@@ -61,7 +61,7 @@ interface UseRequestsReturn {
   handleReject: (request: RequestItem, adminId: string, reason?: string) => Promise<boolean>;
   handleCancel: (request: RequestItem, adminId: string, cancelReason: string) => Promise<{ success: boolean; error?: string }>;
   handleCreateRequest: (type: RequestType, formData: CreateFormData, adminId: string) => Promise<boolean>;
-  handleEditRequest: (request: RequestItem, editData: any, adminId: string) => Promise<boolean>;
+  handleEditRequest: (request: RequestItem, editData: Record<string, unknown>, adminId: string) => Promise<boolean>;
   detectOTRate: (dateStr: string) => OTRateInfo;
   fetchEmployees: () => Promise<void>;
 }
@@ -70,7 +70,6 @@ interface UseRequestsReturn {
 
 async function sendNotification(type: string, data: Record<string, unknown>) {
   try {
-    const { authFetch } = await import("@/lib/utils/auth-fetch");
     await authFetch("/api/notifications", {
       method: "POST",
       body: JSON.stringify({ type, data }),
@@ -362,15 +361,16 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
   // ── Edit ────────────────────────────────────────────
 
   const handleEditRequest = useCallback(
-    async (request: RequestItem, editData: any, _adminId: string): Promise<boolean> => {
+    async (request: RequestItem, editData: Record<string, unknown>, _adminId: string): Promise<boolean> => {
       setProcessing(true);
+      const str = (key: string) => editData[key] as string;
       try {
         let updateData: any = {};
         switch (request.type) {
           case "ot": {
-            const startISO = buildLocalISO(request.rawData.request_date, editData.requested_start_time);
-            const endISO = buildLocalISO(request.rawData.request_date, editData.requested_end_time);
-            const newRate = parseFloat(editData.ot_rate) || request.rawData.ot_rate || 1.5;
+            const startISO = buildLocalISO(request.rawData.request_date, str("requested_start_time"));
+            const endISO = buildLocalISO(request.rawData.request_date, str("requested_end_time"));
+            const newRate = parseFloat(str("ot_rate")) || request.rawData.ot_rate || 1.5;
             const calc = calculateOTAmount({
               startTime: startISO,
               endTime: endISO,

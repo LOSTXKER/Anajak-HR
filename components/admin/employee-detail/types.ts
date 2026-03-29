@@ -173,7 +173,7 @@ export function getRoleLabel(role: string): string {
       return "ผู้ดูแลระบบ";
     case "supervisor":
       return "หัวหน้างาน";
-    case "employee":
+    case "staff":
       return "พนักงาน";
     default:
       return role;

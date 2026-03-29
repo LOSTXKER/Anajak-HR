@@ -14,6 +14,7 @@ import {
 } from "@/lib/services/late-request.service";
 import { notifyNewLateRequest, notifyAutoApprovedLate } from "@/lib/utils/notify-request";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { useToast } from "@/components/ui/Toast";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -33,6 +34,7 @@ import { th } from "date-fns/locale";
 function LateRequestContent() {
   const router = useRouter();
   const { employee } = useAuth();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [requests, setRequests] = useState<LateRequest[]>([]);
@@ -71,6 +73,7 @@ function LateRequestContent() {
       setLateAttendances(attendanceResult.data);
     } catch (error) {
       console.error("Error fetching data:", error);
+      setError("ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่อีกครั้ง");
     } finally {
       setLoading(false);
     }
@@ -137,6 +140,7 @@ function LateRequestContent() {
       fetchData();
     } catch (error) {
       console.error("Error cancelling:", error);
+      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถยกเลิกคำขอได้");
     }
   };
 

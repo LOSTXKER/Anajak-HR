@@ -1,27 +1,15 @@
 import { NextRequest } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
-import {
-  requireAdmin,
-  handleAuthError,
-  AuthResult,
-} from "@/lib/auth/api-middleware";
+import { withAdmin } from "@/lib/auth/api-middleware";
+import { TH_TIMEZONE } from "@/lib/utils/date";
 
 const LINE_MESSAGING_API = "https://api.line.me/v2/bot/message/push";
 
-export async function POST(request: NextRequest) {
-  // Verify admin authorization - only admins can test LINE messaging
-  let auth: AuthResult;
-  try {
-    auth = await requireAdmin(request);
-  } catch (error) {
-    return handleAuthError(error);
-  }
-
+export const POST = withAdmin(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { token, to, message } = body;
 
-    // If message is provided without token/to, get them from database
     let accessToken = token;
     let recipient = to;
 
@@ -57,14 +45,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use custom message or default test message
     const testMessage =
       message ||
       `🧪 ทดสอบระบบแจ้งเตือน LINE
 
 ✅ ระบบทำงานปกติ
 📱 Anajak HR System
-🕐 ${new Date().toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}
+🕐 ${new Date().toLocaleString("th-TH", { timeZone: TH_TIMEZONE })}
 
 หากคุณเห็นข้อความนี้ แสดงว่าการตั้งค่า LINE Messaging API สำเร็จแล้ว!`;
 
@@ -76,12 +63,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         to: recipient,
-        messages: [
-          {
-            type: "text",
-            text: testMessage,
-          },
-        ],
+        messages: [{ type: "text", text: testMessage }],
       }),
     });
 
@@ -93,16 +75,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return Response.json({
-      success: true,
-      message: "ส่งข้อความทดสอบสำเร็จ",
-    });
-  } catch (error: any) {
+    return Response.json({ success: true, message: "ส่งข้อความทดสอบสำเร็จ" });
+  } catch (error: unknown) {
     console.error("Error testing LINE:", error);
-    return Response.json(
-      { success: false, error: error.message || "เกิดข้อผิดพลาด" },
-      { status: 500 }
-    );
+    const errorMessage = error instanceof Error ? error.message : "เกิดข้อผิดพลาด";
+    return Response.json({ success: false, error: errorMessage }, { status: 500 });
   }
-}
-
+});

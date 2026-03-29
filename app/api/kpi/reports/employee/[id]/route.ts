@@ -1,13 +1,14 @@
 import { NextRequest } from "next/server";
 import { withAuth } from "@/lib/auth/api-middleware";
 import { getEmployeeKPIHistory } from "@/lib/services/kpi.service";
+import { isManagerRole } from "@/lib/constants/roles";
 
 export const GET = withAuth(async (request: NextRequest, auth) => {
   const id = request.nextUrl.pathname.split("/").pop()!;
 
   if (
     id !== auth.user.id &&
-    !["admin", "supervisor"].includes(auth.employee.role || "")
+    !isManagerRole(auth.employee.role)
   ) {
     return Response.json({ error: "ไม่มีสิทธิ์ดูข้อมูลนี้" }, { status: 403 });
   }

@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
-import { requireAdmin, handleAuthError, withAuth } from "@/lib/auth/api-middleware";
+import { withAuth, withAdmin } from "@/lib/auth/api-middleware";
 import { getKPIPeriod, updateKPIPeriod, updatePeriodTemplates } from "@/lib/services/kpi.service";
 
-export const GET = withAuth(async (request: NextRequest, auth) => {
+export const GET = withAuth(async (request: NextRequest) => {
   const id = request.nextUrl.pathname.split("/").pop()!;
   try {
     const period = await getKPIPeriod(id);
@@ -16,16 +16,8 @@ export const GET = withAuth(async (request: NextRequest, auth) => {
   }
 });
 
-export async function PUT(request: NextRequest) {
-  let auth;
-  try {
-    auth = await requireAdmin(request);
-  } catch (error) {
-    return handleAuthError(error);
-  }
-
+export const PUT = withAdmin(async (request: NextRequest) => {
   const id = request.nextUrl.pathname.split("/").pop()!;
-
   try {
     const body = await request.json();
     const { templates, ...periodData } = body;
@@ -42,4 +34,4 @@ export async function PUT(request: NextRequest) {
     console.error("Error updating KPI period:", error);
     return Response.json({ error: "ไม่สามารถแก้ไขรอบประเมินได้" }, { status: 500 });
   }
-}
+});

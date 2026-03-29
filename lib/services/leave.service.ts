@@ -13,42 +13,6 @@ import { updateRequestStatus } from "./request-status.service";
 import type { LeaveRequest } from "@/lib/types";
 
 /**
- * Request new leave (legacy - always pending)
- */
-export async function requestLeave(
-    employeeId: string,
-    data: {
-        leaveType: LeaveRequest["leave_type"];
-        startDate: string;
-        endDate: string;
-        isHalfDay: boolean;
-        reason: string;
-    }
-): Promise<Result<LeaveRequest>> {
-    try {
-        const { data: result, error } = await supabase
-            .from("leave_requests")
-            .insert({
-                employee_id: employeeId,
-                leave_type: data.leaveType,
-                start_date: data.startDate,
-                end_date: data.endDate,
-                is_half_day: data.isHalfDay,
-                reason: data.reason,
-                status: "pending",
-            })
-            .select()
-            .single();
-
-        if (error) throw error;
-        return success(result as LeaveRequest);
-    } catch (err: any) {
-        console.error("Error requesting leave:", err);
-        return resultError(err.message || "Failed to submit leave request");
-    }
-}
-
-/**
  * Create leave request with auto-approve support
  */
 export async function createLeaveRequest(

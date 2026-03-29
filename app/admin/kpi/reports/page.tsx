@@ -7,10 +7,12 @@ import { Card } from "@/components/ui/Card";
 import { GradeBadge } from "@/components/kpi/GradeBadge";
 import { KPIRadarChart } from "@/components/kpi/KPIRadarChart";
 import { supabase } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
 import { BarChart3, Users, TrendingUp, Award } from "lucide-react";
 import type { KPIPeriod, EmployeeKPISummary } from "@/lib/services/kpi.service";
 
 function ReportsContent() {
+  const toast = useToast();
   const [periods, setPeriods] = useState<KPIPeriod[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -48,6 +50,7 @@ function ReportsContent() {
       setReport(data);
     } catch (error) {
       console.error("Error fetching report:", error);
+      toast.error("โหลดรายงานล้มเหลว", "ไม่สามารถดึงข้อมูลรายงาน KPI ได้");
     }
   };
 

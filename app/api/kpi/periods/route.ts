@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAdmin, handleAuthError, withAuth } from "@/lib/auth/api-middleware";
+import { withAuth, withAdmin } from "@/lib/auth/api-middleware";
 import { getKPIPeriods, createKPIPeriod } from "@/lib/services/kpi.service";
 
 export const GET = withAuth(async () => {
@@ -12,14 +12,7 @@ export const GET = withAuth(async () => {
   }
 });
 
-export async function POST(request: NextRequest) {
-  let auth;
-  try {
-    auth = await requireAdmin(request);
-  } catch (error) {
-    return handleAuthError(error);
-  }
-
+export const POST = withAdmin(async (request: NextRequest, auth) => {
   try {
     const body = await request.json();
     const period = await createKPIPeriod({
@@ -31,4 +24,4 @@ export async function POST(request: NextRequest) {
     console.error("Error creating KPI period:", error);
     return Response.json({ error: "ไม่สามารถสร้างรอบประเมินได้" }, { status: 500 });
   }
-}
+});

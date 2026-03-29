@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/Modal";
+import { useToast } from "@/components/ui/Toast";
 import { BottomNav } from "@/components/BottomNav";
 import {
   Clock,
@@ -45,6 +46,7 @@ interface OTRequest {
 
 function OTPageContent() {
   const { employee } = useAuth();
+  const toast = useToast();
   const [activeOT, setActiveOT] = useState<OTRequest | null>(null);
   const [pendingApproval, setPendingApproval] = useState<OTRequest[]>([]);
   const [approvedOT, setApprovedOT] = useState<OTRequest[]>([]);
@@ -111,6 +113,7 @@ function OTPageContent() {
       }
     } catch (error) {
       console.error("Error fetching OT data:", error);
+      toast.error("โหลดข้อมูลล้มเหลว", "ไม่สามารถดึงข้อมูล OT ได้");
     } finally {
       setLoading(false);
     }
@@ -137,6 +140,7 @@ function OTPageContent() {
       fetchOTData();
     } catch (error: any) {
       console.error("Error canceling OT:", error);
+      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถยกเลิก OT ได้");
     } finally {
       setCanceling(null);
     }

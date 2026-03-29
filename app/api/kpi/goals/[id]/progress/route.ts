@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { withAuth } from "@/lib/auth/api-middleware";
 import { addGoalProgress, getGoal } from "@/lib/services/kpi.service";
+import { isManagerRole } from "@/lib/constants/roles";
 
 export const POST = withAuth(async (request: NextRequest, auth) => {
   const segments = request.nextUrl.pathname.split("/");
@@ -14,7 +15,7 @@ export const POST = withAuth(async (request: NextRequest, auth) => {
 
     if (
       goal.employee_id !== auth.user.id &&
-      !["admin", "supervisor"].includes(auth.employee.role || "")
+      !isManagerRole(auth.employee.role)
     ) {
       return Response.json({ error: "ไม่มีสิทธิ์อัพเดทเป้าหมายนี้" }, { status: 403 });
     }

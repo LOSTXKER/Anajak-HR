@@ -1,15 +1,8 @@
 import { NextRequest } from "next/server";
-import { requireAdmin, handleAuthError } from "@/lib/auth/api-middleware";
+import { withAdmin } from "@/lib/auth/api-middleware";
 import { getKPIReportSummary, getTeamKPISummary } from "@/lib/services/kpi.service";
 
-export async function GET(request: NextRequest) {
-  let auth;
-  try {
-    auth = await requireAdmin(request);
-  } catch (error) {
-    return handleAuthError(error);
-  }
-
+export const GET = withAdmin(async (request: NextRequest) => {
   try {
     const periodId = request.nextUrl.searchParams.get("period_id");
     const branchId = request.nextUrl.searchParams.get("branch_id");
@@ -31,4 +24,4 @@ export async function GET(request: NextRequest) {
     console.error("Error generating report:", error);
     return Response.json({ error: "ไม่สามารถสร้างรายงานได้" }, { status: 500 });
   }
-}
+});

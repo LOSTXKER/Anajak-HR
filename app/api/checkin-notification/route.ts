@@ -1,16 +1,9 @@
 import { NextRequest } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { sendLineMessage, formatCheckInMessage } from "@/lib/line/messaging";
-import { requireAuth, handleAuthError } from "@/lib/auth/api-middleware";
+import { withAuth } from "@/lib/auth/api-middleware";
 
-export async function POST(request: NextRequest) {
-  // ตรวจสอบว่ามี auth token จริง (validate JWT)
-  try {
-    await requireAuth(request);
-  } catch (authError) {
-    return handleAuthError(authError);
-  }
-
+export const POST = withAuth(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { employeeName, time, location, isLate, photoUrl } = body;
@@ -46,12 +39,9 @@ export async function POST(request: NextRequest) {
     }
     return Response.json({ success, message: "Notification sent" });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[Check-in Notification] Error:", error);
-    return Response.json(
-      { error: error.message || "Failed to send notification" },
-      { status: 500 }
-    );
+    const errorMessage = error instanceof Error ? error.message : "Failed to send notification";
+    return Response.json({ error: errorMessage }, { status: 500 });
   }
-}
-
+});

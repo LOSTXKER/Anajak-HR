@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { BottomNav } from "@/components/BottomNav";
 import { supabase } from "@/lib/supabase/client";
 import { useGameProfile } from "@/lib/hooks/use-gamification";
+import { useToast } from "@/components/ui/Toast";
 import { format, isToday, isYesterday, isThisWeek, parseISO } from "date-fns";
 import { th } from "date-fns/locale";
 import {
@@ -109,6 +110,7 @@ function getDateGroup(dateStr: string): string {
 
 function PointsContent() {
   const { employee } = useAuth();
+  const toast = useToast();
   const { profile } = useGameProfile();
   const [transactions, setTransactions] = useState<PointTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,10 +130,11 @@ function PointsContent() {
       setTransactions((data as PointTransaction[]) || []);
     } catch (err) {
       console.error("Error fetching transactions:", err);
+      toast.error("โหลดข้อมูลล้มเหลว", "ไม่สามารถดึงประวัติแต้มได้");
     } finally {
       setLoading(false);
     }
-  }, [employee?.id]);
+  }, [employee?.id, toast]);
 
   useEffect(() => {
     fetchTransactions();

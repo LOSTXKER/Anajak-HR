@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { GradeBadge } from "@/components/kpi/GradeBadge";
 import { supabase } from "@/lib/supabase/client";
 import Link from "next/link";
+import { useToast } from "@/components/ui/Toast";
 import { Users, ChevronRight, CheckCircle2, Clock, FileEdit } from "lucide-react";
 
 interface EmployeeEvalStatus {
@@ -21,6 +22,7 @@ interface EmployeeEvalStatus {
 }
 
 function EvaluationsContent() {
+  const toast = useToast();
   const [employees, setEmployees] = useState<EmployeeEvalStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [activePeriodId, setActivePeriodId] = useState<string | null>(null);
@@ -85,6 +87,7 @@ function EvaluationsContent() {
       setEmployees(result);
     } catch (error) {
       console.error("Error fetching evaluation data:", error);
+      toast.error("โหลดข้อมูลล้มเหลว", "ไม่สามารถดึงข้อมูลการประเมินได้");
     } finally {
       setLoading(false);
     }

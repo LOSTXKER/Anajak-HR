@@ -33,6 +33,7 @@ import {
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { getLeaderboard, type LeaderboardEntry, RANK_TIERS } from "@/lib/services/gamification.service";
+import { useToast } from "@/components/ui/Toast";
 
 const RANK_BADGE_SOLID: Record<string, { bg: string; text: string; icon: string }> = {
   Unranked: { bg: "bg-[#636366]", text: "text-white", icon: "🔒" },
@@ -81,6 +82,7 @@ function StatCard({
 
 function AdminDashboardContent() {
   const { employee } = useAuth();
+  const toast = useToast();
   const { settings: workSettings } = useWorkSettings();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -216,46 +218,52 @@ function AdminDashboardContent() {
 
   const handleApproveOT = async (id: string, approved: boolean) => {
     try {
-      await supabase
+      const { error } = await supabase
         .from("ot_requests")
         .update({
           status: approved ? "approved" : "rejected",
           approved_by: employee?.id,
         })
         .eq("id", id);
+      if (error) throw error;
       fetchDashboardData();
     } catch (error) {
       console.error("Error:", error);
+      toast.error("เกิดข้อผิดพลาด", approved ? "ไม่สามารถอนุมัติ OT ได้" : "ไม่สามารถปฏิเสธ OT ได้");
     }
   };
 
   const handleApproveLeave = async (id: string, approved: boolean) => {
     try {
-      await supabase
+      const { error } = await supabase
         .from("leave_requests")
         .update({
           status: approved ? "approved" : "rejected",
           approved_by: employee?.id,
         })
         .eq("id", id);
+      if (error) throw error;
       fetchDashboardData();
     } catch (error) {
       console.error("Error:", error);
+      toast.error("เกิดข้อผิดพลาด", approved ? "ไม่สามารถอนุมัติการลาได้" : "ไม่สามารถปฏิเสธการลาได้");
     }
   };
 
   const handleApproveWFH = async (id: string, approved: boolean) => {
     try {
-      await supabase
+      const { error } = await supabase
         .from("wfh_requests")
         .update({
           status: approved ? "approved" : "rejected",
           approved_by: employee?.id,
         })
         .eq("id", id);
+      if (error) throw error;
       fetchDashboardData();
     } catch (error) {
       console.error("Error:", error);
+      toast.error("เกิดข้อผิดพลาด", approved ? "ไม่สามารถอนุมัติ WFH ได้" : "ไม่สามารถปฏิเสธ WFH ได้");
     }
   };
 

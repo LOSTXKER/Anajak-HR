@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { sendLineMessage } from "@/lib/line/messaging";
-import { getTodayTH, getNowTH } from "@/lib/utils/date";
+import { getTodayTH, getNowTH, toThaiDate } from "@/lib/utils/date";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 
@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
       const currentCount = att.reminder_count || 0;
       if (currentCount >= shouldHaveSent) continue;
 
-      const clockInTH = new Date(new Date(att.clock_in_time).toLocaleString("en-US", { timeZone: "Asia/Bangkok" }));
+      const clockInTH = toThaiDate(att.clock_in_time);
       const clockInStr = format(clockInTH, "HH:mm");
 
       pendingEmployees.push({

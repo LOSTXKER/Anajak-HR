@@ -5,7 +5,6 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { BottomNav } from "@/components/BottomNav";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { GradeBadge } from "@/components/kpi/GradeBadge";
 import { AutoMetricsDisplay } from "@/components/kpi/AutoMetricsDisplay";
 import { supabase } from "@/lib/supabase/client";
@@ -15,62 +14,46 @@ import {
   ChevronRight,
   FileEdit,
   History,
-  CheckCircle2,
-  Clock,
 } from "lucide-react";
-import type { KPIPeriod, AutoMetrics, KPIEvaluation } from "@/lib/services/kpi.service";
-
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  draft: { label: "แบบร่าง", color: "#86868b" },
-  goal_setting: { label: "ตั้งเป้าหมาย", color: "#ff9f0a" },
-  in_progress: { label: "กำลังดำเนินการ", color: "#007aff" },
-  evaluating: { label: "ช่วงประเมิน", color: "#bf5af2" },
-  closed: { label: "ปิดแล้ว", color: "#30d158" },
-};
+import type { AutoMetrics, KPIEvaluation } from "@/lib/services/kpi.service";
+import { useKpiPeriod } from "@/lib/hooks/use-kpi-period";
+import { KPI_PERIOD_STATUS_LABELS } from "@/lib/constants/kpi";
+import { useToast } from "@/components/ui/Toast";
 
 function KPIDashboard() {
   const { employee } = useAuth();
-  const [activePeriod, setActivePeriod] = useState<KPIPeriod | null>(null);
+  const toast = useToast();
+  const { period: activePeriod, loading: periodLoading } = useKpiPeriod({ skip: !employee?.id });
   const [goalsCount, setGoalsCount] = useState(0);
   const [goalsCompleted, setGoalsCompleted] = useState(0);
   const [autoMetrics, setAutoMetrics] = useState<AutoMetrics | null>(null);
   const [latestEval, setLatestEval] = useState<KPIEvaluation | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
-    if (employee?.id) fetchData();
-  }, [employee?.id]);
+    if (!activePeriod || !employee?.id) return;
+    let cancelled = false;
 
-  const fetchData = async () => {
-    try {
-      const { data: periods } = await supabase
-        .from("kpi_periods")
-        .select("*")
-        .neq("status", "draft")
-        .order("start_date", { ascending: false })
-        .limit(1);
-
-      const period = periods?.[0] || null;
-      setActivePeriod(period);
-
-      if (period && employee) {
+    const fetchDetails = async () => {
+      setDetailLoading(true);
+      try {
         const [goalsRes, completedRes, metricsRes, evalRes] = await Promise.all([
           supabase
             .from("kpi_goals")
             .select("id", { count: "exact", head: true })
             .eq("employee_id", employee.id)
-            .eq("period_id", period.id),
+            .eq("period_id", activePeriod.id),
           supabase
             .from("kpi_goals")
             .select("id", { count: "exact", head: true })
             .eq("employee_id", employee.id)
-            .eq("period_id", period.id)
+            .eq("period_id", activePeriod.id)
             .eq("status", "completed"),
           supabase
             .from("kpi_auto_metrics")
             .select("*")
             .eq("employee_id", employee.id)
-            .eq("period_id", period.id)
+            .eq("period_id", activePeriod.id)
             .maybeSingle(),
           supabase
             .from("kpi_evaluations")
@@ -83,17 +66,23 @@ function KPIDashboard() {
             .maybeSingle(),
         ]);
 
+        if (cancelled) return;
         setGoalsCount(goalsRes.count || 0);
         setGoalsCompleted(completedRes.count || 0);
         setAutoMetrics(metricsRes.data as AutoMetrics | null);
         setLatestEval(evalRes.data as KPIEvaluation | null);
+      } catch {
+        if (!cancelled) toast.error("เกิดข้อผิดพลาด", "ไม่สามารถโหลดข้อมูล KPI ได้");
+      } finally {
+        if (!cancelled) setDetailLoading(false);
       }
-    } catch (error) {
-      console.error("Error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    fetchDetails();
+    return () => { cancelled = true; };
+  }, [activePeriod?.id, employee?.id, toast]);
+
+  const loading = periodLoading || detailLoading;
 
   if (loading) {
     return (
@@ -118,11 +107,11 @@ function KPIDashboard() {
               <span
                 className="text-[12px] font-medium px-2 py-0.5 rounded-lg"
                 style={{
-                  backgroundColor: `${STATUS_LABELS[activePeriod.status]?.color}15`,
-                  color: STATUS_LABELS[activePeriod.status]?.color,
+                  backgroundColor: `${KPI_PERIOD_STATUS_LABELS[activePeriod.status]?.color}15`,
+                  color: KPI_PERIOD_STATUS_LABELS[activePeriod.status]?.color,
                 }}
               >
-                {STATUS_LABELS[activePeriod.status]?.label}
+                {KPI_PERIOD_STATUS_LABELS[activePeriod.status]?.label}
               </span>
             </div>
           )}

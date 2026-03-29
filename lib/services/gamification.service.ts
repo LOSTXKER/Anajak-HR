@@ -6,22 +6,8 @@
 
 import { supabase } from "@/lib/supabase/client";
 import { format, subDays, startOfMonth, endOfMonth, getDay } from "date-fns";
-import { getTodayTH } from "@/lib/utils/date";
+import { getTodayTH, getThaiMinutesOfDay } from "@/lib/utils/date";
 import { sendBadgeNotification } from "./notification.service";
-
-const TH_TIMEZONE = "Asia/Bangkok";
-
-function getThaiMinutesOfDay(timestamp: string | Date): number {
-  const d = typeof timestamp === "string" ? new Date(timestamp) : timestamp;
-  const thaiStr = d.toLocaleString("en-US", {
-    timeZone: TH_TIMEZONE,
-    hour: "numeric",
-    minute: "numeric",
-    hour12: false,
-  });
-  const [h, m] = thaiStr.split(":").map(Number);
-  return h * 60 + m;
-}
 
 interface BadgeDefinitionRow {
   id: string;

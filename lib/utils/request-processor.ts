@@ -8,10 +8,63 @@ import { format, parseISO } from "date-fns";
 import { th } from "date-fns/locale";
 import { RequestItem, leaveTypeLabels } from "@/lib/types/request";
 
-/**
- * Process OT request raw data into RequestItem
- */
-export function processOTRequest(r: any): RequestItem | null {
+interface EmbeddedEmployee {
+  id: string;
+  name: string;
+  email?: string;
+}
+
+function orUndef(val: string | null | undefined): string | undefined {
+  return val ?? undefined;
+}
+
+interface RawRequestBase {
+  id: string;
+  employee: EmbeddedEmployee | null;
+  status: string;
+  reason?: string | null;
+  created_at: string;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  cancelled_by?: string | null;
+  cancelled_at?: string | null;
+  cancel_reason?: string | null;
+}
+
+interface RawOTRequest extends RawRequestBase {
+  request_date: string;
+  requested_start_time: string;
+  requested_end_time: string;
+  actual_start_time?: string | null;
+  actual_end_time?: string | null;
+  actual_ot_hours?: number | null;
+  approved_ot_hours?: number | null;
+}
+
+interface RawLeaveRequest extends RawRequestBase {
+  start_date: string;
+  end_date: string;
+  leave_type: string;
+  is_half_day: boolean;
+}
+
+interface RawWFHRequest extends RawRequestBase {
+  date: string;
+  is_half_day: boolean;
+}
+
+interface RawLateRequest extends RawRequestBase {
+  request_date: string;
+  actual_late_minutes?: number | null;
+}
+
+interface RawFieldWorkRequest extends RawRequestBase {
+  date: string;
+  location: string;
+  is_half_day: boolean;
+}
+
+export function processOTRequest(r: RawOTRequest): RequestItem | null {
   if (!r.employee?.id) return null;
 
   // For completed OT, prefer actual times; otherwise use requested times
@@ -45,14 +98,14 @@ export function processOTRequest(r: any): RequestItem | null {
       locale: th,
     }),
     details: `เวลา: ${startTime} - ${endTime}\nชั่วโมง: ${displayHours.toFixed(2)} ชม.`,
-    reason: r.reason,
+    reason: orUndef(r.reason),
     status: r.status,
     createdAt: r.created_at,
-    approvedBy: r.approved_by,
-    approvedAt: r.approved_at,
-    cancelledBy: r.cancelled_by,
-    cancelledAt: r.cancelled_at,
-    cancelReason: r.cancel_reason,
+    approvedBy: orUndef(r.approved_by),
+    approvedAt: orUndef(r.approved_at),
+    cancelledBy: orUndef(r.cancelled_by),
+    cancelledAt: orUndef(r.cancelled_at),
+    cancelReason: orUndef(r.cancel_reason),
     rawData: r,
   };
 }
@@ -60,7 +113,7 @@ export function processOTRequest(r: any): RequestItem | null {
 /**
  * Process Leave request raw data into RequestItem
  */
-export function processLeaveRequest(r: any): RequestItem | null {
+export function processLeaveRequest(r: RawLeaveRequest): RequestItem | null {
   if (!r.employee?.id) return null;
 
   return {
@@ -81,14 +134,14 @@ export function processLeaveRequest(r: any): RequestItem | null {
     details: `ประเภท: ${leaveTypeLabels[r.leave_type] || r.leave_type}\n${
       r.is_half_day ? "ครึ่งวัน" : `${r.start_date} ถึง ${r.end_date}`
     }`,
-    reason: r.reason,
+    reason: orUndef(r.reason),
     status: r.status,
     createdAt: r.created_at,
-    approvedBy: r.approved_by,
-    approvedAt: r.approved_at,
-    cancelledBy: r.cancelled_by,
-    cancelledAt: r.cancelled_at,
-    cancelReason: r.cancel_reason,
+    approvedBy: orUndef(r.approved_by),
+    approvedAt: orUndef(r.approved_at),
+    cancelledBy: orUndef(r.cancelled_by),
+    cancelledAt: orUndef(r.cancelled_at),
+    cancelReason: orUndef(r.cancel_reason),
     rawData: r,
   };
 }
@@ -96,7 +149,7 @@ export function processLeaveRequest(r: any): RequestItem | null {
 /**
  * Process WFH request raw data into RequestItem
  */
-export function processWFHRequest(r: any): RequestItem | null {
+export function processWFHRequest(r: RawWFHRequest): RequestItem | null {
   if (!r.employee?.id) return null;
 
   return {
@@ -111,14 +164,14 @@ export function processWFHRequest(r: any): RequestItem | null {
     details: `วันที่: ${format(parseISO(r.date), "d MMM yyyy", { locale: th })}\n${
       r.is_half_day ? "ครึ่งวัน" : "เต็มวัน"
     }`,
-    reason: r.reason,
+    reason: orUndef(r.reason),
     status: r.status,
     createdAt: r.created_at,
-    approvedBy: r.approved_by,
-    approvedAt: r.approved_at,
-    cancelledBy: r.cancelled_by,
-    cancelledAt: r.cancelled_at,
-    cancelReason: r.cancel_reason,
+    approvedBy: orUndef(r.approved_by),
+    approvedAt: orUndef(r.approved_at),
+    cancelledBy: orUndef(r.cancelled_by),
+    cancelledAt: orUndef(r.cancelled_at),
+    cancelReason: orUndef(r.cancel_reason),
     rawData: r,
   };
 }
@@ -126,7 +179,7 @@ export function processWFHRequest(r: any): RequestItem | null {
 /**
  * Process Late request raw data into RequestItem
  */
-export function processLateRequest(r: any): RequestItem | null {
+export function processLateRequest(r: RawLateRequest): RequestItem | null {
   if (!r.employee?.id) return null;
 
   let title = "ขออนุมัติมาสาย";
@@ -166,14 +219,14 @@ export function processLateRequest(r: any): RequestItem | null {
         ? "ไม่อนุมัติ - นับเป็นสาย หักเงิน"
         : ""
     }`,
-    reason: r.reason,
+    reason: orUndef(r.reason),
     status: r.status,
     createdAt: r.created_at,
-    approvedBy: r.approved_by,
-    approvedAt: r.approved_at,
-    cancelledBy: r.cancelled_by,
-    cancelledAt: r.cancelled_at,
-    cancelReason: r.cancel_reason,
+    approvedBy: orUndef(r.approved_by),
+    approvedAt: orUndef(r.approved_at),
+    cancelledBy: orUndef(r.cancelled_by),
+    cancelledAt: orUndef(r.cancelled_at),
+    cancelReason: orUndef(r.cancel_reason),
     rawData: r,
   };
 }
@@ -181,7 +234,7 @@ export function processLateRequest(r: any): RequestItem | null {
 /**
  * Process Field Work request raw data into RequestItem
  */
-export function processFieldWorkRequest(r: any): RequestItem | null {
+export function processFieldWorkRequest(r: RawFieldWorkRequest): RequestItem | null {
   if (!r.employee?.id) return null;
 
   return {
@@ -198,14 +251,14 @@ export function processFieldWorkRequest(r: any): RequestItem | null {
     details: `วันที่: ${format(parseISO(r.date), "d MMM yyyy", { locale: th })}\nสถานที่: ${r.location}\n${
       r.is_half_day ? "ครึ่งวัน" : "เต็มวัน"
     }`,
-    reason: r.reason,
+    reason: orUndef(r.reason),
     status: r.status,
     createdAt: r.created_at,
-    approvedBy: r.approved_by,
-    approvedAt: r.approved_at,
-    cancelledBy: r.cancelled_by,
-    cancelledAt: r.cancelled_at,
-    cancelReason: r.cancel_reason,
+    approvedBy: orUndef(r.approved_by),
+    approvedAt: orUndef(r.approved_at),
+    cancelledBy: orUndef(r.cancelled_by),
+    cancelledAt: orUndef(r.cancelled_at),
+    cancelReason: orUndef(r.cancel_reason),
     rawData: r,
   };
 }
@@ -214,11 +267,11 @@ export function processFieldWorkRequest(r: any): RequestItem | null {
  * Process all raw requests into RequestItem array
  */
 export function processAllRequests(
-  otData: any[],
-  leaveData: any[],
-  wfhData: any[],
-  lateData: any[],
-  fieldWorkData: any[]
+  otData: RawOTRequest[],
+  leaveData: RawLeaveRequest[],
+  wfhData: RawWFHRequest[],
+  lateData: RawLateRequest[],
+  fieldWorkData: RawFieldWorkRequest[]
 ): RequestItem[] {
   const allRequests: RequestItem[] = [];
 

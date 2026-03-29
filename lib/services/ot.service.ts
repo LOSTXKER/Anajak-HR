@@ -82,34 +82,6 @@ export async function getOTRequest(otId: string): Promise<OTRequest | null> {
 }
 
 /**
- * Request new OT (legacy - always pending)
- */
-export async function requestOT(
-    employeeId: string,
-    data: { date: string; startTime: string; endTime: string; reason: string }
-): Promise<Result<OTRequest>> {
-    try {
-        const { data: result, error } = await supabase
-            .from("ot_requests")
-            .insert({
-                employee_id: employeeId,
-                request_date: data.date,
-                requested_start_time: `${data.date}T${data.startTime}:00`,
-                requested_end_time: `${data.date}T${data.endTime}:00`,
-                reason: data.reason,
-                status: "pending",
-            })
-            .select()
-            .single();
-
-        if (error) throw error;
-        return success(result as OTRequest);
-    } catch (err: any) {
-        return resultError(err.message || "Failed to submit OT request");
-    }
-}
-
-/**
  * Create OT request with auto-approve support
  */
 export async function createOTRequest(

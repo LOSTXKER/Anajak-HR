@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { withAuth } from "@/lib/auth/api-middleware";
 import { getEvaluation, submitEvaluation } from "@/lib/services/kpi.service";
+import { isManagerRole } from "@/lib/constants/roles";
 
 export const GET = withAuth(async (request: NextRequest, auth) => {
   try {
@@ -14,7 +15,7 @@ export const GET = withAuth(async (request: NextRequest, auth) => {
 
     if (
       employeeId !== auth.user.id &&
-      !["admin", "supervisor"].includes(auth.employee.role || "")
+      !isManagerRole(auth.employee.role)
     ) {
       return Response.json({ error: "ไม่มีสิทธิ์ดูข้อมูลนี้" }, { status: 403 });
     }
@@ -32,7 +33,7 @@ export const POST = withAuth(async (request: NextRequest, auth) => {
     const body = await request.json();
     const { isDraft, ...evalData } = body;
 
-    if (evalData.evaluation_type === "supervisor" && !["admin", "supervisor"].includes(auth.employee.role || "")) {
+    if (evalData.evaluation_type === "supervisor" && !isManagerRole(auth.employee.role)) {
       return Response.json({ error: "เฉพาะหัวหน้าหรือ Admin เท่านั้นที่ประเมินได้" }, { status: 403 });
     }
 

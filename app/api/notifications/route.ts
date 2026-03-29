@@ -10,16 +10,9 @@ import {
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { supabaseServer } from "@/lib/supabase/server";
-import { requireAuth, handleAuthError } from "@/lib/auth/api-middleware";
+import { withAuth } from "@/lib/auth/api-middleware";
 
-export async function POST(request: NextRequest) {
-  // ตรวจสอบว่ามี auth token จริง (validate JWT)
-  try {
-    await requireAuth(request);
-  } catch (authError) {
-    return handleAuthError(authError);
-  }
-
+export const POST = withAuth(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { type, data } = body;
@@ -342,4 +335,4 @@ ${data.isPinned ? "📍 ปักหมุดประกาศนี้" : ""}`
       { status: 500 }
     );
   }
-}
+});

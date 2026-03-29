@@ -96,16 +96,21 @@ export async function getAttendanceForRange(
  * @param location - GPS location (optional)
  * @param photoUrl - Photo URL (optional)
  */
-interface CheckInData {
+export interface CheckInData {
     attendance: AttendanceLog;
     isLate: boolean;
+    lateMinutes: number;
 }
 
-export async function checkIn(
-    employeeId: string,
-    location?: Location | null,
-    photoUrl?: string | null
-): Promise<Result<CheckInData>> {
+export interface CheckInOptions {
+    employeeId: string;
+    location?: Location | null;
+    photoUrl?: string | null;
+    workMode?: "onsite" | "wfh" | "field";
+}
+
+export async function checkIn(options: CheckInOptions): Promise<Result<CheckInData>> {
+    const { employeeId, location, photoUrl, workMode } = options;
     const today = getTodayTH();
     const nowTime = new Date().toISOString();
 
@@ -129,9 +134,20 @@ export async function checkIn(
         });
 
         if (error) throw error;
-        if (!result.success) return resultError(result.error);
 
-        return success({ attendance: result.data as AttendanceLog, isLate });
+        const rpcResult = result as { success: boolean; data?: unknown; error?: string };
+        if (!rpcResult.success) return resultError(rpcResult.error || "Check-in failed");
+
+        const attendanceData = rpcResult.data as unknown as AttendanceLog;
+
+        if (workMode && attendanceData?.id) {
+            await supabase
+                .from("attendance_logs")
+                .update({ work_mode: workMode })
+                .eq("id", attendanceData.id);
+        }
+
+        return success({ attendance: attendanceData, isLate, lateMinutes: isLate ? lateMinutes : 0 });
     } catch (err: any) {
         console.error("Error checking in:", err);
         return resultError(err.message || "Failed to check in");

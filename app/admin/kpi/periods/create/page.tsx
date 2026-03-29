@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { useToast } from "@/components/ui/Toast";
 import { supabase } from "@/lib/supabase/client";
 import type { KPITemplate } from "@/lib/services/kpi.service";
+import { KPI_CATEGORY_LABELS } from "@/lib/constants/kpi";
 
 interface TemplateWeight {
   template_id: string;
@@ -178,12 +179,6 @@ function CreatePeriodContent() {
     }
   };
 
-  const CATEGORY_LABELS: Record<string, string> = {
-    attendance: "การมาทำงาน",
-    work_quality: "คุณภาพงาน",
-    goals: "เป้าหมาย",
-    competency: "สมรรถนะ",
-  };
 
   return (
     <AdminLayout
@@ -287,7 +282,7 @@ function CreatePeriodContent() {
                   <div className="flex-1 min-w-0">
                     <p className="text-[14px] font-medium text-[#1d1d1f]">{tmpl.name}</p>
                     <p className="text-[12px] text-[#86868b]">
-                      {CATEGORY_LABELS[tmpl.category]} / {tmpl.evaluation_type === "auto" ? "อัตโนมัติ" : tmpl.evaluation_type === "goal_based" ? "เป้าหมาย" : "ประเมินด้วยมือ"}
+                      {KPI_CATEGORY_LABELS[tmpl.category]} / {tmpl.evaluation_type === "auto" ? "อัตโนมัติ" : tmpl.evaluation_type === "goal_based" ? "เป้าหมาย" : "ประเมินด้วยมือ"}
                     </p>
                   </div>
                   <div className="w-20">

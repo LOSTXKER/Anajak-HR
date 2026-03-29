@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { withAuth } from "@/lib/auth/api-middleware";
 import { getEvaluationById, submitEvaluation } from "@/lib/services/kpi.service";
+import { isManagerRole } from "@/lib/constants/roles";
 
 export const GET = withAuth(async (request: NextRequest, auth) => {
   const id = request.nextUrl.pathname.split("/").pop()!;
@@ -14,7 +15,7 @@ export const GET = withAuth(async (request: NextRequest, auth) => {
     if (
       evaluation.employee_id !== auth.user.id &&
       evaluation.evaluator_id !== auth.user.id &&
-      !["admin", "supervisor"].includes(auth.employee.role || "")
+      !isManagerRole(auth.employee.role)
     ) {
       return Response.json({ error: "ไม่มีสิทธิ์ดูข้อมูลนี้" }, { status: 403 });
     }
@@ -37,7 +38,7 @@ export const PUT = withAuth(async (request: NextRequest, auth) => {
 
     if (
       existing.evaluator_id !== auth.user.id &&
-      !["admin", "supervisor"].includes(auth.employee.role || "")
+      !isManagerRole(auth.employee.role)
     ) {
       return Response.json({ error: "ไม่มีสิทธิ์แก้ไขการประเมินนี้" }, { status: 403 });
     }

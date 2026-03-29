@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SettingsLayout } from "@/components/admin/SettingsLayout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
+import { useSystemSettings } from "@/lib/hooks/use-system-settings";
 import {
   Clock,
   Save,
@@ -16,33 +15,59 @@ import {
   Info,
 } from "lucide-react";
 import { TimeInput } from "@/components/ui/TimeInput";
+import { Toggle } from "@/components/ui/Toggle";
 
-// Toggle Switch Component
-const ToggleSwitch = ({ 
-  enabled, 
-  onChange 
-}: { 
-  enabled: boolean; 
-  onChange: () => void;
-}) => (
-  <button
-    type="button"
-    onClick={onChange}
-    className={`
-      relative w-12 h-7 rounded-full transition-colors flex-shrink-0
-      ${enabled ? "bg-[#34c759]" : "bg-[#d2d2d7]"}
-    `}
-  >
-    <span
-      className={`
-        absolute top-1 w-5 h-5 bg-white rounded-full transition-transform shadow-sm
-        ${enabled ? "right-1" : "left-1"}
-      `}
-    />
-  </button>
-);
+const WORK_TIME_KEYS = [
+  "work_start_time",
+  "work_end_time",
+  "checkin_time_start",
+  "checkin_time_end",
+  "checkout_time_start",
+  "checkout_time_end",
+  "late_threshold_minutes",
+  "working_days",
+  "require_photo",
+  "require_gps",
+  "require_account_approval",
+  "auto_checkout_enabled",
+  "auto_checkout_time",
+  "auto_checkout_skip_if_ot",
+];
 
-// Day Selector Component
+interface WorkTimeSettings {
+  workStartTime: string;
+  workEndTime: string;
+  checkinTimeStart: string;
+  checkinTimeEnd: string;
+  checkoutTimeStart: string;
+  checkoutTimeEnd: string;
+  lateThreshold: string;
+  workingDays: number[];
+  requirePhoto: boolean;
+  requireGPS: boolean;
+  requireAccountApproval: boolean;
+  autoCheckoutEnabled: boolean;
+  autoCheckoutTime: string;
+  autoCheckoutSkipIfOt: boolean;
+}
+
+const DEFAULTS: WorkTimeSettings = {
+  workStartTime: "09:00",
+  workEndTime: "18:00",
+  checkinTimeStart: "06:00",
+  checkinTimeEnd: "12:00",
+  checkoutTimeStart: "15:00",
+  checkoutTimeEnd: "22:00",
+  lateThreshold: "15",
+  workingDays: [1, 2, 3, 4, 5],
+  requirePhoto: true,
+  requireGPS: true,
+  requireAccountApproval: true,
+  autoCheckoutEnabled: true,
+  autoCheckoutTime: "22:00",
+  autoCheckoutSkipIfOt: true,
+};
+
 const DaySelector = ({
   selectedDays,
   onChange,
@@ -94,110 +119,58 @@ const DaySelector = ({
 
 function WorkTimeSettingsContent() {
   const toast = useToast();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  
-  const [settings, setSettings] = useState({
-    workStartTime: "09:00",
-    workEndTime: "18:00",
-    checkinTimeStart: "06:00",
-    checkinTimeEnd: "12:00",
-    checkoutTimeStart: "15:00",
-    checkoutTimeEnd: "22:00",
-    lateThreshold: "15",
-    workingDays: [1, 2, 3, 4, 5],
-    requirePhoto: true,
-    requireGPS: true,
-    requireAccountApproval: true,
-    autoCheckoutEnabled: true,
-    autoCheckoutTime: "22:00",
-    autoCheckoutSkipIfOt: true,
-  });
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("system_settings")
-        .select("*");
-
-      if (error) throw error;
-
-      if (data) {
-        const settingsMap: Record<string, string> = {};
-        data.forEach((item: { setting_key: string; setting_value: string }) => {
-          settingsMap[item.setting_key] = item.setting_value;
-        });
-
-        setSettings({
-          workStartTime: settingsMap.work_start_time || "09:00",
-          workEndTime: settingsMap.work_end_time || "18:00",
-          checkinTimeStart: settingsMap.checkin_time_start || "06:00",
-          checkinTimeEnd: settingsMap.checkin_time_end || "12:00",
-          checkoutTimeStart: settingsMap.checkout_time_start || "15:00",
-          checkoutTimeEnd: settingsMap.checkout_time_end || "22:00",
-          lateThreshold: settingsMap.late_threshold_minutes || "15",
-          workingDays: settingsMap.working_days 
-            ? settingsMap.working_days.split(",").map(Number).filter(Boolean)
-            : [1, 2, 3, 4, 5],
-          requirePhoto: settingsMap.require_photo === "true",
-          requireGPS: settingsMap.require_gps === "true",
-          requireAccountApproval: settingsMap.require_account_approval !== "false",
-          autoCheckoutEnabled: settingsMap.auto_checkout_enabled === "true",
-          autoCheckoutTime: settingsMap.auto_checkout_time || "22:00",
-          autoCheckoutSkipIfOt: settingsMap.auto_checkout_skip_if_ot !== "false",
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching settings:", error);
-      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถโหลดการตั้งค่าได้");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { settings, setSettings, loading, saving, save, reload } =
+    useSystemSettings<WorkTimeSettings>({
+      keys: WORK_TIME_KEYS,
+      defaults: DEFAULTS,
+      deserialize: (raw) => ({
+        workStartTime: raw.work_start_time || DEFAULTS.workStartTime,
+        workEndTime: raw.work_end_time || DEFAULTS.workEndTime,
+        checkinTimeStart: raw.checkin_time_start || DEFAULTS.checkinTimeStart,
+        checkinTimeEnd: raw.checkin_time_end || DEFAULTS.checkinTimeEnd,
+        checkoutTimeStart: raw.checkout_time_start || DEFAULTS.checkoutTimeStart,
+        checkoutTimeEnd: raw.checkout_time_end || DEFAULTS.checkoutTimeEnd,
+        lateThreshold: raw.late_threshold_minutes || DEFAULTS.lateThreshold,
+        workingDays: raw.working_days
+          ? raw.working_days.split(",").map(Number).filter(Boolean)
+          : DEFAULTS.workingDays,
+        requirePhoto: raw.require_photo === "true",
+        requireGPS: raw.require_gps === "true",
+        requireAccountApproval: raw.require_account_approval !== "false",
+        autoCheckoutEnabled: raw.auto_checkout_enabled === "true",
+        autoCheckoutTime: raw.auto_checkout_time || DEFAULTS.autoCheckoutTime,
+        autoCheckoutSkipIfOt: raw.auto_checkout_skip_if_ot !== "false",
+      }),
+      serialize: (s) => ({
+        work_start_time: s.workStartTime,
+        work_end_time: s.workEndTime,
+        checkin_time_start: s.checkinTimeStart,
+        checkin_time_end: s.checkinTimeEnd,
+        checkout_time_start: s.checkoutTimeStart,
+        checkout_time_end: s.checkoutTimeEnd,
+        late_threshold_minutes: s.lateThreshold,
+        working_days: s.workingDays.join(","),
+        require_photo: s.requirePhoto.toString(),
+        require_gps: s.requireGPS.toString(),
+        require_account_approval: s.requireAccountApproval.toString(),
+        auto_checkout_enabled: s.autoCheckoutEnabled.toString(),
+        auto_checkout_time: s.autoCheckoutTime,
+        auto_checkout_skip_if_ot: s.autoCheckoutSkipIfOt.toString(),
+      }),
+    });
 
   const handleSave = async () => {
-    setSaving(true);
-    try {
-      const updates = [
-        { key: "work_start_time", value: settings.workStartTime },
-        { key: "work_end_time", value: settings.workEndTime },
-        { key: "checkin_time_start", value: settings.checkinTimeStart },
-        { key: "checkin_time_end", value: settings.checkinTimeEnd },
-        { key: "checkout_time_start", value: settings.checkoutTimeStart },
-        { key: "checkout_time_end", value: settings.checkoutTimeEnd },
-        { key: "late_threshold_minutes", value: settings.lateThreshold },
-        { key: "working_days", value: settings.workingDays.join(",") },
-        { key: "require_photo", value: settings.requirePhoto.toString() },
-        { key: "require_gps", value: settings.requireGPS.toString() },
-        { key: "require_account_approval", value: settings.requireAccountApproval.toString() },
-        { key: "auto_checkout_enabled", value: settings.autoCheckoutEnabled.toString() },
-        { key: "auto_checkout_time", value: settings.autoCheckoutTime },
-        { key: "auto_checkout_skip_if_ot", value: settings.autoCheckoutSkipIfOt.toString() },
-      ];
-
-      for (const update of updates) {
-        const { error } = await supabase
-          .from("system_settings")
-          .upsert(
-            { setting_key: update.key, setting_value: update.value },
-            { onConflict: "setting_key" }
-          );
-        if (error) throw error;
-      }
-
+    const ok = await save();
+    if (ok) {
       toast.success("บันทึกสำเร็จ", "บันทึกการตั้งค่าเรียบร้อยแล้ว");
-    } catch (error) {
-      console.error("Error saving settings:", error);
+    } else {
       toast.error("เกิดข้อผิดพลาด", "ไม่สามารถบันทึกการตั้งค่าได้");
-    } finally {
-      setSaving(false);
     }
   };
+
+  const set = <K extends keyof WorkTimeSettings>(key: K, value: WorkTimeSettings[K]) =>
+    setSettings((prev) => ({ ...prev, [key]: value }));
 
   if (loading) {
     return (
@@ -230,12 +203,12 @@ function WorkTimeSettingsContent() {
                 <TimeInput
                   label="เวลาเข้างาน"
                   value={settings.workStartTime}
-                  onChange={(val) => setSettings({ ...settings, workStartTime: val })}
+                  onChange={(val) => set("workStartTime", val)}
                 />
                 <TimeInput
                   label="เวลาเลิกงาน"
                   value={settings.workEndTime}
-                  onChange={(val) => setSettings({ ...settings, workEndTime: val })}
+                  onChange={(val) => set("workEndTime", val)}
                 />
               </div>
 
@@ -246,7 +219,7 @@ function WorkTimeSettingsContent() {
                 <input
                   type="number"
                   value={settings.lateThreshold}
-                  onChange={(e) => setSettings({ ...settings, lateThreshold: e.target.value })}
+                  onChange={(e) => set("lateThreshold", e.target.value)}
                   className="w-full px-4 py-3 bg-[#f5f5f7] rounded-xl text-[15px] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/20 transition-all"
                 />
                 <p className="text-xs text-[#86868b] mt-1">
@@ -271,7 +244,7 @@ function WorkTimeSettingsContent() {
             <div>
               <DaySelector
                 selectedDays={settings.workingDays}
-                onChange={(days) => setSettings({ ...settings, workingDays: days })}
+                onChange={(days) => set("workingDays", days)}
               />
               <p className="text-xs text-[#86868b] mt-3">
                 {settings.workingDays.length} วัน/สัปดาห์ • วันที่ไม่เลือกถือเป็นวันหยุด
@@ -279,7 +252,7 @@ function WorkTimeSettingsContent() {
             </div>
           </Card>
 
-          {/* Checkin Time Window */}
+          {/* Checkin/Checkout Time Window */}
           <Card elevated>
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 bg-[#ff9500]/10 rounded-xl flex items-center justify-center">
@@ -296,25 +269,25 @@ function WorkTimeSettingsContent() {
                 <TimeInput
                   label="เช็คอินได้ตั้งแต่"
                   value={settings.checkinTimeStart}
-                  onChange={(val) => setSettings({ ...settings, checkinTimeStart: val })}
+                  onChange={(val) => set("checkinTimeStart", val)}
                 />
                 <TimeInput
                   label="เช็คอินได้ถึง"
                   value={settings.checkinTimeEnd}
-                  onChange={(val) => setSettings({ ...settings, checkinTimeEnd: val })}
+                  onChange={(val) => set("checkinTimeEnd", val)}
                 />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <TimeInput
                   label="เช็คเอาท์ได้ตั้งแต่"
                   value={settings.checkoutTimeStart}
-                  onChange={(val) => setSettings({ ...settings, checkoutTimeStart: val })}
+                  onChange={(val) => set("checkoutTimeStart", val)}
                 />
                 <TimeInput
                   label="เช็คเอาท์ได้ถึง"
                   value={settings.checkoutTimeEnd}
-                  onChange={(val) => setSettings({ ...settings, checkoutTimeEnd: val })}
+                  onChange={(val) => set("checkoutTimeEnd", val)}
                 />
               </div>
             </div>
@@ -338,9 +311,11 @@ function WorkTimeSettingsContent() {
                   <span className="text-[14px] text-[#1d1d1f] block">เปิด Auto Check-out</span>
                   <span className="text-[11px] text-[#86868b]">ระบบจะเช็คเอาท์ให้อัตโนมัติ</span>
                 </div>
-                <ToggleSwitch
-                  enabled={settings.autoCheckoutEnabled}
-                  onChange={() => setSettings({ ...settings, autoCheckoutEnabled: !settings.autoCheckoutEnabled })}
+                <Toggle
+                  checked={settings.autoCheckoutEnabled}
+                  color="green"
+                  size="lg"
+                  onChange={() => set("autoCheckoutEnabled", !settings.autoCheckoutEnabled)}
                 />
               </div>
 
@@ -350,7 +325,7 @@ function WorkTimeSettingsContent() {
                     <TimeInput
                       label="เวลาที่ระบบรัน Auto Check-out"
                       value={settings.autoCheckoutTime}
-                      onChange={(val) => setSettings({ ...settings, autoCheckoutTime: val })}
+                      onChange={(val) => set("autoCheckoutTime", val)}
                     />
                     <p className="text-[11px] text-[#86868b] mt-1.5 flex items-start gap-1">
                       <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
@@ -366,9 +341,11 @@ function WorkTimeSettingsContent() {
                       <span className="text-[14px] text-[#1d1d1f] block">ข้ามถ้ากำลังทำ OT</span>
                       <span className="text-[11px] text-[#86868b]">ไม่ auto checkout พนักงานที่มี OT อนุมัติแล้ว</span>
                     </div>
-                    <ToggleSwitch
-                      enabled={settings.autoCheckoutSkipIfOt}
-                      onChange={() => setSettings({ ...settings, autoCheckoutSkipIfOt: !settings.autoCheckoutSkipIfOt })}
+                    <Toggle
+                      checked={settings.autoCheckoutSkipIfOt}
+                      color="green"
+                      size="lg"
+                      onChange={() => set("autoCheckoutSkipIfOt", !settings.autoCheckoutSkipIfOt)}
                     />
                   </div>
                 </div>
@@ -391,17 +368,21 @@ function WorkTimeSettingsContent() {
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
                 <span className="text-[14px] text-[#1d1d1f]">บังคับถ่ายรูปเมื่อเช็คอิน</span>
-                <ToggleSwitch 
-                  enabled={settings.requirePhoto} 
-                  onChange={() => setSettings({ ...settings, requirePhoto: !settings.requirePhoto })}
+                <Toggle
+                  checked={settings.requirePhoto}
+                  color="green"
+                  size="lg"
+                  onChange={() => set("requirePhoto", !settings.requirePhoto)}
                 />
               </div>
 
               <div className="flex items-center justify-between p-3 bg-[#f5f5f7] rounded-xl">
                 <span className="text-[14px] text-[#1d1d1f]">บังคับเปิด GPS</span>
-                <ToggleSwitch 
-                  enabled={settings.requireGPS} 
-                  onChange={() => setSettings({ ...settings, requireGPS: !settings.requireGPS })}
+                <Toggle
+                  checked={settings.requireGPS}
+                  color="green"
+                  size="lg"
+                  onChange={() => set("requireGPS", !settings.requireGPS)}
                 />
               </div>
 
@@ -410,25 +391,31 @@ function WorkTimeSettingsContent() {
                   <span className="text-[14px] text-[#1d1d1f] block">บังคับอนุมัติบัญชี</span>
                   <span className="text-[12px] text-[#86868b]">พนักงานใหม่ต้องรอ Admin อนุมัติ</span>
                 </div>
-                <ToggleSwitch 
-                  enabled={settings.requireAccountApproval} 
-                  onChange={() => setSettings({ ...settings, requireAccountApproval: !settings.requireAccountApproval })}
+                <Toggle
+                  checked={settings.requireAccountApproval}
+                  color="green"
+                  size="lg"
+                  onChange={() => set("requireAccountApproval", !settings.requireAccountApproval)}
                 />
               </div>
             </div>
           </Card>
         </div>
 
-        {/* Save Button */}
-        <Button 
-          onClick={handleSave} 
-          size="lg" 
-          loading={saving}
-          fullWidth
-          icon={!saving ? <Save className="w-5 h-5" /> : undefined}
-        >
-          {saving ? "กำลังบันทึก..." : "บันทึกการตั้งค่า"}
-        </Button>
+        {/* Save / Reset Buttons */}
+        <div className="flex justify-end gap-3">
+          <Button variant="text" onClick={reload} disabled={saving}>
+            รีเซ็ต
+          </Button>
+          <Button
+            onClick={handleSave}
+            size="lg"
+            loading={saving}
+            icon={!saving ? <Save className="w-5 h-5" /> : undefined}
+          >
+            {saving ? "กำลังบันทึก..." : "บันทึกการตั้งค่า"}
+          </Button>
+        </div>
       </div>
     </SettingsLayout>
   );

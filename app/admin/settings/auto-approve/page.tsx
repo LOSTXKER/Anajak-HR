@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SettingsLayout } from "@/components/admin/SettingsLayout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
+import { useSystemSettings } from "@/lib/hooks/use-system-settings";
 import { 
   Zap, 
   Clock, 
@@ -16,9 +15,7 @@ import {
   MapPin,
   CheckCircle2,
   Info,
-  ArrowLeft,
 } from "lucide-react";
-import Link from "next/link";
 
 interface AutoApproveSettings {
   auto_approve_ot: boolean;
@@ -66,79 +63,49 @@ const settingsConfig = [
   },
 ];
 
+const SETTING_KEYS = [
+  "auto_approve_ot",
+  "auto_approve_leave",
+  "auto_approve_wfh",
+  "auto_approve_late",
+  "auto_approve_field_work",
+];
+
+const DEFAULTS: AutoApproveSettings = {
+  auto_approve_ot: false,
+  auto_approve_leave: false,
+  auto_approve_wfh: false,
+  auto_approve_late: false,
+  auto_approve_field_work: false,
+};
+
 function AutoApproveContent() {
   const toast = useToast();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [settings, setSettings] = useState<AutoApproveSettings>({
-    auto_approve_ot: false,
-    auto_approve_leave: false,
-    auto_approve_wfh: false,
-    auto_approve_late: false,
-    auto_approve_field_work: false,
+  const { settings, setSettings, loading, saving, save, reload } = useSystemSettings<AutoApproveSettings>({
+    keys: SETTING_KEYS,
+    defaults: DEFAULTS,
+    deserialize: (raw) => ({
+      auto_approve_ot: raw.auto_approve_ot === "true",
+      auto_approve_leave: raw.auto_approve_leave === "true",
+      auto_approve_wfh: raw.auto_approve_wfh === "true",
+      auto_approve_late: raw.auto_approve_late === "true",
+      auto_approve_field_work: raw.auto_approve_field_work === "true",
+    }),
+    serialize: (state) => Object.fromEntries(
+      Object.entries(state).map(([k, v]) => [k, v ? "true" : "false"])
+    ),
   });
-
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
-    setLoading(true);
-    try {
-      const { data } = await supabase
-        .from("system_settings")
-        .select("setting_key, setting_value")
-        .in("setting_key", [
-          "auto_approve_ot",
-          "auto_approve_leave",
-          "auto_approve_wfh",
-          "auto_approve_late",
-          "auto_approve_field_work",
-        ]);
-
-      if (data) {
-        const settingsMap: any = { ...settings };
-        data.forEach((item: any) => {
-          settingsMap[item.setting_key] = item.setting_value === "true";
-        });
-        setSettings(settingsMap);
-      }
-    } catch (error) {
-      console.error("Error fetching settings:", error);
-      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถโหลดการตั้งค่าได้");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleToggle = (key: keyof AutoApproveSettings) => {
     setSettings(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   const handleSave = async () => {
-    setSaving(true);
-    try {
-      const updates = Object.entries(settings).map(([key, value]) => ({
-        setting_key: key,
-        setting_value: value ? "true" : "false",
-      }));
-
-      for (const update of updates) {
-        const { error } = await supabase
-          .from("system_settings")
-          .upsert(
-            { setting_key: update.setting_key, setting_value: update.setting_value },
-            { onConflict: "setting_key" }
-          );
-
-        if (error) throw error;
-      }
-
+    const ok = await save();
+    if (ok) {
       toast.success("บันทึกสำเร็จ", "การตั้งค่าอนุมัติอัตโนมัติถูกอัปเดตแล้ว");
-    } catch (error: any) {
-      toast.error("เกิดข้อผิดพลาด", error?.message || "ไม่สามารถบันทึกการตั้งค่าได้");
-    } finally {
-      setSaving(false);
+    } else {
+      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถบันทึกการตั้งค่าได้");
     }
   };
 
@@ -221,7 +188,7 @@ function AutoApproveContent() {
       <div className="mt-6 flex justify-end gap-3">
         <Button
           variant="text"
-          onClick={fetchSettings}
+          onClick={reload}
           disabled={saving}
         >
           รีเซ็ต

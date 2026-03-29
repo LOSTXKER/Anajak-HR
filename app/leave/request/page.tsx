@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { DateInput } from "@/components/ui/DateInput";
 import { Badge } from "@/components/ui/Badge";
+import { useToast } from "@/components/ui/Toast";
 import { ArrowLeft, Calendar, FileText, Upload, CheckCircle, AlertCircle, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 
@@ -28,6 +29,7 @@ const leaveTypes = [
 function LeaveRequestContent() {
   const { employee } = useAuth();
   const router = useRouter();
+  const toast = useToast();
   const { loading, error, success, handleSubmit } = useFormSubmit({ redirectTo: "/" });
   const [isAutoApproved, setIsAutoApproved] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -93,6 +95,7 @@ function LeaveRequestContent() {
       }
     } catch (error) {
       console.error("Error fetching leave summary:", error);
+      toast.error("โหลดข้อมูลล้มเหลว", "ไม่สามารถดึงข้อมูลวันลาได้");
     }
   };
 

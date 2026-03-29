@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SettingsLayout } from "@/components/admin/SettingsLayout";
 import { useToast } from "@/components/ui/Toast";
+import { useSystemSettings } from "@/lib/hooks/use-system-settings";
 import { Bell, CheckCircle } from "lucide-react";
 import {
   NotificationToggles,
@@ -13,6 +12,37 @@ import {
   IOSInstructions,
 } from "@/components/admin/settings";
 import type { NotificationSettings } from "@/components/admin/settings";
+
+const NOTIFICATION_KEYS = [
+  "enable_checkin_notifications",
+  "enable_checkout_notifications",
+  "enable_holiday_notifications",
+  "holiday_notification_days_before",
+  "holiday_notification_time",
+  "ot_notify_on_request",
+  "ot_notify_on_approval",
+  "ot_notify_on_start",
+  "ot_notify_on_end",
+  "enable_leave_notifications",
+  "enable_wfh_notifications",
+  "enable_late_notifications",
+  "enable_fieldwork_notifications",
+  "enable_announcement_notifications",
+  "enable_employee_registration_notifications",
+  "enable_anomaly_notifications",
+  "auto_checkout_enabled",
+  "auto_checkout_time",
+  "auto_checkout_delay_hours",
+  "auto_checkout_skip_if_ot",
+  "reminder_enabled",
+  "reminder_first_minutes",
+  "reminder_second_minutes",
+  "reminder_third_minutes",
+  "notify_admin_on_auto_checkout",
+  "allow_remote_checkout_after_hours",
+  "work_start_time",
+  "work_end_time",
+];
 
 const DEFAULT_SETTINGS: NotificationSettings = {
   enableCheckinNotifications: false,
@@ -47,114 +77,81 @@ const DEFAULT_SETTINGS: NotificationSettings = {
 
 function NotificationSettingsContent() {
   const toast = useToast();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
-    setLoading(true);
-    try {
-      const { data } = await supabase.from("system_settings").select("*");
-
-      if (data) {
-        const map: Record<string, string> = {};
-        data.forEach((item: { setting_key: string; setting_value: string }) => {
-          map[item.setting_key] = item.setting_value;
-        });
-
-        setSettings({
-          enableCheckinNotifications: map.enable_checkin_notifications === "true",
-          enableCheckoutNotifications: map.enable_checkout_notifications === "true",
-          enableHolidayNotifications: map.enable_holiday_notifications !== "false",
-          holidayNotificationDaysBefore: map.holiday_notification_days_before || "1",
-          holidayNotificationTime: map.holiday_notification_time || "09:00",
-          otNotifyOnRequest: map.ot_notify_on_request !== "false",
-          otNotifyOnApproval: map.ot_notify_on_approval !== "false",
-          otNotifyOnStart: map.ot_notify_on_start !== "false",
-          otNotifyOnEnd: map.ot_notify_on_end !== "false",
-          enableLeaveNotifications: map.enable_leave_notifications === "true",
-          enableWfhNotifications: map.enable_wfh_notifications === "true",
-          enableLateNotifications: map.enable_late_notifications === "true",
-          enableFieldworkNotifications: map.enable_fieldwork_notifications === "true",
-          enableAnnouncementNotifications: map.enable_announcement_notifications === "true",
-          enableEmployeeRegistrationNotifications: map.enable_employee_registration_notifications === "true",
-          enableAnomalyNotifications: map.enable_anomaly_notifications === "true",
-          autoCheckoutEnabled: map.auto_checkout_enabled === "true",
-          autoCheckoutTime: map.auto_checkout_time || "23:00",
-          autoCheckoutDelayHours: map.auto_checkout_delay_hours || "2",
-          autoCheckoutSkipIfOt: map.auto_checkout_skip_if_ot !== "false",
-          reminderEnabled: map.reminder_enabled !== "false",
-          reminderFirstMinutes: map.reminder_first_minutes || "15",
-          reminderSecondMinutes: map.reminder_second_minutes || "30",
-          reminderThirdMinutes: map.reminder_third_minutes || "60",
-          notifyAdminOnAutoCheckout: map.notify_admin_on_auto_checkout !== "false",
-          allowRemoteCheckoutAfterHours: map.allow_remote_checkout_after_hours === "true",
-          workStartTime: map.work_start_time || "08:00",
-          workEndTime: map.work_end_time || "17:00",
-        });
-      }
-    } catch (error) {
-      toast.error("เกิดข้อผิดพลาด", "ไม่สามารถโหลดการตั้งค่าได้");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { settings, setSettings, loading, saving, save } =
+    useSystemSettings<NotificationSettings>({
+      keys: NOTIFICATION_KEYS,
+      defaults: DEFAULT_SETTINGS,
+      deserialize: (raw) => ({
+        enableCheckinNotifications: raw.enable_checkin_notifications === "true",
+        enableCheckoutNotifications: raw.enable_checkout_notifications === "true",
+        enableHolidayNotifications: raw.enable_holiday_notifications !== "false",
+        holidayNotificationDaysBefore: raw.holiday_notification_days_before || "1",
+        holidayNotificationTime: raw.holiday_notification_time || "09:00",
+        otNotifyOnRequest: raw.ot_notify_on_request !== "false",
+        otNotifyOnApproval: raw.ot_notify_on_approval !== "false",
+        otNotifyOnStart: raw.ot_notify_on_start !== "false",
+        otNotifyOnEnd: raw.ot_notify_on_end !== "false",
+        enableLeaveNotifications: raw.enable_leave_notifications === "true",
+        enableWfhNotifications: raw.enable_wfh_notifications === "true",
+        enableLateNotifications: raw.enable_late_notifications === "true",
+        enableFieldworkNotifications: raw.enable_fieldwork_notifications === "true",
+        enableAnnouncementNotifications: raw.enable_announcement_notifications === "true",
+        enableEmployeeRegistrationNotifications: raw.enable_employee_registration_notifications === "true",
+        enableAnomalyNotifications: raw.enable_anomaly_notifications === "true",
+        autoCheckoutEnabled: raw.auto_checkout_enabled === "true",
+        autoCheckoutTime: raw.auto_checkout_time || "23:00",
+        autoCheckoutDelayHours: raw.auto_checkout_delay_hours || "2",
+        autoCheckoutSkipIfOt: raw.auto_checkout_skip_if_ot !== "false",
+        reminderEnabled: raw.reminder_enabled !== "false",
+        reminderFirstMinutes: raw.reminder_first_minutes || "15",
+        reminderSecondMinutes: raw.reminder_second_minutes || "30",
+        reminderThirdMinutes: raw.reminder_third_minutes || "60",
+        notifyAdminOnAutoCheckout: raw.notify_admin_on_auto_checkout !== "false",
+        allowRemoteCheckoutAfterHours: raw.allow_remote_checkout_after_hours === "true",
+        workStartTime: raw.work_start_time || "08:00",
+        workEndTime: raw.work_end_time || "17:00",
+      }),
+      serialize: (s) => ({
+        enable_checkin_notifications: s.enableCheckinNotifications.toString(),
+        enable_checkout_notifications: s.enableCheckoutNotifications.toString(),
+        enable_holiday_notifications: s.enableHolidayNotifications.toString(),
+        holiday_notification_days_before: s.holidayNotificationDaysBefore,
+        holiday_notification_time: s.holidayNotificationTime,
+        ot_notify_on_request: s.otNotifyOnRequest.toString(),
+        ot_notify_on_approval: s.otNotifyOnApproval.toString(),
+        ot_notify_on_start: s.otNotifyOnStart.toString(),
+        ot_notify_on_end: s.otNotifyOnEnd.toString(),
+        enable_leave_notifications: s.enableLeaveNotifications.toString(),
+        enable_wfh_notifications: s.enableWfhNotifications.toString(),
+        enable_late_notifications: s.enableLateNotifications.toString(),
+        enable_fieldwork_notifications: s.enableFieldworkNotifications.toString(),
+        enable_announcement_notifications: s.enableAnnouncementNotifications.toString(),
+        enable_employee_registration_notifications: s.enableEmployeeRegistrationNotifications.toString(),
+        enable_anomaly_notifications: s.enableAnomalyNotifications.toString(),
+        auto_checkout_enabled: s.autoCheckoutEnabled.toString(),
+        auto_checkout_time: s.autoCheckoutTime,
+        auto_checkout_delay_hours: s.autoCheckoutDelayHours,
+        auto_checkout_skip_if_ot: s.autoCheckoutSkipIfOt.toString(),
+        reminder_enabled: s.reminderEnabled.toString(),
+        reminder_first_minutes: s.reminderFirstMinutes,
+        reminder_second_minutes: s.reminderSecondMinutes,
+        reminder_third_minutes: s.reminderThirdMinutes,
+        notify_admin_on_auto_checkout: s.notifyAdminOnAutoCheckout.toString(),
+        allow_remote_checkout_after_hours: s.allowRemoteCheckoutAfterHours.toString(),
+      }),
+    });
 
   const handleSettingChange = (updates: Partial<NotificationSettings>) => {
     setSettings((prev) => ({ ...prev, ...updates }));
   };
 
   const handleSave = async () => {
-    setSaving(true);
-    try {
-      const updates = [
-        { key: "enable_checkin_notifications", value: settings.enableCheckinNotifications.toString() },
-        { key: "enable_checkout_notifications", value: settings.enableCheckoutNotifications.toString() },
-        { key: "enable_holiday_notifications", value: settings.enableHolidayNotifications.toString() },
-        { key: "holiday_notification_days_before", value: settings.holidayNotificationDaysBefore },
-        { key: "holiday_notification_time", value: settings.holidayNotificationTime },
-        { key: "ot_notify_on_request", value: settings.otNotifyOnRequest.toString() },
-        { key: "ot_notify_on_approval", value: settings.otNotifyOnApproval.toString() },
-        { key: "ot_notify_on_start", value: settings.otNotifyOnStart.toString() },
-        { key: "ot_notify_on_end", value: settings.otNotifyOnEnd.toString() },
-        { key: "enable_leave_notifications", value: settings.enableLeaveNotifications.toString() },
-        { key: "enable_wfh_notifications", value: settings.enableWfhNotifications.toString() },
-        { key: "enable_late_notifications", value: settings.enableLateNotifications.toString() },
-        { key: "enable_fieldwork_notifications", value: settings.enableFieldworkNotifications.toString() },
-        { key: "enable_announcement_notifications", value: settings.enableAnnouncementNotifications.toString() },
-        { key: "enable_employee_registration_notifications", value: settings.enableEmployeeRegistrationNotifications.toString() },
-        { key: "enable_anomaly_notifications", value: settings.enableAnomalyNotifications.toString() },
-        { key: "auto_checkout_enabled", value: settings.autoCheckoutEnabled.toString() },
-        { key: "auto_checkout_time", value: settings.autoCheckoutTime },
-        { key: "auto_checkout_skip_if_ot", value: settings.autoCheckoutSkipIfOt.toString() },
-        { key: "reminder_enabled", value: settings.reminderEnabled.toString() },
-        { key: "reminder_first_minutes", value: settings.reminderFirstMinutes },
-        { key: "reminder_second_minutes", value: settings.reminderSecondMinutes },
-        { key: "reminder_third_minutes", value: settings.reminderThirdMinutes },
-        { key: "notify_admin_on_auto_checkout", value: settings.notifyAdminOnAutoCheckout.toString() },
-        { key: "allow_remote_checkout_after_hours", value: settings.allowRemoteCheckoutAfterHours.toString() },
-      ];
-
-      for (const update of updates) {
-        const { error } = await supabase
-          .from("system_settings")
-          .upsert(
-            { setting_key: update.key, setting_value: update.value },
-            { onConflict: "setting_key" }
-          );
-        if (error) throw error;
-      }
-
+    const ok = await save();
+    if (ok) {
       toast.success("บันทึกสำเร็จ", "บันทึกการตั้งค่าเรียบร้อยแล้ว");
-    } catch (error) {
-      console.error("Error saving settings:", error);
+    } else {
       toast.error("เกิดข้อผิดพลาด", "ไม่สามารถบันทึกการตั้งค่าได้");
-    } finally {
-      setSaving(false);
     }
   };
 

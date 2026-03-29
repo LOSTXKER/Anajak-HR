@@ -67,6 +67,7 @@ export function useDashboard() {
     // Fetch monthly OT summary
     useEffect(() => {
         if (!employee?.id) return;
+        let cancelled = false;
 
         const fetchMonthlyOT = async () => {
             setLoadingMonthlyOT(true);
@@ -83,24 +84,28 @@ export function useDashboard() {
                     .gte("request_date", startDate)
                     .lte("request_date", endDate);
 
+                if (cancelled) return;
                 if (data) {
-                    const totalHours = data.reduce((sum: number, ot: any) => sum + (ot.actual_ot_hours || 0), 0);
-                    const totalAmount = data.reduce((sum: number, ot: any) => sum + (ot.ot_amount || 0), 0);
+                    type OTRow = typeof data[number];
+                    const totalHours = data.reduce((sum: number, ot: OTRow) => sum + (ot.actual_ot_hours || 0), 0);
+                    const totalAmount = data.reduce((sum: number, ot: OTRow) => sum + (ot.ot_amount || 0), 0);
                     setMonthlyOT({ hours: totalHours, amount: totalAmount });
                 }
             } catch (error) {
-                console.error("Error fetching monthly OT:", error);
+                if (!cancelled) console.error("Error fetching monthly OT:", error);
             } finally {
-                setLoadingMonthlyOT(false);
+                if (!cancelled) setLoadingMonthlyOT(false);
             }
         };
 
         fetchMonthlyOT();
+        return () => { cancelled = true; };
     }, [employee?.id]);
 
     // Fetch leave balance
     useEffect(() => {
         if (!employee?.id) return;
+        let cancelled = false;
 
         const fetchLeaveBalance = async () => {
             setLoadingLeaveBalance(true);
@@ -113,6 +118,7 @@ export function useDashboard() {
                     .eq("year", currentYear)
                     .single();
 
+                if (cancelled) return;
                 if (data) {
                     setLeaveBalance({
                         annual_remaining: data.annual_leave_remaining || 0,
@@ -121,13 +127,14 @@ export function useDashboard() {
                     });
                 }
             } catch (error) {
-                console.error("Error fetching leave balance:", error);
+                if (!cancelled) console.error("Error fetching leave balance:", error);
             } finally {
-                setLoadingLeaveBalance(false);
+                if (!cancelled) setLoadingLeaveBalance(false);
             }
         };
 
         fetchLeaveBalance();
+        return () => { cancelled = true; };
     }, [employee?.id]);
 
     // Refresh all data

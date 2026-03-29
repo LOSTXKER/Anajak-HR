@@ -46,13 +46,13 @@ export {
     getAllAttendanceForDate,
     createOrUpdateAttendance,
 } from "./attendance.service";
+export type { CheckInData, CheckInOptions } from "./attendance.service";
 
 // OT Service
 export {
     getActiveOT,
     getPendingOT,
     getOTRequest,
-    requestOT,
     createOTRequest,
     startOT,
     endOT,
@@ -66,7 +66,6 @@ export {
 
 // Leave Service
 export {
-    requestLeave,
     createLeaveRequest,
     getLeaveRequest,
     getLeaveHistory,

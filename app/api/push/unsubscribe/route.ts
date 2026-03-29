@@ -1,21 +1,8 @@
 import { NextRequest } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
-import {
-  requireAuth,
-  verifyOwnership,
-  handleAuthError,
-  AuthResult,
-} from "@/lib/auth/api-middleware";
+import { withAuth, verifyOwnership } from "@/lib/auth/api-middleware";
 
-export async function POST(request: NextRequest) {
-  // Verify authentication
-  let auth: AuthResult;
-  try {
-    auth = await requireAuth(request);
-  } catch (error) {
-    return handleAuthError(error);
-  }
-
+export const POST = withAuth(async (request: NextRequest, auth) => {
   try {
     const body = await request.json();
     const { employeeId } = body;
@@ -24,14 +11,8 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "employeeId required" }, { status: 400 });
     }
 
-    // Verify user can only unsubscribe their own device
-    try {
-      verifyOwnership(auth, employeeId);
-    } catch (error) {
-      return handleAuthError(error);
-    }
+    verifyOwnership(auth, employeeId);
 
-    // Delete subscription from database
     const { error } = await supabaseServer
       .from("push_subscriptions")
       .delete()
@@ -49,12 +30,9 @@ export async function POST(request: NextRequest) {
       message: "Subscription removed successfully" 
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in push unsubscribe endpoint:", error);
-    return Response.json(
-      { error: error.message || "Failed to unsubscribe" },
-      { status: 500 }
-    );
+    const errorMessage = error instanceof Error ? error.message : "Failed to unsubscribe";
+    return Response.json({ error: errorMessage }, { status: 500 });
   }
-}
-
+});

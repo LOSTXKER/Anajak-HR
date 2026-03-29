@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAdmin, handleAuthError, withAuth } from "@/lib/auth/api-middleware";
+import { withAuth, withAdmin } from "@/lib/auth/api-middleware";
 import { getKPITemplates, createKPITemplate } from "@/lib/services/kpi.service";
 
 export const GET = withAuth(async (request: NextRequest) => {
@@ -13,13 +13,7 @@ export const GET = withAuth(async (request: NextRequest) => {
   }
 });
 
-export async function POST(request: NextRequest) {
-  try {
-    await requireAdmin(request);
-  } catch (error) {
-    return handleAuthError(error);
-  }
-
+export const POST = withAdmin(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const template = await createKPITemplate(body);
@@ -28,4 +22,4 @@ export async function POST(request: NextRequest) {
     console.error("Error creating KPI template:", error);
     return Response.json({ error: "ไม่สามารถสร้าง template ได้" }, { status: 500 });
   }
-}
+});

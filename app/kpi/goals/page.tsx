@@ -7,57 +7,53 @@ import { BottomNav } from "@/components/BottomNav";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { GoalCard } from "@/components/kpi/GoalCard";
+import { useToast } from "@/components/ui/Toast";
 import { supabase } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Target, ArrowLeft } from "lucide-react";
 import type { KPIGoal } from "@/lib/services/kpi.service";
+import { useKpiPeriod } from "@/lib/hooks/use-kpi-period";
 
 function GoalsContent() {
   const { employee } = useAuth();
   const router = useRouter();
+  const toast = useToast();
+  const { period, loading: periodLoading } = useKpiPeriod({ skip: !employee?.id });
   const [goals, setGoals] = useState<KPIGoal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activePeriodId, setActivePeriodId] = useState<string | null>(null);
-  const [periodStatus, setPeriodStatus] = useState<string>("");
+  const [goalsLoading, setGoalsLoading] = useState(false);
   const [filter, setFilter] = useState("all");
 
   useEffect(() => {
-    if (employee?.id) fetchData();
-  }, [employee?.id]);
+    if (!period || !employee?.id) return;
+    let cancelled = false;
 
-  const fetchData = async () => {
-    try {
-      const { data: periods } = await supabase
-        .from("kpi_periods")
-        .select("id, status")
-        .neq("status", "draft")
-        .order("start_date", { ascending: false })
-        .limit(1);
+    const fetchGoals = async () => {
+      setGoalsLoading(true);
+      try {
+        const { data: goalsData, error } = await supabase
+          .from("kpi_goals")
+          .select("*, kpi_goal_progress(*)")
+          .eq("employee_id", employee.id)
+          .eq("period_id", period.id)
+          .order("created_at");
 
-      const period = periods?.[0];
-      if (!period) {
-        setLoading(false);
-        return;
+        if (error) throw error;
+        if (!cancelled) setGoals((goalsData || []) as KPIGoal[]);
+      } catch {
+        if (!cancelled) toast.error("เกิดข้อผิดพลาด", "ไม่สามารถโหลดเป้าหมายได้");
+      } finally {
+        if (!cancelled) setGoalsLoading(false);
       }
+    };
 
-      setActivePeriodId(period.id);
-      setPeriodStatus(period.status);
+    fetchGoals();
+    return () => { cancelled = true; };
+  }, [period?.id, employee?.id, toast]);
 
-      const { data: goalsData } = await supabase
-        .from("kpi_goals")
-        .select("*, kpi_goal_progress(*)")
-        .eq("employee_id", employee!.id)
-        .eq("period_id", period.id)
-        .order("created_at");
-
-      setGoals((goalsData || []) as KPIGoal[]);
-    } catch (error) {
-      console.error("Error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = periodLoading || goalsLoading;
+  const activePeriodId = period?.id ?? null;
+  const periodStatus = period?.status ?? "";
 
   const filtered = goals.filter((g) => {
     if (filter === "all") return true;

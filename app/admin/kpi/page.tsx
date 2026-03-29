@@ -21,8 +21,11 @@ import {
   Calculator,
 } from "lucide-react";
 import type { KPIPeriod } from "@/lib/services/kpi.service";
+import { useToast } from "@/components/ui/Toast";
+import { KPI_PERIOD_STATUS_LABELS } from "@/lib/constants/kpi";
 
 function KPIDashboardContent() {
+  const toast = useToast();
   const [activePeriod, setActivePeriod] = useState<KPIPeriod | null>(null);
   const [stats, setStats] = useState({
     totalEmployees: 0,
@@ -91,18 +94,12 @@ function KPIDashboardContent() {
       }
     } catch (error) {
       console.error("Error fetching KPI dashboard:", error);
+      toast.error("โหลดข้อมูลล้มเหลว", "ไม่สามารถดึงข้อมูล KPI Dashboard ได้");
     } finally {
       setLoading(false);
     }
   };
 
-  const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-    draft: { label: "แบบร่าง", color: "#86868b" },
-    goal_setting: { label: "ตั้งเป้าหมาย", color: "#ff9f0a" },
-    in_progress: { label: "กำลังดำเนินการ", color: "#007aff" },
-    evaluating: { label: "ช่วงประเมิน", color: "#bf5af2" },
-    closed: { label: "ปิดแล้ว", color: "#30d158" },
-  };
 
   if (loading) {
     return (
@@ -161,11 +158,11 @@ function KPIDashboardContent() {
                 <span
                   className="text-[12px] font-medium px-2 py-0.5 rounded-lg"
                   style={{
-                    backgroundColor: `${STATUS_LABELS[activePeriod.status]?.color}15`,
-                    color: STATUS_LABELS[activePeriod.status]?.color,
+                    backgroundColor: `${KPI_PERIOD_STATUS_LABELS[activePeriod.status]?.color}15`,
+                    color: KPI_PERIOD_STATUS_LABELS[activePeriod.status]?.color,
                   }}
                 >
-                  {STATUS_LABELS[activePeriod.status]?.label}
+                  {KPI_PERIOD_STATUS_LABELS[activePeriod.status]?.label}
                 </span>
               </div>
               <p className="text-[14px] text-[#86868b]">

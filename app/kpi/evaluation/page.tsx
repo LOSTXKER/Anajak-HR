@@ -18,6 +18,7 @@ import { scoreToGrade } from "@/lib/services/kpi.service";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import type { KPITemplate, KPIGoal, AutoMetrics, KPIEvaluation, EvaluationItem } from "@/lib/services/kpi.service";
 import { authFetch } from "@/lib/utils/auth-fetch";
+import { KPI_CATEGORY_LABELS } from "@/lib/constants/kpi";
 
 interface FormItem {
   template_id?: string;
@@ -120,6 +121,7 @@ function SelfEvaluationContent() {
       setOverallComment(existingRes.data?.overall_comment || "");
     } catch (error) {
       console.error("Error:", error);
+      toast.error("โหลดข้อมูลล้มเหลว", "ไม่สามารถดึงข้อมูลการประเมินได้");
     } finally {
       setLoading(false);
     }
@@ -187,12 +189,6 @@ function SelfEvaluationContent() {
     score: val.weight > 0 ? Math.round((val.total / val.weight) * 100) / 100 : 0,
   }));
 
-  const CATEGORY_LABELS: Record<string, string> = {
-    attendance: "การมาทำงาน",
-    work_quality: "คุณภาพงาน",
-    goals: "เป้าหมาย",
-    competency: "สมรรถนะ",
-  };
 
   if (loading) {
     return (
@@ -263,7 +259,7 @@ function SelfEvaluationContent() {
         ).map(([category, items]) => (
           <Card key={category} elevated>
             <h3 className="text-[15px] font-semibold text-[#86868b] uppercase tracking-wider mb-4">
-              {CATEGORY_LABELS[category] || category}
+              {KPI_CATEGORY_LABELS[category] || category}
             </h3>
             <div className="space-y-5">
               {items.map((item) => (

@@ -82,6 +82,7 @@ export interface Database {
           deleted_by?: string | null
           work_arrangement?: 'onsite' | 'wfh' | 'hybrid' | null
         }
+        Relationships: []
       }
       branches: {
         Row: {
@@ -114,6 +115,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       attendance_logs: {
         Row: {
@@ -176,6 +178,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       ot_requests: {
         Row: {
@@ -247,6 +250,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       holidays: {
         Row: {
@@ -276,6 +280,7 @@ export interface Database {
           is_active?: boolean
           created_at?: string
         }
+        Relationships: []
       }
       leave_requests: {
         Row: {
@@ -332,6 +337,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       wfh_requests: {
         Row: {
@@ -376,6 +382,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       late_requests: {
         Row: {
@@ -420,6 +427,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       field_work_requests: {
         Row: {
@@ -467,6 +475,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       system_settings: {
         Row: {
@@ -493,6 +502,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       announcements: {
         Row: {
@@ -552,6 +562,7 @@ export interface Database {
           updated_at?: string
           deleted_at?: string | null
         }
+        Relationships: []
       }
       announcement_reads: {
         Row: {
@@ -572,6 +583,7 @@ export interface Database {
           employee_id?: string
           read_at?: string
         }
+        Relationships: []
       }
       push_subscriptions: {
         Row: {
@@ -598,6 +610,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
     }
     Views: {
@@ -654,6 +667,9 @@ export interface Database {
       }
     }
     Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
       [_ in never]: never
     }
   }

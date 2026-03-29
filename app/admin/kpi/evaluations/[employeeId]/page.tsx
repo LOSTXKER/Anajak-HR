@@ -17,6 +17,7 @@ import { KPIRadarChart } from "@/components/kpi/KPIRadarChart";
 import { scoreToGrade } from "@/lib/services/kpi.service";
 import type { KPITemplate, KPIGoal, AutoMetrics, KPIEvaluation, EvaluationItem } from "@/lib/services/kpi.service";
 import { authFetch } from "@/lib/utils/auth-fetch";
+import { KPI_CATEGORY_LABELS } from "@/lib/constants/kpi";
 
 interface EvalFormItem {
   template_id?: string;
@@ -182,12 +183,6 @@ function EvaluateEmployeeContent() {
     score: val.weight > 0 ? Math.round((val.total / val.weight) * 100) / 100 : 0,
   }));
 
-  const CATEGORY_LABELS: Record<string, string> = {
-    attendance: "การมาทำงาน",
-    work_quality: "คุณภาพงาน",
-    goals: "เป้าหมาย",
-    competency: "สมรรถนะ",
-  };
 
   if (loading) {
     return (
@@ -251,7 +246,7 @@ function EvaluateEmployeeContent() {
             ).map(([category, items]) => (
               <div key={category}>
                 <h4 className="text-[14px] font-semibold text-[#86868b] uppercase tracking-wider mb-3">
-                  {CATEGORY_LABELS[category] || category}
+                  {KPI_CATEGORY_LABELS[category] || category}
                 </h4>
                 <div className="space-y-4">
                   {items.map((item) => (

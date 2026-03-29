@@ -5,20 +5,9 @@ import {
   sendPushToAllEmployees,
   PushNotificationPayload,
 } from "@/lib/push/send";
-import {
-  requireAdmin,
-  handleAuthError,
-  AuthResult,
-} from "@/lib/auth/api-middleware";
+import { withAdmin } from "@/lib/auth/api-middleware";
 
-export async function POST(request: NextRequest) {
-  let auth: AuthResult;
-  try {
-    auth = await requireAdmin(request);
-  } catch (error) {
-    return handleAuthError(error);
-  }
-
+export const POST = withAdmin(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { title, message, target_type, target_branch_id, announcement_id } = body;
@@ -70,11 +59,9 @@ export async function POST(request: NextRequest) {
       ...result,
       message: `Push sent to ${result.sent} employee(s)`,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in send-announcement push endpoint:", error);
-    return Response.json(
-      { error: error.message || "Failed to send push notifications" },
-      { status: 500 }
-    );
+    const errorMessage = error instanceof Error ? error.message : "Failed to send push notifications";
+    return Response.json({ error: errorMessage }, { status: 500 });
   }
-}
+});

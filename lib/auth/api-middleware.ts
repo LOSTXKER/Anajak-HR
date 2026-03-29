@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Database } from "@/types/database";
+import { MANAGER_ROLES } from "@/lib/constants/roles";
 
 type Employee = Database["public"]["Tables"]["employees"]["Row"];
 
@@ -127,7 +128,7 @@ export async function requireAuth(request: NextRequest): Promise<AuthResult> {
 export async function requireAdmin(request: NextRequest): Promise<AuthResult> {
   const authResult = await requireAuth(request);
 
-  if (!["admin", "supervisor"].includes(authResult.employee.role)) {
+  if (!MANAGER_ROLES.includes(authResult.employee.role as (typeof MANAGER_ROLES)[number])) {
     throw new AuthError("คุณไม่มีสิทธิ์เข้าถึงส่วนนี้", 403);
   }
 
@@ -157,7 +158,7 @@ export function verifyOwnership(
   resourceOwnerId: string
 ): void {
   // Admins and supervisors can access any resource
-  if (["admin", "supervisor"].includes(authResult.employee.role)) {
+  if (MANAGER_ROLES.includes(authResult.employee.role as (typeof MANAGER_ROLES)[number])) {
     return;
   }
 

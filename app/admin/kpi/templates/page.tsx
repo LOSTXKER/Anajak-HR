@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/Toast";
 import { supabase } from "@/lib/supabase/client";
 import { Plus, Edit2, Trash2, ClipboardCheck } from "lucide-react";
 import type { KPITemplate } from "@/lib/services/kpi.service";
+import { KPI_CATEGORY_LABELS } from "@/lib/constants/kpi";
 
 const CATEGORY_OPTIONS = [
   { value: "attendance", label: "การมาทำงาน (Attendance)" },
@@ -138,12 +139,6 @@ function TemplatesContent() {
     }
   };
 
-  const CATEGORY_LABELS: Record<string, string> = {
-    attendance: "การมาทำงาน",
-    work_quality: "คุณภาพงาน",
-    goals: "เป้าหมาย",
-    competency: "สมรรถนะ",
-  };
 
   return (
     <AdminLayout title="เกณฑ์ KPI" description="จัดการ template เกณฑ์การประเมิน">
@@ -253,7 +248,7 @@ function TemplatesContent() {
                     <h3 className="text-[15px] font-semibold text-[#1d1d1f]">{tmpl.name}</h3>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-[12px] text-[#86868b] bg-[#f5f5f7] px-2 py-0.5 rounded">
-                        {CATEGORY_LABELS[tmpl.category]}
+                        {KPI_CATEGORY_LABELS[tmpl.category]}
                       </span>
                       <span className="text-[12px] text-[#86868b]">
                         {tmpl.evaluation_type === "auto" ? "อัตโนมัติ" : tmpl.evaluation_type === "goal_based" ? "เป้าหมาย" : "ด้วยมือ"}

@@ -54,9 +54,13 @@ export function usePayroll() {
 
   // Fetch base data
   useEffect(() => {
-    fetchEmployees();
-    fetchBranches();
-    fetchSettings();
+    let cancelled = false;
+    const init = async () => {
+      await Promise.all([fetchEmployees(), fetchBranches(), fetchSettings()]);
+    };
+    init();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Calculate payroll when filters change
@@ -138,19 +142,58 @@ export function usePayroll() {
         );
       }
 
-      // Fetch salary history for all employees in one query
-      // to find the salary effective at or before end of the selected month
       const empIds = employeesToProcess.map((e) => e.id);
-      const { data: salaryHistoryData } = await supabase
-        .from("salary_history")
-        .select("employee_id, base_salary, commission, effective_date")
-        .in("employee_id", empIds)
-        .lte("effective_date", endDate)
-        .order("effective_date", { ascending: false });
 
-      // Build a map: employee_id -> most recent salary record up to endDate
+      // Batch all queries: 5 total calls instead of 4*N
+      const [salaryHistoryRes, allAttendanceRes, allOTRes, allLeaveRes, allLateReqRes] = await Promise.all([
+        supabase
+          .from("salary_history")
+          .select("employee_id, base_salary, commission, effective_date")
+          .in("employee_id", empIds)
+          .lte("effective_date", endDate)
+          .order("effective_date", { ascending: false }),
+        supabase
+          .from("attendance_logs")
+          .select("employee_id, status, total_hours, is_late, clock_in_time, late_minutes, work_date")
+          .in("employee_id", empIds)
+          .gte("work_date", startDate)
+          .lte("work_date", endDate),
+        supabase
+          .from("ot_requests")
+          .select("employee_id, actual_ot_hours, ot_amount, ot_rate, request_date")
+          .in("employee_id", empIds)
+          .in("status", ["approved", "completed"])
+          .not("actual_end_time", "is", null)
+          .gte("request_date", startDate)
+          .lte("request_date", endDate),
+        supabase
+          .from("leave_requests")
+          .select("employee_id, start_date, end_date, is_half_day")
+          .in("employee_id", empIds)
+          .eq("status", "approved")
+          .gte("start_date", startDate)
+          .lte("end_date", endDate),
+        supabase
+          .from("late_requests")
+          .select("employee_id, request_date")
+          .in("employee_id", empIds)
+          .eq("status", "approved")
+          .gte("request_date", startDate)
+          .lte("request_date", endDate),
+      ]);
+
+      // Group data by employee_id
+      function groupBy(rows: any[]): Record<string, any[]> {
+        const map: Record<string, any[]> = {};
+        for (const row of rows) {
+          const id = row.employee_id as string;
+          (map[id] ??= []).push(row);
+        }
+        return map;
+      }
+
       const salaryAtMonth: Record<string, { base_salary: number; commission: number }> = {};
-      (salaryHistoryData || []).forEach((row: { employee_id: string; base_salary: number; commission: number; effective_date: string }) => {
+      (salaryHistoryRes.data || []).forEach((row: { employee_id: string; base_salary: number; commission: number }) => {
         if (!salaryAtMonth[row.employee_id]) {
           salaryAtMonth[row.employee_id] = {
             base_salary: Number(row.base_salary),
@@ -159,45 +202,19 @@ export function usePayroll() {
         }
       });
 
-      const payrollPromises = employeesToProcess.map(async (emp) => {
-        const [attendanceRes, otRes, leaveRes, lateReqRes] = await Promise.all([
-          supabase
-            .from("attendance_logs")
-            .select("*")
-            .eq("employee_id", emp.id)
-            .gte("work_date", startDate)
-            .lte("work_date", endDate),
-          supabase
-            .from("ot_requests")
-            .select("*")
-            .eq("employee_id", emp.id)
-            .in("status", ["approved", "completed"])
-            .not("actual_end_time", "is", null)
-            .gte("request_date", startDate)
-            .lte("request_date", endDate),
-          supabase
-            .from("leave_requests")
-            .select("*")
-            .eq("employee_id", emp.id)
-            .eq("status", "approved")
-            .gte("start_date", startDate)
-            .lte("end_date", endDate),
-          supabase
-            .from("late_requests")
-            .select("request_date")
-            .eq("employee_id", emp.id)
-            .eq("status", "approved")
-            .gte("request_date", startDate)
-            .lte("request_date", endDate),
-        ]);
+      const attendanceByEmp = groupBy(allAttendanceRes.data || []);
+      const otByEmp = groupBy(allOTRes.data || []);
+      const leaveByEmp = groupBy(allLeaveRes.data || []);
+      const lateByEmp = groupBy(allLateReqRes.data || []);
 
-        const attendance = attendanceRes.data || [];
-        const otLogs = otRes.data || [];
-        const leaves = leaveRes.data || [];
+      const results = employeesToProcess.map((emp) => {
+        const attendance = attendanceByEmp[emp.id] || [];
+        const otLogs = otByEmp[emp.id] || [];
+        const leaves = leaveByEmp[emp.id] || [];
 
         const approvedLateDates = new Set(
-          (lateReqRes.data || []).map(
-            (r: { request_date: string }) => r.request_date
+          (lateByEmp[emp.id] || []).map(
+            (r) => r.request_date
           )
         );
 
@@ -341,8 +358,6 @@ export function usePayroll() {
           totalPay: Math.max(0, totalPay),
         } as PayrollData;
       });
-
-      const results = await Promise.all(payrollPromises);
 
       const filteredResults = results.filter(
         (r) =>

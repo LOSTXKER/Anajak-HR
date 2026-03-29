@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SettingsLayout } from "@/components/admin/SettingsLayout";
@@ -19,36 +19,27 @@ import {
   TrendingUp,
   Megaphone,
   Calendar,
+  type LucideIcon,
 } from "lucide-react";
-
-const ToggleSwitch = ({
-  enabled,
-  onChange,
-}: {
-  enabled: boolean;
-  onChange: () => void;
-}) => (
-  <button
-    type="button"
-    onClick={onChange}
-    className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ${
-      enabled ? "bg-[#34c759]" : "bg-[#d2d2d7]"
-    }`}
-  >
-    <span
-      className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-transform shadow-sm ${
-        enabled ? "right-1" : "left-1"
-      }`}
-    />
-  </button>
-);
+import { Toggle } from "@/components/ui/Toggle";
+import { useSystemSettings } from "@/lib/hooks/use-system-settings";
 
 interface PointSetting {
   key: string;
   label: string;
   description: string;
-  icon: any;
+  icon: LucideIcon;
   color: string;
+}
+
+interface BadgeDefinition {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: string;
+  tier: string;
+  is_active: boolean;
 }
 
 const POINT_SETTINGS: PointSetting[] = [
@@ -62,74 +53,70 @@ const POINT_SETTINGS: PointSetting[] = [
   { key: "gamify_early_minutes", label: "เกณฑ์ Early Bird (นาที)", description: "ต้องมาก่อนเวลากี่นาทีถึงจะได้โบนัส", icon: Star, color: "#5ac8fa" },
 ];
 
+const GAMIFY_KEYS = [
+  "gamify_enabled",
+  "gamify_points_on_time",
+  "gamify_points_early",
+  "gamify_points_full_day",
+  "gamify_points_ot",
+  "gamify_points_no_leave_week",
+  "gamify_points_streak_bonus",
+  "gamify_points_late_penalty",
+  "gamify_early_minutes",
+  "enable_weekly_ranking_announcement",
+  "weekly_ranking_day",
+];
+
+const GAMIFY_DEFAULTS: Record<string, string> = {
+  gamify_enabled: "true",
+  gamify_points_on_time: "5",
+  gamify_points_early: "3",
+  gamify_points_full_day: "5",
+  gamify_points_ot: "10",
+  gamify_points_no_leave_week: "10",
+  gamify_points_streak_bonus: "5",
+  gamify_points_late_penalty: "-3",
+  gamify_early_minutes: "15",
+  enable_weekly_ranking_announcement: "true",
+  weekly_ranking_day: "0",
+};
+
 function GamificationSettingsContent() {
   const toast = useToast();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
-  const [settings, setSettings] = useState<Record<string, string>>({});
-  const [badges, setBadges] = useState<any[]>([]);
-  const [rankingEnabled, setRankingEnabled] = useState(true);
-  const [rankingDay, setRankingDay] = useState("0");
+  const [badges, setBadges] = useState<BadgeDefinition[]>([]);
 
-  useEffect(() => {
-    fetchSettings();
-    fetchBadges();
-  }, []);
+  const { settings, setSettings, loading, saving, save } =
+    useSystemSettings<Record<string, string>>({
+      keys: GAMIFY_KEYS,
+      defaults: GAMIFY_DEFAULTS,
+      deserialize: (raw) => ({ ...GAMIFY_DEFAULTS, ...raw }),
+      serialize: (s) => s,
+    });
 
-  const fetchSettings = async () => {
-    setLoading(true);
-    try {
-      const { data } = await supabase
-        .from("system_settings")
-        .select("setting_key, setting_value")
-        .or("setting_key.like.gamify_%,setting_key.in.(enable_weekly_ranking_announcement,weekly_ranking_day)");
-
-      const map: Record<string, string> = {};
-      data?.forEach((s: any) => {
-        map[s.setting_key] = s.setting_value;
-      });
-      setSettings(map);
-      setRankingEnabled(map.enable_weekly_ranking_announcement !== "false");
-      setRankingDay(map.weekly_ranking_day || "0");
-    } catch (error) {
-      toast.error("ข้อผิดพลาด", "ไม่สามารถโหลดการตั้งค่าได้");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchBadges = async () => {
-    const { data } = await supabase
+  const fetchBadges = useCallback(async () => {
+    const { data, error } = await supabase
       .from("badge_definitions")
       .select("*")
       .order("category")
       .order("tier");
-    setBadges(data || []);
-  };
+    if (error) {
+      toast.error("ข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลเหรียญได้");
+    } else {
+      setBadges((data || []) as BadgeDefinition[]);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchBadges();
+  }, [fetchBadges]);
 
   const handleSave = async () => {
-    setSaving(true);
-    try {
-      const allSettings = {
-        ...settings,
-        enable_weekly_ranking_announcement: rankingEnabled ? "true" : "false",
-        weekly_ranking_day: rankingDay,
-      };
-
-      for (const [key, value] of Object.entries(allSettings)) {
-        await supabase
-          .from("system_settings")
-          .upsert(
-            { setting_key: key, setting_value: value },
-            { onConflict: "setting_key" }
-          );
-      }
+    const ok = await save();
+    if (ok) {
       toast.success("บันทึกสำเร็จ", "การตั้งค่า Gamification ถูกบันทึกแล้ว");
-    } catch (error) {
+    } else {
       toast.error("ข้อผิดพลาด", "ไม่สามารถบันทึกการตั้งค่าได้");
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -149,20 +136,27 @@ function GamificationSettingsContent() {
       } else {
         throw new Error(result.error);
       }
-    } catch (error: any) {
-      toast.error("ข้อผิดพลาด", error.message || "ไม่สามารถคำนวณใหม่ได้");
+    } catch (error) {
+      toast.error("ข้อผิดพลาด", error instanceof Error ? error.message : "ไม่สามารถคำนวณใหม่ได้");
     } finally {
       setRecalculating(false);
     }
   };
 
   const toggleBadge = async (badgeId: string, currentActive: boolean) => {
-    await supabase
+    const { error } = await supabase
       .from("badge_definitions")
       .update({ is_active: !currentActive })
       .eq("id", badgeId);
-    fetchBadges();
+    if (error) {
+      toast.error("ข้อผิดพลาด", "ไม่สามารถอัปเดตเหรียญได้");
+    } else {
+      fetchBadges();
+    }
   };
+
+  const isEnabled = settings.gamify_enabled !== "false";
+  const rankingEnabled = settings.enable_weekly_ranking_announcement !== "false";
 
   if (loading) {
     return (
@@ -171,8 +165,6 @@ function GamificationSettingsContent() {
       </div>
     );
   }
-
-  const isEnabled = settings.gamify_enabled !== "false";
 
   return (
     <div className="space-y-6">
@@ -188,8 +180,10 @@ function GamificationSettingsContent() {
               <p className="text-[13px] text-[#86868b]">เปิด/ปิดระบบแต้มและเหรียญ</p>
             </div>
           </div>
-          <ToggleSwitch
-            enabled={isEnabled}
+          <Toggle
+            checked={isEnabled}
+            color="green"
+            size="lg"
             onChange={() =>
               setSettings((prev) => ({
                 ...prev,
@@ -251,9 +245,16 @@ function GamificationSettingsContent() {
                   <p className="text-[12px] text-[#86868b]">ประกาศอันดับ Leaderboard ทุกสัปดาห์</p>
                 </div>
               </div>
-              <ToggleSwitch
-                enabled={rankingEnabled}
-                onChange={() => setRankingEnabled(!rankingEnabled)}
+              <Toggle
+                checked={rankingEnabled}
+                color="green"
+                size="lg"
+                onChange={() =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    enable_weekly_ranking_announcement: rankingEnabled ? "false" : "true",
+                  }))
+                }
               />
             </div>
 
@@ -262,8 +263,10 @@ function GamificationSettingsContent() {
                 <Calendar className="w-4 h-4 text-[#86868b] flex-shrink-0" />
                 <label className="text-[13px] text-[#86868b] flex-shrink-0">ส่งทุกวัน</label>
                 <select
-                  value={rankingDay}
-                  onChange={(e) => setRankingDay(e.target.value)}
+                  value={settings.weekly_ranking_day || "0"}
+                  onChange={(e) =>
+                    setSettings((prev) => ({ ...prev, weekly_ranking_day: e.target.value }))
+                  }
                   className="flex-1 px-3 py-2 bg-[#f5f5f7] border border-[#e8e8ed] rounded-lg text-[14px] text-[#1d1d1f] focus:outline-none focus:border-[#0071e3]"
                 >
                   <option value="0">อาทิตย์</option>
@@ -300,8 +303,10 @@ function GamificationSettingsContent() {
                     <p className="text-[12px] text-[#86868b]">{badge.description}</p>
                   </div>
                 </div>
-                <ToggleSwitch
-                  enabled={badge.is_active}
+                <Toggle
+                  checked={badge.is_active}
+                  color="green"
+                  size="lg"
                   onChange={() => toggleBadge(badge.id, badge.is_active)}
                 />
               </div>
@@ -310,7 +315,7 @@ function GamificationSettingsContent() {
         </div>
       </div>
 
-      {/* Recalculate */}
+      {/* Recalculate Tool */}
       <div>
         <h2 className="text-[17px] font-semibold text-[#1d1d1f] mb-3">เครื่องมือ</h2>
         <Card elevated>

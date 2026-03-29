@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAdmin, handleAuthError, withAuth } from "@/lib/auth/api-middleware";
+import { withAuth, withAdmin } from "@/lib/auth/api-middleware";
 import { calculateAllAutoMetrics, getAutoMetrics, calculateAutoMetrics } from "@/lib/services/kpi.service";
 
 export const GET = withAuth(async (request: NextRequest, auth) => {
@@ -15,14 +15,7 @@ export const GET = withAuth(async (request: NextRequest, auth) => {
   }
 });
 
-export async function POST(request: NextRequest) {
-  let auth;
-  try {
-    auth = await requireAdmin(request);
-  } catch (error) {
-    return handleAuthError(error);
-  }
-
+export const POST = withAdmin(async (request: NextRequest) => {
   const periodId = request.nextUrl.pathname.split("/").pop()!;
 
   try {
@@ -43,4 +36,4 @@ export async function POST(request: NextRequest) {
     console.error("Error calculating auto metrics:", error);
     return Response.json({ error: "ไม่สามารถคำนวณตัวชี้วัดได้" }, { status: 500 });
   }
-}
+});

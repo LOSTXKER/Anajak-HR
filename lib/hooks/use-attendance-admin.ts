@@ -15,6 +15,59 @@ import type {
 } from "@/components/admin/attendance/types";
 import { useWorkSettings } from "@/lib/hooks/use-settings";
 
+interface AttendanceRecord {
+  id: string;
+  employee_id: string;
+  work_date: string;
+  clock_in_time: string | null;
+  clock_out_time: string | null;
+  clock_in_photo_url: string | null;
+  clock_out_photo_url: string | null;
+  total_hours: number | null;
+  is_late: boolean;
+  late_minutes: number | null;
+  status: string;
+  work_mode: string | null;
+  auto_checkout: boolean | null;
+  employee?: Employee;
+}
+
+interface OTRecord {
+  id: string;
+  employee_id: string;
+  request_date: string;
+  actual_ot_hours: number | null;
+  ot_amount: number | null;
+  status: string;
+}
+
+interface LeaveRecord {
+  employee_id: string;
+  start_date: string;
+  end_date: string;
+  leave_type: string;
+  status: string;
+}
+
+interface WFHRecord {
+  employee_id: string;
+  date: string;
+  status: string;
+}
+
+interface FieldWorkRecord {
+  employee_id: string;
+  date: string;
+  location: string;
+  status: string;
+}
+
+interface LateReqRecord {
+  employee_id: string;
+  request_date: string;
+  status: string;
+}
+
 export function useAttendanceAdmin() {
   const { employee: currentAdmin } = useAuth();
   const toast = useToast();
@@ -57,6 +110,7 @@ export function useAttendanceAdmin() {
 
   // Fetch base data
   useEffect(() => {
+    let cancelled = false;
     const fetchBaseData = async () => {
       const [empRes, branchRes] = await Promise.all([
         supabase
@@ -68,10 +122,12 @@ export function useAttendanceAdmin() {
           .order("name"),
         supabase.from("branches").select("id, name").order("name"),
       ]);
+      if (cancelled) return;
       setEmployees(empRes.data || []);
       setBranches(branchRes.data || []);
     };
     fetchBaseData();
+    return () => { cancelled = true; };
   }, []);
 
   // Fetch attendance data
@@ -373,12 +429,12 @@ export function useAttendanceAdmin() {
 // Helper function for single day rows
 function buildSingleDayRows(
   employees: Employee[],
-  attData: any[],
-  otData: any[],
-  leaveData: any[],
-  wfhData: any[],
-  fieldWorkData: any[],
-  lateReqData: any[],
+  attData: AttendanceRecord[],
+  otData: OTRecord[],
+  leaveData: LeaveRecord[],
+  wfhData: WFHRecord[],
+  fieldWorkData: FieldWorkRecord[],
+  lateReqData: LateReqRecord[],
   holidayDates: Set<string>,
   selectedDate: Date,
   isBeforeWorkStart: boolean,
@@ -402,22 +458,22 @@ function buildSingleDayRows(
       }
     }
 
-    const att = attData.find((a: any) => a.employee_id === emp.id);
-    const empOt = otData.filter((o: any) => o.employee_id === emp.id);
+    const att = attData.find((a) => a.employee_id === emp.id);
+    const empOt = otData.filter((o) => o.employee_id === emp.id);
     const empLeave = leaveData.find(
-      (l: any) =>
+      (l) =>
         l.employee_id === emp.id &&
         l.start_date <= dateStr &&
         l.end_date >= dateStr
     );
     const empWfh = wfhData.find(
-      (w: any) => w.employee_id === emp.id && w.date === dateStr
+      (w) => w.employee_id === emp.id && w.date === dateStr
     );
     const empFieldWork = fieldWorkData.find(
-      (fw: any) => fw.employee_id === emp.id && fw.date === dateStr
+      (fw) => fw.employee_id === emp.id && fw.date === dateStr
     );
     const empLateReq = lateReqData.find(
-      (lr: any) => lr.employee_id === emp.id && lr.request_date === dateStr
+      (lr) => lr.employee_id === emp.id && lr.request_date === dateStr
     );
 
     if (isNonWorkingDay && !att && empOt.length === 0) {
@@ -454,10 +510,10 @@ function buildSingleDayRows(
       clockOutPhotoUrl: att?.clock_out_photo_url || null,
       otCount: empOt.length,
       otHours: empOt.reduce(
-        (sum: number, o: any) => sum + (o.actual_ot_hours || 0),
+        (sum, o) => sum + (o.actual_ot_hours || 0),
         0
       ),
-      otAmount: empOt.reduce((sum: number, o: any) => sum + (o.ot_amount || 0), 0),
+      otAmount: empOt.reduce((sum, o) => sum + (o.ot_amount || 0), 0),
       leaveType: empLeave?.leave_type || null,
       isWFH: !!empWfh || att?.work_mode === "wfh",
       isFieldWork: !!empFieldWork || att?.work_mode === "field",
@@ -469,20 +525,19 @@ function buildSingleDayRows(
   return rows;
 }
 
-// Helper function for range rows
 function buildRangeRows(
   employees: Employee[],
-  attData: any[],
-  otData: any[],
-  leaveData: any[],
-  wfhData: any[],
-  fieldWorkData: any[],
-  lateReqData: any[]
+  attData: AttendanceRecord[],
+  otData: OTRecord[],
+  leaveData: LeaveRecord[],
+  wfhData: WFHRecord[],
+  fieldWorkData: FieldWorkRecord[],
+  lateReqData: LateReqRecord[]
 ): AttendanceRow[] {
   const rows: AttendanceRow[] = [];
   const processedKeys = new Set<string>();
 
-  attData.forEach((att: any) => {
+  attData.forEach((att) => {
     const emp = att.employee || employees.find((e) => e.id === att.employee_id);
     const dateStr = att.work_date;
     const key = `${att.employee_id}-${dateStr}`;
@@ -491,22 +546,22 @@ function buildRangeRows(
     if (!emp) return;
 
     const empOt = otData.filter(
-      (o: any) => o.employee_id === att.employee_id && o.request_date === dateStr
+      (o) => o.employee_id === att.employee_id && o.request_date === dateStr
     );
     const empLeave = leaveData.find(
-      (l: any) =>
+      (l) =>
         l.employee_id === att.employee_id &&
         l.start_date <= dateStr &&
         l.end_date >= dateStr
     );
     const empWfh = wfhData.find(
-      (w: any) => w.employee_id === att.employee_id && w.date === dateStr
+      (w) => w.employee_id === att.employee_id && w.date === dateStr
     );
     const empFieldWork = fieldWorkData.find(
-      (fw: any) => fw.employee_id === att.employee_id && fw.date === dateStr
+      (fw) => fw.employee_id === att.employee_id && fw.date === dateStr
     );
     const empLateReq = lateReqData.find(
-      (lr: any) =>
+      (lr) =>
         lr.employee_id === att.employee_id && lr.request_date === dateStr
     );
 
@@ -525,10 +580,10 @@ function buildRangeRows(
       clockOutPhotoUrl: att.clock_out_photo_url,
       otCount: empOt.length,
       otHours: empOt.reduce(
-        (sum: number, o: any) => sum + (o.actual_ot_hours || 0),
+        (sum, o) => sum + (o.actual_ot_hours || 0),
         0
       ),
-      otAmount: empOt.reduce((sum: number, o: any) => sum + (o.ot_amount || 0), 0),
+      otAmount: empOt.reduce((sum, o) => sum + (o.ot_amount || 0), 0),
       leaveType: empLeave?.leave_type || null,
       isWFH: !!empWfh || att.work_mode === "wfh",
       isFieldWork: !!empFieldWork || att.work_mode === "field",
@@ -537,7 +592,7 @@ function buildRangeRows(
     });
   });
 
-  otData.forEach((ot: any) => {
+  otData.forEach((ot) => {
     const key = `${ot.employee_id}-${ot.request_date}`;
     if (!processedKeys.has(key)) {
       processedKeys.add(key);
@@ -546,7 +601,7 @@ function buildRangeRows(
 
       const dateStr = ot.request_date;
       const empOt = otData.filter(
-        (o: any) => o.employee_id === ot.employee_id && o.request_date === dateStr
+        (o) => o.employee_id === ot.employee_id && o.request_date === dateStr
       );
 
       rows.push({
@@ -564,11 +619,11 @@ function buildRangeRows(
         clockOutPhotoUrl: null,
         otCount: empOt.length,
         otHours: empOt.reduce(
-          (sum: number, o: any) => sum + (o.actual_ot_hours || 0),
+          (sum, o) => sum + (o.actual_ot_hours || 0),
           0
         ),
         otAmount: empOt.reduce(
-          (sum: number, o: any) => sum + (o.ot_amount || 0),
+          (sum, o) => sum + (o.ot_amount || 0),
           0
         ),
         leaveType: null,

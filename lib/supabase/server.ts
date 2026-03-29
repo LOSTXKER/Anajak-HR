@@ -16,6 +16,9 @@ if (!supabaseServiceKey) {
 }
 
 // Server-side client with service role (bypasses RLS)
+// NOTE: Not typed with Database generic because hand-written types lack
+// the PostgREST select-parser hints. Use `supabase gen types typescript`
+// to generate proper types for full type safety.
 export const supabaseServer = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,

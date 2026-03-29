@@ -1,17 +1,10 @@
 import { NextRequest } from "next/server";
-import { requireAdmin, handleAuthError } from "@/lib/auth/api-middleware";
+import { withAdmin } from "@/lib/auth/api-middleware";
 import { updatePeriodStatus } from "@/lib/services/kpi.service";
 
 const VALID_STATUSES = ["draft", "goal_setting", "in_progress", "evaluating", "closed"];
 
-export async function PUT(request: NextRequest) {
-  let auth;
-  try {
-    auth = await requireAdmin(request);
-  } catch (error) {
-    return handleAuthError(error);
-  }
-
+export const PUT = withAdmin(async (request: NextRequest) => {
   const segments = request.nextUrl.pathname.split("/");
   const id = segments[segments.length - 2];
 
@@ -31,4 +24,4 @@ export async function PUT(request: NextRequest) {
     console.error("Error updating period status:", error);
     return Response.json({ error: "ไม่สามารถเปลี่ยนสถานะได้" }, { status: 500 });
   }
-}
+});

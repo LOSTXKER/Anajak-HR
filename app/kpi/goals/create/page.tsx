@@ -12,14 +12,19 @@ import { Textarea } from "@/components/ui/Textarea";
 import { useToast } from "@/components/ui/Toast";
 import { supabase } from "@/lib/supabase/client";
 import { ArrowLeft } from "lucide-react";
+import { useKpiPeriod } from "@/lib/hooks/use-kpi-period";
 
 function CreateGoalContent() {
   const { employee } = useAuth();
   const router = useRouter();
   const toast = useToast();
   const [saving, setSaving] = useState(false);
-  const [activePeriodId, setActivePeriodId] = useState<string | null>(null);
   const [existingTotalWeight, setExistingTotalWeight] = useState(0);
+  const { period, loading: periodLoading } = useKpiPeriod({
+    status: "goal_setting",
+    skip: !employee?.id,
+  });
+  const activePeriodId = period?.id ?? null;
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -29,39 +34,34 @@ function CreateGoalContent() {
   });
 
   useEffect(() => {
-    if (employee?.id) fetchPeriod();
-  }, [employee?.id]);
-
-  const fetchPeriod = async () => {
-    const { data: periods } = await supabase
-      .from("kpi_periods")
-      .select("id")
-      .eq("status", "goal_setting")
-      .order("start_date", { ascending: false })
-      .limit(1);
-
-    const periodId = periods?.[0]?.id;
-    if (!periodId) {
+    if (!period || !employee?.id) return;
+    if (!period.id) {
       toast.error("ไม่สามารถตั้งเป้าหมายได้", "ไม่มีรอบประเมินที่เปิดรับเป้าหมาย");
       router.push("/kpi/goals");
       return;
     }
+    let cancelled = false;
 
-    setActivePeriodId(periodId);
+    const fetchWeights = async () => {
+      const { data: goals } = await supabase
+        .from("kpi_goals")
+        .select("weight")
+        .eq("employee_id", employee.id)
+        .eq("period_id", period.id)
+        .neq("status", "rejected");
 
-    const { data: goals } = await supabase
-      .from("kpi_goals")
-      .select("weight")
-      .eq("employee_id", employee!.id)
-      .eq("period_id", periodId)
-      .neq("status", "rejected");
+      if (!cancelled) {
+        const totalWeight = (goals || []).reduce(
+          (sum: number, g: { weight: number }) => sum + Number(g.weight),
+          0
+        );
+        setExistingTotalWeight(totalWeight);
+      }
+    };
 
-    const totalWeight = (goals || []).reduce(
-      (sum: number, g: { weight: number }) => sum + Number(g.weight),
-      0
-    );
-    setExistingTotalWeight(totalWeight);
-  };
+    fetchWeights();
+    return () => { cancelled = true; };
+  }, [period?.id, employee?.id, router, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
