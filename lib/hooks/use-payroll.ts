@@ -13,6 +13,7 @@ import type {
 } from "@/components/admin/payroll/types";
 import {
   wasEmployedOnDate,
+  wasEmployedDuringPeriod,
   fetchEmploymentHistory,
   type EmploymentHistoryRecord,
 } from "@/lib/utils/employment";
@@ -99,7 +100,6 @@ export function usePayroll() {
         "id, name, email, role, branch_id, base_salary, commission, is_system_account"
       )
       .eq("account_status", "approved")
-      .is("deleted_at", null)
       .neq("role", "admin")
       .order("name");
 
@@ -141,10 +141,13 @@ export function usePayroll() {
       const startDate = format(startOfMonth(currentMonth), "yyyy-MM-dd");
       const endDate = format(endOfMonth(currentMonth), "yyyy-MM-dd");
 
-      let employeesToProcess = employees;
+      // Only include employees who were employed during any day of this period
+      let employeesToProcess = employees.filter((e) =>
+        wasEmployedDuringPeriod(e.id, startDate, endDate, employmentHistory)
+      );
 
       if (selectedEmployee !== "all") {
-        employeesToProcess = employees.filter((e) => e.id === selectedEmployee);
+        employeesToProcess = employeesToProcess.filter((e) => e.id === selectedEmployee);
       }
 
       if (selectedBranch !== "all") {

@@ -16,6 +16,7 @@ import type {
 import { useWorkSettings } from "@/lib/hooks/use-settings";
 import {
   wasEmployedOnDate,
+  wasEmployedDuringPeriod,
   type EmploymentHistoryRecord,
 } from "@/lib/utils/employment";
 
@@ -122,7 +123,6 @@ export function useAttendanceAdmin() {
           .from("employees")
           .select("id, name, email, branch_id, role, created_at")
           .eq("account_status", "approved")
-          .is("deleted_at", null)
           .neq("role", "admin")
           .order("name"),
         supabase.from("branches").select("id, name").order("name"),
@@ -227,9 +227,14 @@ export function useAttendanceAdmin() {
       // Build rows based on date mode
       const settingsWorkingDays = workSettings?.workingDays || [1, 2, 3, 4, 5];
 
+      // Pre-filter to employees who were employed during the viewed period
+      const periodEmployees = employees.filter((e) =>
+        wasEmployedDuringPeriod(e.id, fromDate, toDate, employmentHistory)
+      );
+
       if (dateMode === "single") {
         const rows = buildSingleDayRows(
-          employees,
+          periodEmployees,
           attData,
           otData,
           leaveData,
@@ -245,7 +250,7 @@ export function useAttendanceAdmin() {
         setAttendanceRows(rows);
       } else {
         const rows = buildRangeRows(
-          employees,
+          periodEmployees,
           attData,
           otData,
           leaveData,

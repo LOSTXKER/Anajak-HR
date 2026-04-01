@@ -12,6 +12,7 @@ import { th } from "date-fns/locale";
 import { useWorkSettings } from "@/lib/hooks/use-settings";
 import {
   wasEmployedOnDate,
+  wasEmployedDuringPeriod,
   type EmploymentHistoryRecord,
 } from "@/lib/utils/employment";
 import type {
@@ -88,7 +89,6 @@ export function useReportData({
             .from("employees")
             .select("id, name, email, role, branch_id")
             .eq("account_status", "approved")
-            .is("deleted_at", null)
             .neq("role", "admin"),
           supabase
             .from("attendance_logs")
@@ -159,8 +159,15 @@ export function useReportData({
   const employeeReports = useMemo((): EmployeeReport[] => {
     const startDate = startOfMonth(currentMonth);
     const endDate = endOfMonth(currentMonth);
+    const startStr = format(startDate, "yyyy-MM-dd");
+    const endStr = format(endDate, "yyyy-MM-dd");
 
-    return employees.map((emp) => {
+    // Only include employees who were employed during any day of this month
+    const activeEmployees = employees.filter((e) =>
+      wasEmployedDuringPeriod(e.id, startStr, endStr, employmentHistory)
+    );
+
+    return activeEmployees.map((emp) => {
       const empAttendance = attendanceLogs.filter(
         (a) => a.employee_id === emp.id && wasEmployedOnDate(emp.id, a.work_date, employmentHistory)
       );
