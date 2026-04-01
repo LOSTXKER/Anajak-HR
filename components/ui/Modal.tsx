@@ -24,18 +24,18 @@ export function Modal({
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const previousActiveElement = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
   const titleId = useId();
   const descId = useId();
 
-  // Handle escape key
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    },
-    [onClose]
-  );
+  onCloseRef.current = onClose;
+
+  // Stable keyboard handler using ref
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") {
+      onCloseRef.current();
+    }
+  }, []);
 
   // Focus trap
   const handleTabKey = useCallback((e: KeyboardEvent) => {
@@ -56,19 +56,25 @@ export function Modal({
     }
   }, []);
 
+  // Keyboard listeners (stable, does not re-run on prop changes)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handleTabKey);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", handleTabKey);
+    };
+  }, [isOpen, handleKeyDown, handleTabKey]);
+
+  // Auto-focus + scroll lock: only on open/close transitions
   useEffect(() => {
     if (isOpen) {
-      // Save current focus
       previousActiveElement.current = document.activeElement as HTMLElement;
-      
-      // Lock body scroll
       document.body.style.overflow = "hidden";
-      
-      // Add keyboard listeners
-      document.addEventListener("keydown", handleKeyDown);
-      document.addEventListener("keydown", handleTabKey);
-      
-      // Focus first focusable element in modal
+
       requestAnimationFrame(() => {
         const focusableElement = modalRef.current?.querySelector<HTMLElement>(
           'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -77,19 +83,13 @@ export function Modal({
       });
     } else {
       document.body.style.overflow = "";
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("keydown", handleTabKey);
-      
-      // Restore focus
       previousActiveElement.current?.focus();
     }
 
     return () => {
       document.body.style.overflow = "";
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("keydown", handleTabKey);
     };
-  }, [isOpen, handleKeyDown, handleTabKey]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
