@@ -89,6 +89,7 @@ export function useAttendanceAdmin() {
   // Data state
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [employmentHistory, setEmploymentHistory] = useState<any[]>([]);
   const [attendanceRows, setAttendanceRows] = useState<AttendanceRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -112,7 +113,7 @@ export function useAttendanceAdmin() {
   useEffect(() => {
     let cancelled = false;
     const fetchBaseData = async () => {
-      const [empRes, branchRes] = await Promise.all([
+      const [empRes, branchRes, historyRes] = await Promise.all([
         supabase
           .from("employees")
           .select("id, name, email, branch_id, role, created_at")
@@ -121,10 +122,16 @@ export function useAttendanceAdmin() {
           .neq("role", "admin")
           .order("name"),
         supabase.from("branches").select("id, name").order("name"),
+        supabase
+          .from("employment_history")
+          .select("employee_id, action, effective_date")
+          .in("action", ["resigned", "terminated", "rehired"])
+          .order("effective_date", { ascending: true }),
       ]);
       if (cancelled) return;
       setEmployees(empRes.data || []);
       setBranches(branchRes.data || []);
+      setEmploymentHistory(historyRes.data || []);
     };
     fetchBaseData();
     return () => { cancelled = true; };
@@ -228,7 +235,8 @@ export function useAttendanceAdmin() {
           holidayDates,
           selectedDate,
           isWorkdayInProgress,
-          settingsWorkingDays
+          settingsWorkingDays,
+          employmentHistory
         );
         setAttendanceRows(rows);
       } else {
@@ -250,7 +258,7 @@ export function useAttendanceAdmin() {
     } finally {
       setLoading(false);
     }
-  }, [employees, dateMode, selectedDate, startDate, endDate, toast, workSettings]);
+  }, [employees, dateMode, selectedDate, startDate, endDate, toast, workSettings, employmentHistory]);
 
   useEffect(() => {
     if (employees.length > 0) fetchAttendance();
@@ -426,6 +434,35 @@ export function useAttendanceAdmin() {
   };
 }
 
+interface EmploymentHistoryRecord {
+  employee_id: string;
+  action: string;
+  effective_date: string;
+}
+
+function wasEmployedOnDate(
+  empId: string,
+  dateStr: string,
+  history: EmploymentHistoryRecord[]
+): boolean {
+  const empHistory = history
+    .filter((h) => h.employee_id === empId)
+    .sort((a, b) => a.effective_date.localeCompare(b.effective_date));
+
+  if (empHistory.length === 0) return true;
+
+  let active = true;
+  for (const event of empHistory) {
+    if (event.effective_date > dateStr) break;
+    if (event.action === "resigned" || event.action === "terminated") {
+      active = false;
+    } else if (event.action === "rehired") {
+      active = true;
+    }
+  }
+  return active;
+}
+
 // Helper function for single day rows
 function buildSingleDayRows(
   employees: Employee[],
@@ -438,7 +475,8 @@ function buildSingleDayRows(
   holidayDates: Set<string>,
   selectedDate: Date,
   isBeforeWorkStart: boolean,
-  workingDays: number[]
+  workingDays: number[],
+  employmentHistory: EmploymentHistoryRecord[] = []
 ): AttendanceRow[] {
   const dateStr = format(selectedDate, "yyyy-MM-dd");
   const isHoliday = holidayDates.has(dateStr);
@@ -450,12 +488,17 @@ function buildSingleDayRows(
   const rows: AttendanceRow[] = [];
 
   employees.forEach((emp) => {
-    // Skip dates before employee joined (compare date portion only)
+    // Skip dates before employee joined
     if (emp.created_at) {
-      const empCreatedDate = emp.created_at.slice(0, 10); // "YYYY-MM-DD"
+      const empCreatedDate = emp.created_at.slice(0, 10);
       if (dateStr < empCreatedDate) {
         return;
       }
+    }
+
+    // Skip dates when employee was not employed (resigned/terminated period)
+    if (!wasEmployedOnDate(emp.id, dateStr, employmentHistory)) {
+      return;
     }
 
     const att = attData.find((a) => a.employee_id === emp.id);
