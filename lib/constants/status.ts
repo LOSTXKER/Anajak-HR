@@ -32,6 +32,30 @@ export const ACCOUNT_STATUS = {
 export type AccountStatus = typeof ACCOUNT_STATUS[keyof typeof ACCOUNT_STATUS];
 
 /**
+ * Employment status values
+ * Used for: Employee resignation / termination / rehire workflow
+ */
+export const EMPLOYMENT_STATUS = {
+  ACTIVE: "active",
+  RESIGNED: "resigned",
+  TERMINATED: "terminated",
+} as const;
+
+export type EmploymentStatus = typeof EMPLOYMENT_STATUS[keyof typeof EMPLOYMENT_STATUS];
+
+/**
+ * Employment history action types
+ */
+export const EMPLOYMENT_ACTION = {
+  HIRED: "hired",
+  RESIGNED: "resigned",
+  TERMINATED: "terminated",
+  REHIRED: "rehired",
+} as const;
+
+export type EmploymentAction = typeof EMPLOYMENT_ACTION[keyof typeof EMPLOYMENT_ACTION];
+
+/**
  * Employee roles
  */
 export const EMPLOYEE_ROLE = {

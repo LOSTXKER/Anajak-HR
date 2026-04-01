@@ -8,3 +8,4 @@ export { EmployeeStats } from "./EmployeeStats";
 export { EmployeeFilters } from "./EmployeeFilters";
 export { EmployeeTable } from "./EmployeeTable";
 export { EmployeeEditModal } from "./EmployeeEditModal";
+export { ResignationModal } from "./ResignationModal";

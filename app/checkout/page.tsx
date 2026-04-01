@@ -117,15 +117,7 @@ function CheckoutContent() {
       const startTimeInMinutes = startHour * 60 + startMinute;
       const endTimeInMinutes = endHour * 60 + endMinute;
       const isEarlyCheckout = currentTimeInMinutes < startTimeInMinutes;
-
-      if (currentTimeInMinutes > endTimeInMinutes) {
-        setError(
-          `ไม่สามารถเช็คเอาท์ได้\n\n` +
-          `เวลาที่อนุญาต: ${allowedTime.checkoutStart} - ${allowedTime.checkoutEnd} น.\n` +
-          `หากต้องการทำงานนอกเวลา กรุณาขอ OT ก่อน`
-        );
-        return;
-      }
+      const isLateCheckout = currentTimeInMinutes > endTimeInMinutes;
 
       const photoUrl = await uploadAttendancePhoto(camera.photo, employee.id, "checkout");
       if (!photoUrl) {
@@ -172,6 +164,31 @@ function CheckoutContent() {
             },
           }),
         }).catch((err) => console.error("Failed to send early checkout notification:", err));
+      }
+
+      if (isLateCheckout) {
+        await supabase.from("attendance_anomalies").insert({
+          attendance_id: todayLog.id,
+          employee_id: todayLog.employee_id,
+          date: format(new Date(), "yyyy-MM-dd"),
+          anomaly_type: "late_checkout",
+          description: `พนักงานเช็คเอาท์หลังเวลา (${now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false })}) เวลาปกติไม่เกิน ${allowedTime.checkoutEnd} น.`,
+          status: "pending",
+        });
+
+        authFetch("/api/notifications", {
+          method: "POST",
+          body: JSON.stringify({
+            type: "late_checkout",
+            data: {
+              employeeName: employee.name,
+              time: now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false }),
+              totalHours,
+              expectedTime: allowedTime.checkoutEnd,
+              location: branch?.name || "สำนักงาน",
+            },
+          }),
+        }).catch((err) => console.error("Failed to send late checkout notification:", err));
       }
 
       authFetch("/api/checkout-notification", {

@@ -101,7 +101,7 @@ function CheckinContent() {
     const startTimeInMinutes = startHour * 60 + startMinute;
     const endTimeInMinutes = endHour * 60 + endMinute;
 
-    if (currentTimeInMinutes < startTimeInMinutes || currentTimeInMinutes > endTimeInMinutes) {
+    if (!hasApprovedOT && (currentTimeInMinutes < startTimeInMinutes || currentTimeInMinutes > endTimeInMinutes)) {
       setError(
         `ไม่สามารถเช็คอินนอกเวลาได้\n\n` +
         `เวลาที่อนุญาต: ${allowedTime.checkinStart} - ${allowedTime.checkinEnd} น.\n` +

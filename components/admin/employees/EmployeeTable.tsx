@@ -12,8 +12,8 @@ import {
   XCircle,
   Eye,
   ChevronRight,
-  Trash2,
-  RotateCcw,
+  UserMinus,
+  UserPlus,
 } from "lucide-react";
 import { Employee, LeaveBalance } from "./types";
 
@@ -25,8 +25,8 @@ interface EmployeeTableProps {
   onEdit: (employee: Employee) => void;
   onApprove: (employee: Employee) => void;
   onReject: (employee: Employee) => void;
-  onDelete?: (employee: Employee) => void;
-  onRestore?: (employee: Employee) => void;
+  onResign?: (employee: Employee) => void;
+  onRehire?: (employee: Employee) => void;
 }
 
 function getRoleBadge(role: string) {
@@ -40,9 +40,12 @@ function getRoleBadge(role: string) {
   }
 }
 
-function getStatusBadge(status: string, isDeleted: boolean = false) {
-  if (isDeleted) {
-    return <Badge variant="default">🗑️ ถูกลบ</Badge>;
+function getStatusBadge(status: string, employmentStatus?: string | null) {
+  if (employmentStatus === "resigned") {
+    return <Badge variant="default">ลาออก</Badge>;
+  }
+  if (employmentStatus === "terminated") {
+    return <Badge variant="danger">เลิกจ้าง</Badge>;
   }
   switch (status) {
     case "approved":
@@ -64,8 +67,8 @@ export function EmployeeTable({
   onEdit,
   onApprove,
   onReject,
-  onDelete,
-  onRestore,
+  onResign,
+  onRehire,
 }: EmployeeTableProps) {
   if (loading) {
     return (
@@ -143,7 +146,7 @@ export function EmployeeTable({
                   </td>
                   <td className="px-3 py-4">{getRoleBadge(emp.role)}</td>
                   <td className="px-3 py-4">
-                    {getStatusBadge(emp.account_status, !!emp.deleted_at)}
+                    {getStatusBadge(emp.account_status, emp.employment_status)}
                   </td>
                   <td className="px-3 py-4">
                     <div className="text-center">
@@ -180,18 +183,28 @@ export function EmployeeTable({
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {/* Show restore button for deleted employees */}
-                      {showDeleted && emp.deleted_at && onRestore && (
+                      {/* Show rehire button for resigned/terminated employees */}
+                      {showDeleted && (emp.employment_status === "resigned" || emp.employment_status === "terminated" || emp.deleted_at) && onRehire && (
                         <button
-                          onClick={() => onRestore(emp)}
+                          onClick={() => onRehire(emp)}
                           className="p-2 text-[#34c759] hover:bg-[#34c759]/10 rounded-lg transition-colors"
-                          title="กู้คืน"
+                          title="รับกลับเข้าทำงาน"
                         >
-                          <RotateCcw className="w-5 h-5" />
+                          <UserPlus className="w-5 h-5" />
                         </button>
                       )}
+
+                      {showDeleted && (
+                        <Link
+                          href={`/admin/employees/${emp.id}`}
+                          className="p-2 text-[#86868b] hover:bg-[#f5f5f7] rounded-lg transition-colors"
+                          title="ดูประวัติ"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                      )}
                       
-                      {/* Normal action buttons for non-deleted employees */}
+                      {/* Normal action buttons for active employees */}
                       {!showDeleted && !emp.deleted_at && (
                         <>
                           {emp.account_status === "pending" &&
@@ -227,14 +240,13 @@ export function EmployeeTable({
                           >
                             <Edit className="w-4 h-4" />
                           </button>
-                          {/* Delete button - not for system accounts or admins */}
-                          {onDelete && !emp.is_system_account && emp.role !== "admin" && (
+                          {onResign && !emp.is_system_account && emp.role !== "admin" && (
                             <button
-                              onClick={() => onDelete(emp)}
-                              className="p-2 text-[#ff3b30] hover:bg-[#ff3b30]/10 rounded-lg transition-colors"
-                              title="ลบ"
+                              onClick={() => onResign(emp)}
+                              className="p-2 text-[#ff9500] hover:bg-[#ff9500]/10 rounded-lg transition-colors"
+                              title="ออกจากงาน"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <UserMinus className="w-4 h-4" />
                             </button>
                           )}
                         </>

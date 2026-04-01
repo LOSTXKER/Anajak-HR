@@ -14,5 +14,6 @@ export { LeaveTab } from "./LeaveTab";
 export { WFHTab } from "./WFHTab";
 export { LateTab } from "./LateTab";
 export { GamificationTab } from "./GamificationTab";
+export { EmploymentHistoryTab } from "./EmploymentHistoryTab";
 export { DeleteModal } from "./DeleteModal";
 export { ResetPasswordModal } from "./ResetPasswordModal";

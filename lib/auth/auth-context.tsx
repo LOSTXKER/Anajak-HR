@@ -112,10 +112,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Check if employee account has been deleted
-      if (data?.deleted_at) {
-        console.warn("Employee account has been deleted:", userId);
-        // Sign out deleted employees
+      // Check if employee has resigned, been terminated, or deleted
+      if (data?.employment_status === "resigned" || data?.employment_status === "terminated" || data?.deleted_at) {
+        console.warn("Employee account is inactive:", userId, "status:", data?.employment_status);
         await supabase.auth.signOut();
         setUser(null);
         setEmployee(null);

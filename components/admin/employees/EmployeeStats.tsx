@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Users, Calendar, Shield, UserCircle, Clock, Trash2, RotateCcw } from "lucide-react";
+import { Users, Calendar, Shield, UserCircle, Clock, UserMinus, UserPlus } from "lucide-react";
 import { EmployeeStats as Stats } from "./types";
 
 interface EmployeeStatsProps {
@@ -101,27 +101,27 @@ export function EmployeeStats({
         </Card>
       )}
 
-      {/* Deleted Employees Toggle */}
+      {/* Resigned/Terminated Employees Toggle */}
       {(stats.deleted || 0) > 0 && onToggleDeleted && (
         <Card
           elevated
-          className={`mb-6 ${showDeleted ? "bg-[#86868b]/10 border border-[#86868b]/30" : "bg-[#f5f5f7]"}`}
+          className={`mb-6 ${showDeleted ? "bg-[#ff9500]/10 border border-[#ff9500]/30" : "bg-[#f5f5f7]"}`}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 ${showDeleted ? "bg-[#86868b]/20" : "bg-[#86868b]/10"} rounded-xl flex items-center justify-center`}>
+              <div className={`w-10 h-10 ${showDeleted ? "bg-[#ff9500]/20" : "bg-[#86868b]/10"} rounded-xl flex items-center justify-center`}>
                 {showDeleted ? (
-                  <RotateCcw className="w-5 h-5 text-[#86868b]" />
+                  <UserPlus className="w-5 h-5 text-[#ff9500]" />
                 ) : (
-                  <Trash2 className="w-5 h-5 text-[#86868b]" />
+                  <UserMinus className="w-5 h-5 text-[#86868b]" />
                 )}
               </div>
               <div>
                 <p className="text-[15px] font-medium text-[#1d1d1f]">
-                  {showDeleted ? "กำลังดูพนักงานที่ถูกลบ" : `มี ${stats.deleted} บัญชีที่ถูกลบ`}
+                  {showDeleted ? "กำลังดูพนักงานที่ออกจากงาน" : `มี ${stats.deleted} คนที่ออกจากงาน`}
                 </p>
                 <p className="text-[13px] text-[#86868b]">
-                  {showDeleted ? "คลิกเพื่อกลับไปดูรายการปกติ" : "คลิกเพื่อดูและกู้คืน"}
+                  {showDeleted ? "คลิกเพื่อกลับไปดูรายการปกติ" : "คลิกเพื่อดูหรือรับกลับเข้าทำงาน"}
                 </p>
               </div>
             </div>
@@ -130,7 +130,7 @@ export function EmployeeStats({
               size="sm" 
               onClick={onToggleDeleted}
             >
-              {showDeleted ? "กลับรายการปกติ" : "ดูรายการที่ลบ"}
+              {showDeleted ? "กลับรายการปกติ" : "ดูรายการ"}
             </Button>
           </div>
         </Card>

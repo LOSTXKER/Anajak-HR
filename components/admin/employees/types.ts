@@ -21,6 +21,10 @@ export interface Employee {
   created_at?: string;
   deleted_at?: string | null;
   deleted_by?: string | null;
+  employment_status?: string | null;
+  resignation_date?: string | null;
+  last_working_date?: string | null;
+  resignation_reason?: string | null;
 }
 
 export interface LeaveBalance {
@@ -50,4 +54,22 @@ export interface EditFormData {
   annualQuota: number;
   sickQuota: number;
   personalQuota: number;
+}
+
+export interface ResignFormData {
+  type: "resigned" | "terminated";
+  resignationDate: string;
+  lastWorkingDate: string;
+  reason: string;
+}
+
+export interface EmploymentHistoryEntry {
+  id: string;
+  employee_id: string;
+  action: string;
+  effective_date: string;
+  reason: string | null;
+  performed_by: string | null;
+  created_at: string;
+  performer?: { name: string } | null;
 }

@@ -38,14 +38,26 @@ export default function LoginPage() {
       if (data.user) {
         const { data: employee } = await supabase
           .from("employees")
-          .select("role, account_status, deleted_at")
+          .select("role, account_status, deleted_at, employment_status")
           .eq("id", data.user.id)
           .maybeSingle();
 
-        // Check if account has been deleted
+        // Check if employee has resigned or been terminated
+        if (employee?.employment_status === "resigned") {
+          await supabase.auth.signOut();
+          setError("คุณได้ลาออกจากงานแล้ว กรุณาติดต่อผู้ดูแลระบบหากต้องการกลับเข้าทำงาน");
+          return;
+        }
+
+        if (employee?.employment_status === "terminated") {
+          await supabase.auth.signOut();
+          setError("บัญชีของคุณถูกยุติการทำงานแล้ว กรุณาติดต่อผู้ดูแลระบบ");
+          return;
+        }
+
         if (employee?.deleted_at) {
           await supabase.auth.signOut();
-          setError("บัญชีของคุณถูกลบออกจากระบบ กรุณาติดต่อผู้ดูแลระบบ");
+          setError("บัญชีของคุณถูกระงับจากระบบ กรุณาติดต่อผู้ดูแลระบบ");
           return;
         }
 

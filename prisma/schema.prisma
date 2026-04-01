@@ -151,6 +151,10 @@ model employees {
   deleted_at                                                       DateTime?              @db.Timestamptz(6)
   deleted_by                                                       String?                @db.Uuid
   work_arrangement                                                 String?                @default("onsite") @db.VarChar(20)
+  employment_status                                                String?                @default("active") @db.VarChar(20)
+  resignation_date                                                 DateTime?              @db.Date
+  last_working_date                                                DateTime?              @db.Date
+  resignation_reason                                               String?
   announcement_reads                                               announcement_reads[]
   announcements                                                    announcements[]
   attendance_anomalies_attendance_anomalies_employee_idToemployees attendance_anomalies[] @relation("attendance_anomalies_employee_idToemployees")
@@ -190,12 +194,31 @@ model employees {
   kpi_evaluations_kpi_evaluations_employee_idToemployees           kpi_evaluations[]          @relation("kpi_evaluations_employee_idToemployees")
   kpi_evaluations_kpi_evaluations_evaluator_idToemployees          kpi_evaluations[]          @relation("kpi_evaluations_evaluator_idToemployees")
   kpi_auto_metrics                                                 kpi_auto_metrics[]
+  employment_history_employee                                      employment_history[]   @relation("employment_history_employee_idToemployees")
+  employment_history_performed                                     employment_history[]   @relation("employment_history_performed_byToemployees")
 
   @@index([account_status], map: "idx_employees_account_status")
   @@index([branch_id], map: "idx_employees_branch")
   @@index([line_user_id], map: "idx_employees_line_user_id")
   @@index([role], map: "idx_employees_role")
   @@index([deleted_at], map: "idx_employees_deleted_at")
+  @@index([employment_status], map: "idx_employees_employment_status")
+}
+
+/// Employment history: tracks hire/resign/terminate/rehire events
+model employment_history {
+  id                                                          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employee_id                                                 String     @db.Uuid
+  action                                                      String     @db.VarChar(20)
+  effective_date                                              DateTime   @db.Date
+  reason                                                      String?
+  performed_by                                                String?    @db.Uuid
+  created_at                                                  DateTime?  @default(now()) @db.Timestamptz(6)
+  employees_employment_history_employee_idToemployees         employees  @relation("employment_history_employee_idToemployees", fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  employees_employment_history_performed_byToemployees        employees? @relation("employment_history_performed_byToemployees", fields: [performed_by], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([employee_id], map: "idx_employment_history_employee")
+  @@index([created_at(sort: Desc)], map: "idx_employment_history_created")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.

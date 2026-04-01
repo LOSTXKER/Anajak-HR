@@ -8,16 +8,18 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth/auth-context";
-import { RefreshCw, Trash2 } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 import { useEmployees } from "@/lib/hooks/use-employees";
 import {
   Employee,
   EditFormData,
+  ResignFormData,
   EmployeeStats,
   EmployeeFilters,
   EmployeeTable,
   EmployeeEditModal,
+  ResignationModal,
 } from "@/components/admin/employees";
 
 function EmployeesContent() {
@@ -45,8 +47,8 @@ function EmployeesContent() {
     fetchData,
     handleApproval,
     handleSave,
-    handleDelete,
-    handleRestore,
+    handleResign,
+    handleRehire,
   } = useEmployees({ initialFilterStatus: initialFilter });
 
   // Modal state
@@ -66,7 +68,8 @@ function EmployeesContent() {
     emp: Employee | null;
     action: "approve" | "reject" | null;
   }>({ emp: null, action: null });
-  const [deleteModal, setDeleteModal] = useState<Employee | null>(null);
+  const [resignModal, setResignModal] = useState<Employee | null>(null);
+  const [rehireModal, setRehireModal] = useState<Employee | null>(null);
 
   // Handlers
   const handleEdit = (emp: Employee) => {
@@ -118,24 +121,28 @@ function EmployeesContent() {
     }
   };
 
-  const handleDeleteClick = async () => {
-    if (!deleteModal || !currentUser) return;
+  const handleResignClick = async (formData: ResignFormData) => {
+    if (!resignModal || !currentUser) return;
 
-    const result = await handleDelete(deleteModal.id, currentUser.id, employees);
+    const result = await handleResign(resignModal.id, currentUser.id, formData, employees);
     if (result.success) {
-      toast.success("ลบพนักงานสำเร็จ", `${deleteModal.name} ถูกลบออกจากระบบแล้ว (ข้อมูลประวัติยังคงอยู่)`);
-      setDeleteModal(null);
+      const label = formData.type === "resigned" ? "ลาออก" : "เลิกจ้าง";
+      toast.success("ดำเนินการสำเร็จ", `${resignModal.name} - ${label}เรียบร้อย (ข้อมูลประวัติยังคงอยู่)`);
+      setResignModal(null);
     } else {
-      toast.error("เกิดข้อผิดพลาด", result.error || "ไม่สามารถลบพนักงานได้");
+      toast.error("เกิดข้อผิดพลาด", result.error || "ไม่สามารถดำเนินการได้");
     }
   };
 
-  const handleRestoreClick = async (emp: Employee) => {
-    const result = await handleRestore(emp.id);
+  const handleRehireClick = async () => {
+    if (!rehireModal || !currentUser) return;
+
+    const result = await handleRehire(rehireModal.id, currentUser.id);
     if (result.success) {
-      toast.success("กู้คืนสำเร็จ", `${emp.name} ถูกกู้คืนเข้าสู่ระบบแล้ว`);
+      toast.success("รับกลับเข้าทำงานสำเร็จ", `${rehireModal.name} กลับเข้าทำงานในระบบแล้ว`);
+      setRehireModal(null);
     } else {
-      toast.error("เกิดข้อผิดพลาด", result.error || "ไม่สามารถกู้คืนได้");
+      toast.error("เกิดข้อผิดพลาด", result.error || "ไม่สามารถดำเนินการได้");
     }
   };
 
@@ -188,8 +195,8 @@ function EmployeesContent() {
         onEdit={handleEdit}
         onApprove={(emp) => setApprovalModal({ emp, action: "approve" })}
         onReject={(emp) => setApprovalModal({ emp, action: "reject" })}
-        onDelete={(emp) => setDeleteModal(emp)}
-        onRestore={handleRestoreClick}
+        onResign={(emp) => setResignModal(emp)}
+        onRehire={(emp) => setRehireModal(emp)}
       />
 
       {/* Modals */}
@@ -220,21 +227,27 @@ function EmployeesContent() {
         onSave={handleSaveClick}
       />
 
-      {/* Delete Modal */}
+      {/* Resignation Modal */}
+      <ResignationModal
+        employee={resignModal}
+        saving={saving}
+        onClose={() => setResignModal(null)}
+        onConfirm={handleResignClick}
+      />
+
+      {/* Rehire Confirmation Modal */}
       <ConfirmDialog
-        isOpen={deleteModal !== null}
-        onClose={() => setDeleteModal(null)}
-        onConfirm={handleDeleteClick}
-        title="ลบพนักงาน"
+        isOpen={rehireModal !== null}
+        onClose={() => setRehireModal(null)}
+        onConfirm={handleRehireClick}
+        title="รับกลับเข้าทำงาน"
         message={
-          `ต้องการลบ "${deleteModal?.name}" ออกจากระบบหรือไม่?\n\n` +
-          `หมายเหตุ:\n` +
-          `• ข้อมูลประวัติทั้งหมด (เงินเดือน, OT, วันลา) จะยังคงอยู่\n` +
-          `• สามารถกู้คืนได้ในภายหลัง\n` +
-          `• พนักงานจะไม่สามารถเข้าสู่ระบบได้`
+          `ต้องการรับ "${rehireModal?.name}" กลับเข้าทำงานหรือไม่?\n\n` +
+          `• ข้อมูลประวัติเดิมทั้งหมดจะยังคงอยู่\n` +
+          `• พนักงานจะสามารถเข้าสู่ระบบได้อีกครั้ง`
         }
-        type="danger"
-        confirmText="ลบพนักงาน"
+        type="info"
+        confirmText="รับกลับเข้าทำงาน"
         loading={saving}
       />
     </AdminLayout>

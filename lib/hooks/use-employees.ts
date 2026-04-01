@@ -11,6 +11,7 @@ import {
   LeaveBalance,
   EmployeeStats,
   EditFormData,
+  ResignFormData,
 } from "@/components/admin/employees/types";
 
 interface UseEmployeesOptions {
@@ -49,13 +50,15 @@ interface UseEmployeesReturn {
     formData: EditFormData,
     employeesList: Employee[]
   ) => Promise<{ success: boolean; error?: string }>;
-  handleDelete: (
+  handleResign: (
     empId: string,
-    deletedById: string,
+    performedById: string,
+    formData: ResignFormData,
     employeesList: Employee[]
   ) => Promise<{ success: boolean; error?: string }>;
-  handleRestore: (
-    empId: string
+  handleRehire: (
+    empId: string,
+    performedById: string
   ) => Promise<{ success: boolean; error?: string }>;
 }
 
@@ -257,48 +260,45 @@ export function useEmployees(
     [fetchData]
   );
 
-  // Handle delete employee (soft delete)
-  const handleDelete = useCallback(
+  // Handle employee resignation / termination
+  const handleResign = useCallback(
     async (
       empId: string,
-      deletedById: string,
+      performedById: string,
+      formData: ResignFormData,
       employeesList: Employee[]
     ): Promise<{ success: boolean; error?: string }> => {
       const emp = employeesList.find((e) => e.id === empId);
       if (!emp) return { success: false, error: "Employee not found" };
 
-      // Cannot delete system accounts
       if (emp.is_system_account) {
         return {
           success: false,
-          error: "ไม่สามารถลบบัญชีระบบได้",
+          error: "ไม่สามารถดำเนินการกับบัญชีระบบได้",
         };
       }
 
-      // Cannot delete yourself
-      if (empId === deletedById) {
+      if (empId === performedById) {
         return {
           success: false,
-          error: "ไม่สามารถลบบัญชีตัวเองได้",
+          error: "ไม่สามารถดำเนินการกับบัญชีตัวเองได้",
         };
       }
 
-      // Check if trying to delete the last admin
       if (emp.role === "admin") {
         const activeAdminCount = employeesList.filter(
-          (e) => e.role === "admin" && !e.deleted_at
+          (e) => e.role === "admin" && !e.deleted_at && e.employment_status !== "resigned" && e.employment_status !== "terminated"
         ).length;
         if (activeAdminCount <= 1) {
           return {
             success: false,
-            error: "ไม่สามารถลบได้ นี่คือ Admin คนสุดท้ายในระบบ",
+            error: "ไม่สามารถดำเนินการได้ นี่คือ Admin คนสุดท้ายในระบบ",
           };
         }
       }
 
       setSaving(true);
       try {
-        // ยกเลิก pending requests ทั้งหมดของพนักงานที่ถูกลบ
         const pendingTables = [
           "leave_requests",
           "ot_requests",
@@ -315,16 +315,27 @@ export function useEmployees(
             .eq("status", "pending");
         }
 
-        // Soft delete พนักงาน
         const { error } = await supabase
           .from("employees")
           .update({
+            employment_status: formData.type,
+            resignation_date: formData.resignationDate,
+            last_working_date: formData.lastWorkingDate,
+            resignation_reason: formData.reason || null,
             deleted_at: new Date().toISOString(),
-            deleted_by: deletedById,
+            deleted_by: performedById,
           })
           .eq("id", empId);
 
         if (error) throw error;
+
+        await supabase.from("employment_history").insert({
+          employee_id: empId,
+          action: formData.type,
+          effective_date: formData.lastWorkingDate || formData.resignationDate,
+          reason: formData.reason || null,
+          performed_by: performedById,
+        });
 
         await fetchData();
         return { success: true };
@@ -337,20 +348,34 @@ export function useEmployees(
     [fetchData]
   );
 
-  // Handle restore employee
-  const handleRestore = useCallback(
-    async (empId: string): Promise<{ success: boolean; error?: string }> => {
+  // Handle rehire (bring employee back)
+  const handleRehire = useCallback(
+    async (
+      empId: string,
+      performedById: string
+    ): Promise<{ success: boolean; error?: string }> => {
       setSaving(true);
       try {
         const { error } = await supabase
           .from("employees")
           .update({
+            employment_status: "active",
+            resignation_date: null,
+            last_working_date: null,
+            resignation_reason: null,
             deleted_at: null,
             deleted_by: null,
           })
           .eq("id", empId);
 
         if (error) throw error;
+
+        await supabase.from("employment_history").insert({
+          employee_id: empId,
+          action: "rehired",
+          effective_date: new Date().toISOString().split("T")[0],
+          performed_by: performedById,
+        });
 
         await fetchData();
         return { success: true };
@@ -366,12 +391,11 @@ export function useEmployees(
   // Filter employees
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
-      // Filter deleted employees based on toggle
-      if (!showDeleted && emp.deleted_at) {
+      const isInactive = emp.employment_status === "resigned" || emp.employment_status === "terminated" || emp.deleted_at;
+      if (!showDeleted && isInactive) {
         return false;
       }
-      if (showDeleted && !emp.deleted_at) {
-        // When showing deleted, only show deleted employees
+      if (showDeleted && !isInactive) {
         return false;
       }
 
@@ -385,9 +409,9 @@ export function useEmployees(
     });
   }, [employees, searchTerm, filterRole, filterStatus, showDeleted]);
 
-  // Stats (exclude deleted employees)
+  // Stats (exclude inactive employees)
   const stats = useMemo<EmployeeStats>(() => {
-    const activeEmployees = employees.filter((e) => !e.deleted_at);
+    const activeEmployees = employees.filter((e) => !e.deleted_at && e.employment_status !== "resigned" && e.employment_status !== "terminated");
     const nonAdminEmployees = activeEmployees.filter((e) => e.role !== "admin");
     const total = nonAdminEmployees.length;
     const approved = nonAdminEmployees.filter(
@@ -397,7 +421,7 @@ export function useEmployees(
       (e) => e.account_status === "pending"
     ).length;
     const admins = activeEmployees.filter((e) => e.role === "admin").length;
-    const deleted = employees.filter((e) => e.deleted_at).length;
+    const deleted = employees.filter((e) => e.employment_status === "resigned" || e.employment_status === "terminated" || e.deleted_at).length;
     return { total, approved, pending, admins, deleted };
   }, [employees]);
 
@@ -431,7 +455,7 @@ export function useEmployees(
     fetchData,
     handleApproval,
     handleSave,
-    handleDelete,
-    handleRestore,
+    handleResign,
+    handleRehire,
   };
 }

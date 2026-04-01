@@ -33,6 +33,10 @@ export interface Database {
           deleted_at: string | null
           deleted_by: string | null
           work_arrangement: 'onsite' | 'wfh' | 'hybrid' | null
+          employment_status: 'active' | 'resigned' | 'terminated' | null
+          resignation_date: string | null
+          last_working_date: string | null
+          resignation_reason: string | null
         }
         Insert: {
           id?: string
@@ -57,6 +61,10 @@ export interface Database {
           deleted_at?: string | null
           deleted_by?: string | null
           work_arrangement?: 'onsite' | 'wfh' | 'hybrid' | null
+          employment_status?: 'active' | 'resigned' | 'terminated' | null
+          resignation_date?: string | null
+          last_working_date?: string | null
+          resignation_reason?: string | null
         }
         Update: {
           id?: string
@@ -81,6 +89,10 @@ export interface Database {
           deleted_at?: string | null
           deleted_by?: string | null
           work_arrangement?: 'onsite' | 'wfh' | 'hybrid' | null
+          employment_status?: 'active' | 'resigned' | 'terminated' | null
+          resignation_date?: string | null
+          last_working_date?: string | null
+          resignation_reason?: string | null
         }
         Relationships: []
       }
