@@ -447,13 +447,14 @@ function wasEmployedOnDate(
 ): boolean {
   const empHistory = history
     .filter((h) => h.employee_id === empId)
-    .sort((a, b) => a.effective_date.localeCompare(b.effective_date));
+    .sort((a, b) => a.effective_date.slice(0, 10).localeCompare(b.effective_date.slice(0, 10)));
 
   if (empHistory.length === 0) return true;
 
   let active = true;
   for (const event of empHistory) {
-    if (event.effective_date > dateStr) break;
+    const effDate = event.effective_date.slice(0, 10);
+    if (effDate > dateStr) break;
     if (event.action === "resigned" || event.action === "terminated") {
       active = false;
     } else if (event.action === "rehired") {
