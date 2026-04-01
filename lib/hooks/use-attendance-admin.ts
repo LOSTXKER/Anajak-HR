@@ -14,6 +14,10 @@ import type {
   DateMode,
 } from "@/components/admin/attendance/types";
 import { useWorkSettings } from "@/lib/hooks/use-settings";
+import {
+  wasEmployedOnDate,
+  type EmploymentHistoryRecord,
+} from "@/lib/utils/employment";
 
 interface AttendanceRecord {
   id: string;
@@ -125,7 +129,7 @@ export function useAttendanceAdmin() {
         supabase
           .from("employment_history")
           .select("employee_id, action, effective_date")
-          .in("action", ["resigned", "terminated", "rehired"])
+          .in("action", ["hired", "resigned", "terminated", "rehired"])
           .order("effective_date", { ascending: true }),
       ]);
       if (cancelled) return;
@@ -247,7 +251,8 @@ export function useAttendanceAdmin() {
           leaveData,
           wfhData,
           fieldWorkData,
-          lateReqData
+          lateReqData,
+          employmentHistory
         );
         setAttendanceRows(rows);
       }
@@ -434,36 +439,6 @@ export function useAttendanceAdmin() {
   };
 }
 
-interface EmploymentHistoryRecord {
-  employee_id: string;
-  action: string;
-  effective_date: string;
-}
-
-function wasEmployedOnDate(
-  empId: string,
-  dateStr: string,
-  history: EmploymentHistoryRecord[]
-): boolean {
-  const empHistory = history
-    .filter((h) => h.employee_id === empId)
-    .sort((a, b) => a.effective_date.slice(0, 10).localeCompare(b.effective_date.slice(0, 10)));
-
-  if (empHistory.length === 0) return true;
-
-  let active = true;
-  for (const event of empHistory) {
-    const effDate = event.effective_date.slice(0, 10);
-    if (effDate > dateStr) break;
-    if (event.action === "resigned" || event.action === "terminated") {
-      active = false;
-    } else if (event.action === "rehired") {
-      active = true;
-    }
-  }
-  return active;
-}
-
 // Helper function for single day rows
 function buildSingleDayRows(
   employees: Employee[],
@@ -576,7 +551,8 @@ function buildRangeRows(
   leaveData: LeaveRecord[],
   wfhData: WFHRecord[],
   fieldWorkData: FieldWorkRecord[],
-  lateReqData: LateReqRecord[]
+  lateReqData: LateReqRecord[],
+  employmentHistory: EmploymentHistoryRecord[] = []
 ): AttendanceRow[] {
   const rows: AttendanceRow[] = [];
   const processedKeys = new Set<string>();
@@ -588,6 +564,7 @@ function buildRangeRows(
     processedKeys.add(key);
 
     if (!emp) return;
+    if (!wasEmployedOnDate(att.employee_id, dateStr, employmentHistory)) return;
 
     const empOt = otData.filter(
       (o) => o.employee_id === att.employee_id && o.request_date === dateStr
@@ -642,6 +619,7 @@ function buildRangeRows(
       processedKeys.add(key);
       const emp = employees.find((e) => e.id === ot.employee_id);
       if (!emp) return;
+      if (!wasEmployedOnDate(ot.employee_id, ot.request_date, employmentHistory)) return;
 
       const dateStr = ot.request_date;
       const empOt = otData.filter(

@@ -10,6 +10,10 @@ import {
 } from "date-fns";
 import { th } from "date-fns/locale";
 import { useWorkSettings } from "@/lib/hooks/use-settings";
+import {
+  wasEmployedOnDate,
+  type EmploymentHistoryRecord,
+} from "@/lib/utils/employment";
 import type {
   Branch,
   Employee,
@@ -50,6 +54,7 @@ export function useReportData({
   const [approvedLateRequests, setApprovedLateRequests] = useState<
     { employee_id: string; request_date: string }[]
   >([]);
+  const [employmentHistory, setEmploymentHistory] = useState<EmploymentHistoryRecord[]>([]);
 
   // Fetch branches on mount
   useEffect(() => {
@@ -77,7 +82,7 @@ export function useReportData({
       const startStr = format(startDate, "yyyy-MM-dd");
       const endStr = format(endDate, "yyyy-MM-dd");
 
-      const [employeesRes, attendanceRes, otRes, leaveRes, wfhRes, lateReqRes] =
+      const [employeesRes, attendanceRes, otRes, leaveRes, wfhRes, lateReqRes, historyRes] =
         await Promise.all([
           supabase
             .from("employees")
@@ -114,6 +119,11 @@ export function useReportData({
             .eq("status", "approved")
             .gte("request_date", startStr)
             .lte("request_date", endStr),
+          supabase
+            .from("employment_history")
+            .select("employee_id, action, effective_date")
+            .in("action", ["hired", "resigned", "terminated", "rehired"])
+            .order("effective_date", { ascending: true }),
         ]);
 
       setEmployees(employeesRes.data || []);
@@ -122,6 +132,7 @@ export function useReportData({
       setLeaveRequests(leaveRes.data || []);
       setWfhRequests(wfhRes.data || []);
       setApprovedLateRequests(lateReqRes.data || []);
+      setEmploymentHistory(historyRes.data || []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -151,11 +162,15 @@ export function useReportData({
 
     return employees.map((emp) => {
       const empAttendance = attendanceLogs.filter(
-        (a) => a.employee_id === emp.id
+        (a) => a.employee_id === emp.id && wasEmployedOnDate(emp.id, a.work_date, employmentHistory)
       );
-      const empOT = otRequests.filter((o) => o.employee_id === emp.id);
+      const empOT = otRequests.filter(
+        (o) => o.employee_id === emp.id && wasEmployedOnDate(emp.id, o.request_date, employmentHistory)
+      );
       const empLeave = leaveRequests.filter((l) => l.employee_id === emp.id);
-      const empWFH = wfhRequests.filter((w) => w.employee_id === emp.id);
+      const empWFH = wfhRequests.filter(
+        (w) => w.employee_id === emp.id && wasEmployedOnDate(emp.id, w.date, employmentHistory)
+      );
 
       // Build set of approved late dates for this employee
       const empApprovedLateDates = new Set(
@@ -247,6 +262,7 @@ export function useReportData({
     leaveRequests,
     wfhRequests,
     approvedLateRequests,
+    employmentHistory,
     currentMonth,
     getBranchName,
     workSettings,
@@ -299,13 +315,17 @@ export function useReportData({
       const dateStr = format(day, "yyyy-MM-dd");
 
       const dayAttendance = attendanceLogs.filter(
-        (a) => a.work_date === dateStr
+        (a) => a.work_date === dateStr && wasEmployedOnDate(a.employee_id, dateStr, employmentHistory)
       );
-      const dayOT = otRequests.filter((o) => o.request_date === dateStr);
+      const dayOT = otRequests.filter(
+        (o) => o.request_date === dateStr && wasEmployedOnDate(o.employee_id, dateStr, employmentHistory)
+      );
       const dayLeave = leaveRequests.filter(
-        (l) => l.start_date <= dateStr && l.end_date >= dateStr
+        (l) => l.start_date <= dateStr && l.end_date >= dateStr && wasEmployedOnDate(l.employee_id, dateStr, employmentHistory)
       );
-      const dayWFH = wfhRequests.filter((w) => w.date === dateStr);
+      const dayWFH = wfhRequests.filter(
+        (w) => w.date === dateStr && wasEmployedOnDate(w.employee_id, dateStr, employmentHistory)
+      );
 
       return {
         date: format(day, "d", { locale: th }),
@@ -322,7 +342,7 @@ export function useReportData({
         wfh: dayWFH.length,
       };
     });
-  }, [attendanceLogs, otRequests, leaveRequests, wfhRequests, approvedLateRequests, currentMonth]);
+  }, [attendanceLogs, otRequests, leaveRequests, wfhRequests, approvedLateRequests, employmentHistory, currentMonth]);
 
   // Branch stats
   const branchStats = useMemo((): BranchStat[] => {

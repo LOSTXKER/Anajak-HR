@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase/client";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import type {
   Employee,
   Branch,
@@ -11,6 +11,11 @@ import type {
   PayrollSettings,
   OTDetail,
 } from "@/components/admin/payroll/types";
+import {
+  wasEmployedOnDate,
+  fetchEmploymentHistory,
+  type EmploymentHistoryRecord,
+} from "@/lib/utils/employment";
 
 const DEFAULT_SETTINGS: PayrollSettings = {
   work_hours_per_day: 8,
@@ -52,11 +57,19 @@ export function usePayroll() {
   const [otDetails, setOtDetails] = useState<OTDetail[]>([]);
   const [loadingOT, setLoadingOT] = useState(false);
 
+  const [employmentHistory, setEmploymentHistory] = useState<EmploymentHistoryRecord[]>([]);
+
   // Fetch base data
   useEffect(() => {
     let cancelled = false;
     const init = async () => {
-      await Promise.all([fetchEmployees(), fetchBranches(), fetchSettings()]);
+      const [, , , history] = await Promise.all([
+        fetchEmployees(),
+        fetchBranches(),
+        fetchSettings(),
+        fetchEmploymentHistory(),
+      ]);
+      if (!cancelled) setEmploymentHistory(history);
     };
     init();
     return () => { cancelled = true; };
@@ -65,11 +78,11 @@ export function usePayroll() {
 
   // Calculate payroll when filters change
   useEffect(() => {
-    if (employees.length > 0) {
+    if (employees.length > 0 && employmentHistory.length > 0) {
       calculatePayroll();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentMonth, selectedEmployee, selectedBranch, employees, settings, searchTerm]);
+  }, [currentMonth, selectedEmployee, selectedBranch, employees, settings, searchTerm, employmentHistory]);
 
   const fetchBranches = async () => {
     const { data } = await supabase
@@ -208,8 +221,12 @@ export function usePayroll() {
       const lateByEmp = groupBy(allLateReqRes.data || []);
 
       const results = employeesToProcess.map((emp) => {
-        const attendance = attendanceByEmp[emp.id] || [];
-        const otLogs = otByEmp[emp.id] || [];
+        const attendance = (attendanceByEmp[emp.id] || []).filter(
+          (a: { work_date: string }) => wasEmployedOnDate(emp.id, a.work_date, employmentHistory)
+        );
+        const otLogs = (otByEmp[emp.id] || []).filter(
+          (o: { request_date: string }) => wasEmployedOnDate(emp.id, o.request_date, employmentHistory)
+        );
         const leaves = leaveByEmp[emp.id] || [];
 
         const approvedLateDates = new Set(
@@ -399,6 +416,7 @@ export function usePayroll() {
     employees,
     settings,
     searchTerm,
+    employmentHistory,
   ]);
 
   const fetchOTDetails = async (emp: Employee) => {

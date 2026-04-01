@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import { format, startOfMonth, endOfMonth } from "date-fns";
+import {
+  wasEmployedOnDate,
+  type EmploymentHistoryRecord,
+} from "@/lib/utils/employment";
 import type {
   Employee,
   Branch,
@@ -42,6 +46,7 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
   const [approvedLateDates, setApprovedLateDates] = useState<Set<string>>(
     new Set()
   );
+  const [employmentHistory, setEmploymentHistory] = useState<EmploymentHistoryRecord[]>([]);
 
   // Leave balance (yearly)
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalance>({
@@ -100,7 +105,7 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
     const yearEnd = `${currentYear}-12-31`;
 
     try {
-      const [attRes, lateReqRes, otRes, leaveRes, yearlyLeaveRes, wfhRes, lateDataRes] =
+      const [attRes, lateReqRes, otRes, leaveRes, yearlyLeaveRes, wfhRes, lateDataRes, historyRes] =
         await Promise.all([
           supabase
             .from("attendance_logs")
@@ -151,6 +156,12 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
             .gte("request_date", startDate)
             .lte("request_date", endDate)
             .order("request_date", { ascending: false }),
+          supabase
+            .from("employment_history")
+            .select("employee_id, action, effective_date")
+            .eq("employee_id", employeeId)
+            .in("action", ["hired", "resigned", "terminated", "rehired"])
+            .order("effective_date", { ascending: true }),
         ]);
 
       setAttendanceData(attRes.data || []);
@@ -165,6 +176,7 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
       setLeaveData(leaveRes.data || []);
       setWfhData(wfhRes.data || []);
       setLateData(lateDataRes.data || []);
+      setEmploymentHistory(historyRes.data || []);
 
       // คำนวณ leave balance จาก yearly data
       const usedDays = { sick_used: 0, personal_used: 0, annual_used: 0 };
@@ -194,27 +206,31 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
     fetchTabData();
   }, [currentMonth, fetchTabData]);
 
-  // Monthly stats
+  // Monthly stats — only count records from dates the employee was employed
   const monthlyStats = useMemo((): MonthlyStats => {
+    const isEmployed = (dateStr: string) =>
+      wasEmployedOnDate(employeeId, dateStr, employmentHistory);
+
+    const filteredAttendance = attendanceData.filter((a) => isEmployed(a.work_date));
+    const filteredOT = otData.filter(
+      (o) => (o.status === "completed" || o.status === "approved") && isEmployed(o.request_date)
+    );
+
     return {
-      workDays: attendanceData.filter((a) => a.clock_in_time).length,
-      lateDays: attendanceData.filter(
+      workDays: filteredAttendance.filter((a) => a.clock_in_time).length,
+      lateDays: filteredAttendance.filter(
         (a) => a.is_late && !approvedLateDates.has(a.work_date)
       ).length,
       absentDays: 0,
-      otHours: otData
-        .filter((o) => o.status === "completed" || o.status === "approved")
-        .reduce((sum, o) => sum + (o.actual_ot_hours || o.approved_ot_hours || 0), 0),
-      otAmount: otData
-        .filter((o) => o.status === "completed" || o.status === "approved")
-        .reduce((sum, o) => sum + (o.ot_amount || 0), 0),
+      otHours: filteredOT.reduce((sum, o) => sum + (o.actual_ot_hours || o.approved_ot_hours || 0), 0),
+      otAmount: filteredOT.reduce((sum, o) => sum + (o.ot_amount || 0), 0),
       leaveDays: leaveData.filter((l) => l.status === "approved").length,
       wfhDays: new Set([
-        ...wfhData.filter((w) => w.status === "approved").map((w: any) => w.date),
-        ...attendanceData.filter((a: any) => a.work_mode === "wfh").map((a: any) => a.work_date),
+        ...wfhData.filter((w) => w.status === "approved" && isEmployed(w.date)).map((w: any) => w.date),
+        ...filteredAttendance.filter((a: any) => a.work_mode === "wfh").map((a: any) => a.work_date),
       ]).size,
     };
-  }, [attendanceData, otData, leaveData, wfhData, approvedLateDates]);
+  }, [employeeId, attendanceData, otData, leaveData, wfhData, approvedLateDates, employmentHistory]);
 
   // Save employee
   const handleSave = async () => {

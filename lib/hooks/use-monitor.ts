@@ -125,6 +125,7 @@ export function useMonitor() {
           .select("id")
           .neq("role", "admin")
           .is("deleted_at", null)
+          .eq("employment_status", "active")
           .or("is_system_account.is.null,is_system_account.eq.false"),
         supabase
           .from("attendance_logs")
