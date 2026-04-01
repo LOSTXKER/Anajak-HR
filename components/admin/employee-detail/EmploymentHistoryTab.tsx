@@ -204,9 +204,10 @@ export function EmploymentHistoryTab({
         effective_date: new Date().toISOString().split("T")[0],
         reason: "",
       });
-      fetchHistory();
-    } catch (err) {
+      await fetchHistory();
+    } catch (err: any) {
       console.error("Error adding entry:", err);
+      alert(err?.message || "เกิดข้อผิดพลาดในการเพิ่มรายการ");
     } finally {
       setSaving(false);
     }
@@ -225,19 +226,24 @@ export function EmploymentHistoryTab({
     if (!editEntry || !editForm.effective_date || !editForm.action) return;
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("employment_history")
         .update({
           action: editForm.action,
           effective_date: editForm.effective_date,
           reason: editForm.reason || null,
         })
-        .eq("id", editEntry.id);
+        .eq("id", editEntry.id)
+        .select();
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("ไม่สามารถอัปเดตข้อมูลได้ (ไม่พบรายการหรือไม่มีสิทธิ์)");
+      }
       setEditEntry(null);
-      fetchHistory();
-    } catch (err) {
+      await fetchHistory();
+    } catch (err: any) {
       console.error("Error updating entry:", err);
+      alert(err?.message || "เกิดข้อผิดพลาดในการแก้ไข");
     } finally {
       setSaving(false);
     }
@@ -247,15 +253,20 @@ export function EmploymentHistoryTab({
     if (!deleteEntry) return;
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("employment_history")
         .delete()
-        .eq("id", deleteEntry.id);
+        .eq("id", deleteEntry.id)
+        .select();
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("ไม่สามารถลบข้อมูลได้ (ไม่พบรายการหรือไม่มีสิทธิ์)");
+      }
       setDeleteEntry(null);
-      fetchHistory();
-    } catch (err) {
+      await fetchHistory();
+    } catch (err: any) {
       console.error("Error deleting entry:", err);
+      alert(err?.message || "เกิดข้อผิดพลาดในการลบ");
     } finally {
       setSaving(false);
     }
