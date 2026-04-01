@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase/client";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import type {
   Employee,
   Branch,
@@ -14,6 +14,7 @@ import type {
 import {
   wasEmployedOnDate,
   wasEmployedDuringPeriod,
+  countEmployedWeekdays,
   fetchEmploymentHistory,
   type EmploymentHistoryRecord,
 } from "@/lib/utils/employment";
@@ -350,35 +351,28 @@ export function usePayroll() {
         );
 
         const otTotalAmount = ot1xAmount + ot15xAmount + ot2xAmount;
-        // Use historical salary if available, otherwise fall back to current employee salary
-        const historicalSalary = salaryAtMonth[emp.id];
-        const fullBaseSalary = historicalSalary ? historicalSalary.base_salary : (emp.base_salary || 0);
-        const fullCommission = historicalSalary ? historicalSalary.commission : (emp.commission || 0);
 
-        // Prorate: count working days employed vs total working days in month
+        // Resolve salary for this specific month from salary_history
+        const historicalSalary = salaryAtMonth[emp.id];
+        const historicalBaseSalary = historicalSalary ? historicalSalary.base_salary : (emp.base_salary || 0);
+        const historicalCommission = historicalSalary ? historicalSalary.commission : (emp.commission || 0);
+
+        // Prorate using period-overlap weekday count
         const totalWorkingDaysInMonth = settings.days_per_month || 26;
-        const monthDays = eachDayOfInterval({
-          start: new Date(startDate),
-          end: new Date(endDate),
-        });
-        let employedWorkingDays = 0;
-        for (const day of monthDays) {
-          const dow = day.getDay();
-          if (dow === 0 || dow === 6) continue; // skip weekends
-          const dayStr = format(day, "yyyy-MM-dd");
-          if (wasEmployedOnDate(emp.id, dayStr, employmentHistory)) {
-            employedWorkingDays++;
-          }
-        }
+        const employedWorkingDays = countEmployedWeekdays(
+          emp.id, startDate, endDate, employmentHistory
+        );
 
         const prorateRatio = Math.min(1, employedWorkingDays / totalWorkingDaysInMonth);
-        const basePay = Math.round(fullBaseSalary * prorateRatio);
-        const commission = Math.round(fullCommission * prorateRatio);
+        const basePay = Math.round(historicalBaseSalary * prorateRatio);
+        const commission = Math.round(historicalCommission * prorateRatio);
         const latePenalty = lateMinutes * settings.late_deduction_per_minute;
         const totalPay = basePay + commission + otTotalAmount - latePenalty;
 
         return {
           employee: emp,
+          historicalBaseSalary,
+          historicalCommission,
           workDays,
           totalWorkHours,
           lateDays,

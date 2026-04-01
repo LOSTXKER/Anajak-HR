@@ -106,6 +106,92 @@ export function wasEmployedDuringPeriod(
 }
 
 /**
+ * Count weekdays an employee was employed within [startDate, endDate].
+ * Uses period-overlap math instead of checking each day individually.
+ */
+export function countEmployedWeekdays(
+  empId: string,
+  startDate: string,
+  endDate: string,
+  history: EmploymentHistoryRecord[]
+): number {
+  const empHistory = history
+    .filter((h) => h.employee_id === empId)
+    .sort((a, b) =>
+      a.effective_date.slice(0, 10).localeCompare(b.effective_date.slice(0, 10))
+    );
+
+  // No history = employed the entire range
+  if (empHistory.length === 0) {
+    return countWeekdaysInRange(startDate, endDate);
+  }
+
+  // Build active periods [from, to) -- to is exclusive (first day NOT employed)
+  let periodStart: string | null = null;
+  const periods: { from: string; to: string | null }[] = [];
+
+  for (const event of empHistory) {
+    const d = event.effective_date.slice(0, 10);
+    if (event.action === "hired" || event.action === "rehired") {
+      if (!periodStart) periodStart = d;
+    } else if (event.action === "resigned" || event.action === "terminated") {
+      if (periodStart) {
+        periods.push({ from: periodStart, to: d });
+        periodStart = null;
+      }
+    }
+  }
+  if (periodStart) {
+    periods.push({ from: periodStart, to: null });
+  }
+
+  if (periods.length === 0) {
+    const firstResign = empHistory.find(
+      (h) => h.action === "resigned" || h.action === "terminated"
+    );
+    if (firstResign) {
+      periods.push({ from: "0000-01-01", to: firstResign.effective_date.slice(0, 10) });
+    } else {
+      return countWeekdaysInRange(startDate, endDate);
+    }
+  }
+
+  let total = 0;
+  for (const p of periods) {
+    const pEnd = p.to ?? "9999-12-31";
+    // Clamp period to [startDate, endDate]
+    const clampedFrom = p.from > startDate ? p.from : startDate;
+    // to is exclusive, so last employed day = day before "to"
+    const lastDay = pEnd <= endDate ? dayBefore(pEnd) : endDate;
+    if (clampedFrom <= lastDay) {
+      total += countWeekdaysInRange(clampedFrom, lastDay);
+    }
+  }
+  return total;
+}
+
+function dayBefore(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+function countWeekdaysInRange(from: string, to: string): number {
+  const start = new Date(from + "T00:00:00");
+  const end = new Date(to + "T00:00:00");
+  if (start > end) return 0;
+
+  let count = 0;
+  const current = new Date(start);
+  while (current <= end) {
+    const dow = current.getDay();
+    if (dow !== 0 && dow !== 6) count++;
+    current.setDate(current.getDate() + 1);
+  }
+  return count;
+}
+
+/**
  * Fetch all employment_history records relevant for period filtering.
  * Returns rows sorted by effective_date ascending.
  */

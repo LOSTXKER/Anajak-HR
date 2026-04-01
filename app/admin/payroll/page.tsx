@@ -81,7 +81,14 @@ function PayrollContent() {
           <div className="text-[13px] text-[#86868b]">
             <p className="font-medium text-[#1d1d1f] mb-1">สูตรคำนวณ:</p>
             <ul className="list-disc list-inside space-y-1">
-              <li>เงินเดือน = เงินเดือนตั้ง (เต็มจำนวนทุกเดือน)</li>
+              <li>
+                เงินเดือน = เงินเดือนตามประวัติ ณ เดือนนั้น × (วันทำงานจริง /{" "}
+                {settings.days_per_month})
+              </li>
+              <li>
+                คอมมิชชั่น = คอมมิชชั่น ณ เดือนนั้น × (วันทำงานจริง /{" "}
+                {settings.days_per_month})
+              </li>
               <li>
                 หักสาย = นาทีสาย × {settings.late_deduction_per_minute}{" "}
                 บาท/นาที

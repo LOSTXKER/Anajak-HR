@@ -86,7 +86,7 @@ export function PayrollTable({
                 </th>
                 <ColumnHeader
                   label="เงินเดือนตั้ง"
-                  tooltip="ฐานเงินเดือนที่กำหนดให้พนักงาน (ตั้งค่าได้ในหน้าจัดการพนักงาน)"
+                  tooltip="เงินเดือนตามประวัติ ณ เดือนที่เลือก (จากหน้าจัดการเงินเดือน)"
                   align="right"
                 />
                 <ColumnHeader
@@ -106,7 +106,7 @@ export function PayrollTable({
                 />
                 <ColumnHeader
                   label="เงินเดือน"
-                  tooltip="เงินเดือนเต็มจำนวนทุกเดือน (ไม่ขึ้นกับวันทำงาน)"
+                  tooltip="เงินเดือนหลังคำนวณตามสัดส่วนวันทำงานจริง (Prorate)"
                   align="right"
                 />
                 <ColumnHeader
@@ -152,7 +152,7 @@ export function PayrollTable({
                   </td>
                   <td className="px-3 py-3 text-right">
                     <span className="text-[13px] text-[#86868b]">
-                      ฿{formatCurrency(row.employee.base_salary)}
+                      ฿{formatCurrency(row.historicalBaseSalary)}
                     </span>
                   </td>
                   <td className="px-3 py-3 text-center">

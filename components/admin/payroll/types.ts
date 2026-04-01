@@ -28,6 +28,8 @@ export interface PayrollSettings {
 
 export interface PayrollData {
   employee: Employee;
+  historicalBaseSalary: number;
+  historicalCommission: number;
   workDays: number;
   totalWorkHours: number;
   lateDays: number;
