@@ -49,7 +49,7 @@ CREATE POLICY employment_history_insert ON employment_history
 -- Backfill: set employment_status based on existing deleted_at
 UPDATE employees
 SET employment_status = 'resigned'
-WHERE deleted_at IS NOT NULL AND employment_status IS NULL OR employment_status = 'active';
+WHERE deleted_at IS NOT NULL AND (employment_status IS NULL OR employment_status = 'active');
 
 UPDATE employees
 SET employment_status = 'active'
