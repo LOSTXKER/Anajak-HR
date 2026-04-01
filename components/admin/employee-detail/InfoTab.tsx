@@ -4,9 +4,10 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { X, Save } from "lucide-react";
+import { X, Save, Wallet } from "lucide-react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
+import Link from "next/link";
 import { Employee, Branch } from "./types";
 
 interface InfoTabProps {
@@ -177,6 +178,13 @@ export function InfoTab({
                 value={`฿${employee.commission?.toLocaleString() || 0}`}
                 valueClass="text-[#0071e3]"
               />
+              <Link
+                href="/admin/salary"
+                className="inline-flex items-center gap-1.5 text-[13px] text-[#0071e3] hover:underline mt-1"
+              >
+                <Wallet className="w-3.5 h-3.5" />
+                ดูประวัติเงินเดือน
+              </Link>
               <InfoRow
                 label="โควต้าลาป่วย"
                 value={`${employee.sick_leave_quota || 0} วัน`}

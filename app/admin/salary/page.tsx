@@ -1,5 +1,7 @@
 "use client";
 
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -12,7 +14,7 @@ function formatCurrency(val: number): string {
   return `฿${val.toLocaleString("th-TH", { minimumFractionDigits: 0 })}`;
 }
 
-export default function SalaryPage() {
+function SalaryContent() {
   const {
     employees,
     branches,
@@ -65,85 +67,89 @@ export default function SalaryPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-[28px] font-bold text-[#1d1d1f]">
-          จัดการเงินเดือน
-        </h1>
-        <p className="text-[15px] text-[#86868b] mt-1">
-          จัดการเงินเดือน คอมมิชชั่น และประวัติการปรับเงินเดือนของพนักงาน
-        </p>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {summaryCards.map((card, i) => (
-          <Card key={i} elevated className="!p-4">
-            <div className="flex items-center gap-3">
-              <div
-                className={`w-10 h-10 rounded-xl ${card.bg} flex items-center justify-center`}
-              >
-                <card.icon className={`w-5 h-5 ${card.color}`} />
+    <AdminLayout
+      title="จัดการเงินเดือน"
+      description="จัดการเงินเดือน คอมมิชชั่น และประวัติการปรับเงินเดือนของพนักงาน"
+    >
+      <div className="space-y-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {summaryCards.map((card, i) => (
+            <Card key={i} elevated className="!p-4">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-10 h-10 rounded-xl ${card.bg} flex items-center justify-center`}
+                >
+                  <card.icon className={`w-5 h-5 ${card.color}`} />
+                </div>
+                <div>
+                  <p className={`text-[16px] font-bold ${card.color}`}>
+                    {card.value}
+                  </p>
+                  <p className="text-[11px] text-[#86868b]">{card.label}</p>
+                </div>
               </div>
-              <div>
-                <p className={`text-[16px] font-bold ${card.color}`}>
-                  {card.value}
-                </p>
-                <p className="text-[11px] text-[#86868b]">{card.label}</p>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <Card elevated>
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <Input
-              placeholder="ค้นหาชื่อหรืออีเมล..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="w-full md:w-48">
-            <Select
-              value={selectedBranch}
-              onChange={setSelectedBranch}
-              options={[
-                { value: "all", label: "ทุกสาขา" },
-                { value: "none", label: "ไม่ระบุสาขา" },
-                ...branches.map((b) => ({ value: b.id, label: b.name })),
-              ]}
-            />
-          </div>
+            </Card>
+          ))}
         </div>
-      </Card>
 
-      {/* Table */}
-      <Card elevated padding="none">
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
+        {/* Filters */}
+        <Card elevated>
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <Input
+                placeholder="ค้นหาชื่อหรืออีเมล..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="w-full md:w-48">
+              <Select
+                value={selectedBranch}
+                onChange={setSelectedBranch}
+                options={[
+                  { value: "all", label: "ทุกสาขา" },
+                  { value: "none", label: "ไม่ระบุสาขา" },
+                  ...branches.map((b) => ({ value: b.id, label: b.name })),
+                ]}
+              />
+            </div>
           </div>
-        ) : (
-          <SalaryTable employees={employees} onViewHistory={openHistory} />
-        )}
-      </Card>
+        </Card>
 
-      {/* History Modal */}
-      {selectedEmployee && (
-        <SalaryHistoryModal
-          employee={selectedEmployee}
-          history={history}
-          loading={historyLoading}
-          saving={saving}
-          onClose={closeHistory}
-          onAdd={addEntry}
-          onUpdate={updateEntry}
-          onDelete={deleteEntry}
-        />
-      )}
-    </div>
+        {/* Table */}
+        <Card elevated padding="none">
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="w-8 h-8 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <SalaryTable employees={employees} onViewHistory={openHistory} />
+          )}
+        </Card>
+
+        {/* History Modal */}
+        {selectedEmployee && (
+          <SalaryHistoryModal
+            employee={selectedEmployee}
+            history={history}
+            loading={historyLoading}
+            saving={saving}
+            onClose={closeHistory}
+            onAdd={addEntry}
+            onUpdate={updateEntry}
+            onDelete={deleteEntry}
+          />
+        )}
+      </div>
+    </AdminLayout>
+  );
+}
+
+export default function SalaryPage() {
+  return (
+    <ProtectedRoute allowedRoles={["admin"]}>
+      <SalaryContent />
+    </ProtectedRoute>
   );
 }

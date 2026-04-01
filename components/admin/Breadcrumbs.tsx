@@ -11,6 +11,7 @@ const pathLabels: Record<string, string> = {
   requests: "คำขอ",
   approvals: "อนุมัติ",
   monitor: "Monitor",
+  salary: "จัดการเงินเดือน",
   payroll: "เงินเดือน",
   reports: "รายงาน",
   settings: "ตั้งค่า",
