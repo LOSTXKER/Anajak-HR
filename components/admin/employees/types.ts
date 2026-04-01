@@ -10,6 +10,7 @@ export interface Employee {
   phone: string;
   role: string;
   base_salary: number | null;
+  commission: number | null;
   annual_leave_quota: number;
   sick_leave_quota: number;
   personal_leave_quota: number;
@@ -50,6 +51,7 @@ export interface EditFormData {
   phone: string;
   role: string;
   baseSalary: string;
+  commission: string;
   workArrangement: string;
   annualQuota: number;
   sickQuota: number;

@@ -121,6 +121,17 @@ export function InfoTab({
                 }
               />
               <Input
+                label="คอมมิชชั่น (฿)"
+                type="number"
+                value={editForm.commission?.toString() || "0"}
+                onChange={(e) =>
+                  onEditFormChange({
+                    ...editForm,
+                    commission: parseFloat(e.target.value) || 0,
+                  })
+                }
+              />
+              <Input
                 label="โควต้าลาป่วย (วัน)"
                 type="number"
                 value={editForm.sick_leave_quota?.toString() || ""}
@@ -160,6 +171,11 @@ export function InfoTab({
                 label="เงินเดือน"
                 value={`฿${employee.base_salary?.toLocaleString() || 0}`}
                 valueClass="text-[#34c759]"
+              />
+              <InfoRow
+                label="คอมมิชชั่น"
+                value={`฿${employee.commission?.toLocaleString() || 0}`}
+                valueClass="text-[#0071e3]"
               />
               <InfoRow
                 label="โควต้าลาป่วย"

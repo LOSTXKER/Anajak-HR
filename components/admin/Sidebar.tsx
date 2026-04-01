@@ -21,6 +21,7 @@ import {
   Building2,
   CalendarDays,
   Target,
+  Wallet,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { useState, useEffect } from "react";
@@ -119,6 +120,7 @@ export function Sidebar() {
     {
       title: "การเงิน",
       items: [
+        { title: "จัดการเงินเดือน", href: "/admin/salary", icon: Wallet },
         { title: "เงินเดือน", href: "/admin/payroll", icon: DollarSign },
         { title: "รายงาน", href: "/admin/reports", icon: BarChart3 },
       ],

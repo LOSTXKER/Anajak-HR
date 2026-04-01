@@ -104,6 +104,17 @@ export function EmployeeEditModal({
               onFormChange({ ...formData, baseSalary: e.target.value })
             }
           />
+          <Input
+            label="คอมมิชชั่น (฿)"
+            type="number"
+            value={formData.commission}
+            onChange={(e) =>
+              onFormChange({ ...formData, commission: e.target.value })
+            }
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
           <Select
             label="รูปแบบการทำงาน"
             value={formData.workArrangement}

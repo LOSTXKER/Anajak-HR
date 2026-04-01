@@ -352,9 +352,28 @@ export function usePayroll() {
         const otTotalAmount = ot1xAmount + ot15xAmount + ot2xAmount;
         // Use historical salary if available, otherwise fall back to current employee salary
         const historicalSalary = salaryAtMonth[emp.id];
-        const baseSalary = historicalSalary ? historicalSalary.base_salary : (emp.base_salary || 0);
-        const basePay = baseSalary;
-        const commission = historicalSalary ? historicalSalary.commission : (emp.commission || 0);
+        const fullBaseSalary = historicalSalary ? historicalSalary.base_salary : (emp.base_salary || 0);
+        const fullCommission = historicalSalary ? historicalSalary.commission : (emp.commission || 0);
+
+        // Prorate: count working days employed vs total working days in month
+        const totalWorkingDaysInMonth = settings.days_per_month || 26;
+        const monthDays = eachDayOfInterval({
+          start: new Date(startDate),
+          end: new Date(endDate),
+        });
+        let employedWorkingDays = 0;
+        for (const day of monthDays) {
+          const dow = day.getDay();
+          if (dow === 0 || dow === 6) continue; // skip weekends
+          const dayStr = format(day, "yyyy-MM-dd");
+          if (wasEmployedOnDate(emp.id, dayStr, employmentHistory)) {
+            employedWorkingDays++;
+          }
+        }
+
+        const prorateRatio = Math.min(1, employedWorkingDays / totalWorkingDaysInMonth);
+        const basePay = Math.round(fullBaseSalary * prorateRatio);
+        const commission = Math.round(fullCommission * prorateRatio);
         const latePenalty = lateMinutes * settings.late_deduction_per_minute;
         const totalPay = basePay + commission + otTotalAmount - latePenalty;
 

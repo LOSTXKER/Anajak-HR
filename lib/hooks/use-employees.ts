@@ -199,6 +199,13 @@ export function useEmployees(
 
       setSaving(true);
       try {
+        const newBaseSalary = formData.baseSalary
+          ? parseFloat(formData.baseSalary)
+          : null;
+        const newCommission = formData.commission
+          ? parseFloat(formData.commission)
+          : 0;
+
         const { error } = await supabase
           .from("employees")
           .update({
@@ -206,9 +213,8 @@ export function useEmployees(
             email: formData.email,
             phone: formData.phone,
             role: formData.role,
-            base_salary: formData.baseSalary
-              ? parseFloat(formData.baseSalary)
-              : null,
+            base_salary: newBaseSalary,
+            commission: newCommission,
             work_arrangement: formData.workArrangement || "onsite",
             annual_leave_quota: formData.annualQuota,
             sick_leave_quota: formData.sickQuota,
@@ -217,6 +223,23 @@ export function useEmployees(
           .eq("id", empId);
 
         if (error) throw error;
+
+        // Write salary_history if salary or commission changed
+        const oldEmp = employeesList.find((e) => e.id === empId);
+        const oldBase = Number(oldEmp?.base_salary ?? 0);
+        const oldComm = Number(oldEmp?.commission ?? 0);
+        if (
+          Number(newBaseSalary ?? 0) !== oldBase ||
+          newCommission !== oldComm
+        ) {
+          const today = new Date().toISOString().split("T")[0];
+          await supabase.from("salary_history").insert({
+            employee_id: empId,
+            base_salary: newBaseSalary ?? 0,
+            commission: newCommission,
+            effective_date: today,
+          });
+        }
 
         // Update balance for current year (recalculate remaining)
         const currentYear = new Date().getFullYear();

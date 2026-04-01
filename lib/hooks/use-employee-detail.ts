@@ -278,6 +278,7 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
           position: editForm.position,
           branch_id: editForm.branch_id || null,
           base_salary: editForm.base_salary,
+          commission: editForm.commission ?? 0,
           sick_leave_quota: editForm.sick_leave_quota,
           personal_leave_quota: editForm.personal_leave_quota,
           annual_leave_quota: editForm.annual_leave_quota,
