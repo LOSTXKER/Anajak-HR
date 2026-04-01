@@ -8,6 +8,7 @@ import {
   DollarSign,
   FileText,
   Home,
+  Briefcase,
 } from "lucide-react";
 import { MonthlyStats } from "./types";
 
@@ -15,8 +16,27 @@ interface QuickStatsProps {
   stats: MonthlyStats;
 }
 
+function formatEmploymentPeriod(totalDays: number): string {
+  if (totalDays <= 0) return "0 วัน";
+  const years = Math.floor(totalDays / 365);
+  const months = Math.floor((totalDays % 365) / 30);
+  const days = totalDays % 30;
+  const parts: string[] = [];
+  if (years > 0) parts.push(`${years} ปี`);
+  if (months > 0) parts.push(`${months} เดือน`);
+  if (days > 0 || parts.length === 0) parts.push(`${days} วัน`);
+  return parts.join(" ");
+}
+
 export function QuickStats({ stats }: QuickStatsProps) {
   const statItems = [
+    {
+      label: "ระยะเวลาทำงาน",
+      value: formatEmploymentPeriod(stats.employmentPeriodDays),
+      icon: Briefcase,
+      color: "text-[#5856d6]",
+      bg: "bg-[#5856d6]/10",
+    },
     {
       label: "วันทำงาน",
       value: stats.workDays,
@@ -62,7 +82,7 @@ export function QuickStats({ stats }: QuickStatsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
       {statItems.map((stat, i) => (
         <Card key={i} elevated className="!p-3">
           <div className="flex items-center gap-2">

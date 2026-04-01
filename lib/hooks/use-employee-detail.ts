@@ -216,6 +216,37 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
       (o) => (o.status === "completed" || o.status === "approved") && isEmployed(o.request_date)
     );
 
+    // Calculate total employment days from history
+    let employmentPeriodDays = 0;
+    const empEvents = employmentHistory
+      .filter((h) => h.employee_id === employeeId)
+      .sort((a, b) => a.effective_date.slice(0, 10).localeCompare(b.effective_date.slice(0, 10)));
+
+    if (empEvents.length > 0) {
+      const todayStr = new Date().toISOString().split("T")[0];
+      let periodStart: string | null = null;
+
+      for (const event of empEvents) {
+        const d = event.effective_date.slice(0, 10);
+        if (event.action === "hired" || event.action === "rehired") {
+          if (!periodStart) periodStart = d;
+        } else if (event.action === "resigned" || event.action === "terminated") {
+          if (periodStart) {
+            const start = new Date(periodStart);
+            const end = new Date(d);
+            employmentPeriodDays += Math.max(0, Math.round((end.getTime() - start.getTime()) / 86400000));
+            periodStart = null;
+          }
+        }
+      }
+      // If still employed, count up to today
+      if (periodStart) {
+        const start = new Date(periodStart);
+        const end = new Date(todayStr);
+        employmentPeriodDays += Math.max(0, Math.round((end.getTime() - start.getTime()) / 86400000));
+      }
+    }
+
     return {
       workDays: filteredAttendance.filter((a) => a.clock_in_time).length,
       lateDays: filteredAttendance.filter(
@@ -229,6 +260,7 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
         ...wfhData.filter((w) => w.status === "approved" && isEmployed(w.date)).map((w: any) => w.date),
         ...filteredAttendance.filter((a: any) => a.work_mode === "wfh").map((a: any) => a.work_date),
       ]).size,
+      employmentPeriodDays,
     };
   }, [employeeId, attendanceData, otData, leaveData, wfhData, approvedLateDates, employmentHistory]);
 

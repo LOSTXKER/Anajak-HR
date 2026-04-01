@@ -329,13 +329,28 @@ export function useEmployees(
 
         if (error) throw error;
 
-        await supabase.from("employment_history").insert({
-          employee_id: empId,
-          action: formData.type,
-          effective_date: formData.lastWorkingDate || formData.resignationDate,
-          reason: formData.reason || null,
-          performed_by: performedById,
-        });
+        // effective_date = day AFTER last working day (first day not employed)
+        const lastDay = new Date(formData.lastWorkingDate || formData.resignationDate);
+        lastDay.setDate(lastDay.getDate() + 1);
+        const effectiveDate = lastDay.toISOString().split("T")[0];
+
+        const { data: existingResign } = await supabase
+          .from("employment_history")
+          .select("id")
+          .eq("employee_id", empId)
+          .eq("action", formData.type)
+          .eq("effective_date", effectiveDate)
+          .maybeSingle();
+
+        if (!existingResign) {
+          await supabase.from("employment_history").insert({
+            employee_id: empId,
+            action: formData.type,
+            effective_date: effectiveDate,
+            reason: formData.reason || null,
+            performed_by: performedById,
+          });
+        }
 
         await fetchData();
         return { success: true };
@@ -370,12 +385,24 @@ export function useEmployees(
 
         if (error) throw error;
 
-        await supabase.from("employment_history").insert({
-          employee_id: empId,
-          action: "rehired",
-          effective_date: new Date().toISOString().split("T")[0],
-          performed_by: performedById,
-        });
+        const todayStr = new Date().toISOString().split("T")[0];
+
+        const { data: existingRehire } = await supabase
+          .from("employment_history")
+          .select("id")
+          .eq("employee_id", empId)
+          .eq("action", "rehired")
+          .eq("effective_date", todayStr)
+          .maybeSingle();
+
+        if (!existingRehire) {
+          await supabase.from("employment_history").insert({
+            employee_id: empId,
+            action: "rehired",
+            effective_date: todayStr,
+            performed_by: performedById,
+          });
+        }
 
         await fetchData();
         return { success: true };

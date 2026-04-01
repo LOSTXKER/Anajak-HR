@@ -98,6 +98,7 @@ export interface MonthlyStats {
   otAmount: number;
   leaveDays: number;
   wfhDays: number;
+  employmentPeriodDays: number;
 }
 
 export type TabType = "info" | "attendance" | "ot" | "leave" | "wfh" | "late" | "gamification" | "employment_history";
