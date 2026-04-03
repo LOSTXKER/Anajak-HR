@@ -74,6 +74,7 @@ interface LeaderboardEntryRow {
   employee_id: string;
   total_points: number;
   quarterly_points: number;
+  current_quarter: string;
   level: number;
   level_name: string;
   rank_tier: string;
@@ -877,12 +878,15 @@ export async function getLeaderboard(
   branchId?: string
 ): Promise<LeaderboardEntry[]> {
   try {
+    const currentQ = getCurrentQuarter();
+
     let query = supabase
       .from("employee_points")
       .select(`
         employee_id,
         total_points,
         quarterly_points,
+        current_quarter,
         level,
         level_name,
         rank_tier,
@@ -907,18 +911,25 @@ export async function getLeaderboard(
 
     const badgeCounts = await getBadgeCounts(entries.map((e: LeaderboardEntryRow) => e.employee_id));
 
-    return entries.map((entry: LeaderboardEntryRow, index: number) => ({
-      rank: index + 1,
-      employeeId: entry.employee_id,
-      employeeName: entry.employees.name,
-      totalPoints: entry.total_points,
-      quarterlyPoints: entry.quarterly_points,
-      level: entry.level,
-      levelName: entry.level_name,
-      rankTier: entry.rank_tier,
-      currentStreak: entry.current_streak,
-      badgeCount: badgeCounts[entry.employee_id] || 0,
-    }));
+    return entries.map((entry: LeaderboardEntryRow, index: number) => {
+      const isStaleQuarter = entry.current_quarter !== currentQ;
+      return {
+        rank: index + 1,
+        employeeId: entry.employee_id,
+        employeeName: entry.employees.name,
+        totalPoints: entry.total_points,
+        quarterlyPoints: isStaleQuarter ? 0 : entry.quarterly_points,
+        level: entry.level,
+        levelName: entry.level_name,
+        rankTier: isStaleQuarter ? "Unranked" : entry.rank_tier,
+        currentStreak: entry.current_streak,
+        badgeCount: badgeCounts[entry.employee_id] || 0,
+      };
+    }).sort((a, b) =>
+      period === "quarterly"
+        ? b.quarterlyPoints - a.quarterlyPoints
+        : b.totalPoints - a.totalPoints
+    ).map((entry, index) => ({ ...entry, rank: index + 1 }));
   } catch (err) {
     console.error("Error getting leaderboard:", err);
     return [];

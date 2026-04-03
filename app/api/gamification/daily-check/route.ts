@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
-import { checkAndAwardBadges, ensureEmployeePoints, getGamificationSettings, awardPoints, getLeaderboard } from "@/lib/services/gamification.service";
+import { checkAndAwardBadges, ensureEmployeePoints, getGamificationSettings, awardPoints, getLeaderboard, getCurrentQuarter } from "@/lib/services/gamification.service";
 import { format, startOfWeek, endOfWeek } from "date-fns";
 import { th } from "date-fns/locale";
 import { sendLineMessage, formatWeeklyRankingMessage } from "@/lib/line/messaging";
@@ -33,6 +33,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "No employees to process" });
     }
 
+    // Proactively reset quarterly_points for all employees whose quarter is stale
+    const currentQ = getCurrentQuarter();
+    const { data: staleRows } = await supabaseServer
+      .from("employee_points")
+      .update({ quarterly_points: 0, current_quarter: currentQ, rank_tier: "Unranked" })
+      .neq("current_quarter", currentQ)
+      .select("id");
+    if (staleRows && staleRows.length > 0) {
+      console.log(`[Gamification Daily] Reset quarterly points for ${staleRows.length} employees (new quarter: ${currentQ})`);
+    }
+
     let badgesAwarded = 0;
     let weeklyBonuses = 0;
 
@@ -59,6 +70,17 @@ export async function GET(request: NextRequest) {
       if (isEndOfWeek) {
         const weekStart = format(startOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd");
         const weekEnd = format(endOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd");
+
+        // Idempotency: skip if already awarded for this week
+        const { count: existingBonus } = await supabaseServer
+          .from("point_transactions")
+          .select("id", { count: "exact", head: true })
+          .eq("employee_id", emp.id)
+          .eq("action_type", "no_leave_week")
+          .gte("created_at", weekStart)
+          .lte("created_at", weekEnd + "T23:59:59");
+
+        if ((existingBonus || 0) > 0) continue;
 
         const { count: leaveCount } = await supabaseServer
           .from("leave_requests")
