@@ -94,7 +94,8 @@ function CheckoutContent() {
   const hasRemoteCheckoutBypass = allowRemoteCheckout && isAfterWorkEnd();
 
   const handleCheckout = async () => {
-    if (!camera.photo || !location || !employee || !todayLog) return;
+    const needsGPS = !isWFH && !hasFieldWork && !hasRemoteCheckoutBypass;
+    if (!camera.photo || !employee || !todayLog || (needsGPS && !location)) return;
 
     if (!hasFieldWork && !isWFH && !hasRemoteCheckoutBypass && radiusCheck && !radiusCheck.inRadius) {
       setError(`คุณอยู่นอกรัศมีที่อนุญาต (ห่าง ${formatDistance(radiusCheck.distance)} จากสาขา ${branch?.name || "สาขา"})`);
@@ -364,7 +365,7 @@ function CheckoutContent() {
                 variant="danger"
                 onClick={handleCheckout}
                 loading={loading}
-                disabled={!location || (!hasFieldWork && !isWFH && !hasRemoteCheckoutBypass && radiusCheck !== null && !radiusCheck.inRadius)}
+                disabled={(!isWFH && !hasFieldWork && !hasRemoteCheckoutBypass && !location) || (!hasFieldWork && !isWFH && !hasRemoteCheckoutBypass && radiusCheck !== null && !radiusCheck.inRadius)}
                 size="lg"
               >
                 <CheckCircle className="w-5 h-5" />

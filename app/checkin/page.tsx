@@ -87,7 +87,8 @@ function CheckinContent() {
   };
 
   const handleCheckin = async () => {
-    if (!camera.photo || !location || !employee) return;
+    const needsGPS = !isWFH && !hasFieldWork;
+    if (!camera.photo || !employee || (needsGPS && !location)) return;
 
     if (!branch) {
       setError("คุณยังไม่ได้กำหนดสาขา กรุณาติดต่อ Admin");
@@ -280,7 +281,7 @@ function CheckinContent() {
                 fullWidth
                 onClick={handleCheckin}
                 loading={loading}
-                disabled={!location || !branch || (!hasFieldWork && !isWFH && radiusCheck !== null && !radiusCheck.inRadius)}
+                disabled={(!isWFH && !hasFieldWork && !location) || !branch || (!hasFieldWork && !isWFH && radiusCheck !== null && !radiusCheck.inRadius)}
                 size="lg"
               >
                 <CheckCircle className="w-5 h-5" />
