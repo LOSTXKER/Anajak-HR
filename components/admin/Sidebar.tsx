@@ -107,7 +107,7 @@ export function Sidebar() {
       items: [
         { title: "พนักงาน", href: "/admin/employees", icon: Users, badge: pendingCounts.employees },
         { title: "การเข้างาน", href: "/admin/attendance", icon: Clock },
-        { title: "Quick Fix", href: "/admin/tools/quick-fix", icon: Zap },
+        { title: "Quick Fix", href: "/admin/maintenance/quick-fix", icon: Zap },
         { title: "Monitor", href: "/admin/monitor", icon: Activity },
       ],
     },
