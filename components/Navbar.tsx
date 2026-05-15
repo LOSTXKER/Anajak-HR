@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import { LogOut, Settings } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
+import { OrgSwitcher } from "@/components/OrgSwitcher";
 
 export function Navbar() {
   const { user, employee, signOut } = useAuth();
@@ -26,7 +27,7 @@ export function Navbar() {
         </Link>
 
         {/* User Menu */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <div className="flex items-center gap-3">
             <Avatar name={employee?.name || "User"} size="sm" />
             <div className="hidden sm:block">
@@ -40,6 +41,11 @@ export function Navbar() {
               </p>
             </div>
           </div>
+
+          {/* Phase B: Org switcher — visible to admin only for now */}
+          {employee?.role === "admin" && (
+            <OrgSwitcher />
+          )}
 
           {(employee?.role === "admin" || employee?.role === "supervisor") && (
             <Link

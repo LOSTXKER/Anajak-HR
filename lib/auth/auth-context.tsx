@@ -7,12 +7,17 @@ import { Database } from "@/types/database";
 
 type Employee = Database["public"]["Tables"]["employees"]["Row"];
 
+// Phase B: default org UUID (Anajak) — matches migration seed
+const ANAJAK_ORG_ID = "00000000-0000-0000-0000-000000000001";
+
 interface AuthContextType {
   user: User | null;
   employee: Employee | null;
   loading: boolean;
   signOut: () => Promise<void>;
   isConfigured: boolean;
+  /** Phase B: current org scope. Null = Step 1 (pre-backfill) → defaults to Anajak at app layer */
+  currentOrgId: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,6 +26,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
+  // Phase B: org scope — default Anajak until Step 2 backfill populates employees.organization_id
+  const [currentOrgId, setCurrentOrgId] = useState<string>(ANAJAK_ORG_ID);
 
   useEffect(() => {
     // If Supabase is not configured, just set loading to false
@@ -122,8 +129,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setEmployee(data);
-    } catch (error: any) {
-      console.error("Error fetching employee:", error?.message || error);
+      // Phase B Step 1: use employees.organization_id if populated (post-Step-2)
+      // otherwise fall back to cookie-based selection via /api/auth/switch-org
+      if (data?.organization_id) {
+        setCurrentOrgId(data.organization_id);
+      } else {
+        // Pre-backfill: read from switch-org cookie (default = Anajak)
+        fetch("/api/auth/switch-org")
+          .then((r) => r.json())
+          .then((org: { org_id: string }) => {
+            if (org?.org_id) setCurrentOrgId(org.org_id);
+          })
+          .catch(() => {
+            // silently fall back to Anajak default
+          });
+      }
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error("Error fetching employee:", msg);
     } finally {
       setLoading(false);
     }
@@ -131,20 +154,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     if (!isSupabaseConfigured) return;
-    
+
     await supabase.auth.signOut();
     setUser(null);
     setEmployee(null);
+    setCurrentOrgId(ANAJAK_ORG_ID);
   };
 
   return (
-    <AuthContext.Provider 
-      value={{ 
-        user, 
-        employee, 
-        loading, 
-        signOut, 
-        isConfigured: isSupabaseConfigured 
+    <AuthContext.Provider
+      value={{
+        user,
+        employee,
+        loading,
+        signOut,
+        isConfigured: isSupabaseConfigured,
+        currentOrgId,
       }}
     >
       {children}
