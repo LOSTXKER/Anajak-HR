@@ -54,6 +54,36 @@ npm run dev
 
 > 📚 ดูรายละเอียดการติดตั้งเพิ่มเติมได้ที่ [docs/QUICK_START.md](docs/QUICK_START.md)
 
+### Apply Phase B Migration (Multi-tenant)
+
+ถ้า clone ใหม่และต้องการ apply Phase B migration กับ Supabase ใหม่:
+
+```bash
+# สร้าง .env.migration (Session Pooler — port 5432)
+# ดูรายละเอียดที่ docs/migration-runbook.md section 1
+
+# Apply migrations
+npx dotenv -e .env.migration -- npx prisma migrate deploy
+```
+
+หรือ apply ด้วย Supabase SQL Editor โดยตรง — ดู [docs/migration-runbook.md](docs/migration-runbook.md) สำหรับ step-by-step
+
+> ถ้าใช้ Transaction Pooler (port 6543 ใน `.env.local`) อย่าใช้รัน migrate — จะ error เสมอ ใช้ Session Pooler (port 5432) แทน
+
+---
+
+## 🛠️ Tech Stack
+
+| ส่วน | เทคโนโลยี | หมายเหตุ |
+|------|-----------|---------|
+| Frontend | **Next.js 15** (App Router) | React 19, Server Components |
+| Language | **TypeScript 5** | strict mode |
+| Database | **Supabase** (PostgreSQL 15) | Row Level Security enabled |
+| ORM / Schema | **Prisma 7** | DDL management เท่านั้น — runtime ใช้ Supabase client |
+| Auth | **Supabase Auth** | JWT, role-based |
+| Testing | **Vitest** | 75/75 tests pass |
+| Deploy | **Vercel** | Edge runtime |
+
 ---
 
 ## 📋 ข้อกำหนดเบื้องต้น
@@ -103,6 +133,44 @@ anajak-hr/
 
 ---
 
+## 🏢 Multi-tenant Architecture
+
+ระบบออกแบบให้รองรับหลายองค์กรในโค้ดชุดเดียว (1 codebase = หลาย orgs)
+
+### ภาพรวม
+
+| สิ่งที่ทำงานร่วมกัน | รายละเอียด |
+|---|---|
+| Database | 1 Supabase project, แยก data ด้วย `organization_id` ทุก table |
+| Codebase | 1 Next.js app deploy เดียว |
+| Auth | Supabase Auth, user ผูกกับ org ผ่าน `employees.organization_id` |
+
+### Organizations ที่กำหนดไว้
+
+| Slug | UUID | ชื่อ |
+|------|------|------|
+| `anajak` | `00000000-0000-0000-0000-000000000001` | Anajak (primary) |
+| `ibear` | `00000000-0000-0000-0000-000000000002` | iBear |
+| `meecard` | `00000000-0000-0000-0000-000000000003` | Meecard |
+| `meelike` | `00000000-0000-0000-0000-000000000004` | Meelike |
+| `channel` | `00000000-0000-0000-0000-000000000005` | Best Channel |
+
+**Anajak** คือ primary org — เป็น DEFAULT สำหรับทุก INSERT ที่ไม่ระบุ `organization_id`
+
+### การแยกข้อมูล (Row Level Security)
+
+ทุก query ถูกกรองผ่าน `current_user_org()` helper ใน Supabase RLS:
+- พนักงานเห็นเฉพาะข้อมูลขององค์กรตัวเอง
+- Admin เห็นทุก record ภายใน org เดียวกัน
+- Cross-org access = ไม่มี (RLS block โดยอัตโนมัติ)
+
+### Org Switcher (Admin Navbar)
+
+Admin ที่มีสิทธิ์หลาย org จะเห็น dropdown `OrgSwitcher` ใน navbar  
+Switch org → session context เปลี่ยน → `current_user_org()` คืนค่า UUID ใหม่ → data filter เปลี่ยนทันที
+
+---
+
 ## 🗃️ Database Schema
 
 | Table | Description |
@@ -140,6 +208,8 @@ anajak-hr/
 | [LINE_MESSAGING_SETUP.md](docs/LINE_MESSAGING_SETUP.md) | การตั้งค่า LINE API |
 | [SYSTEM_PLAN.md](docs/SYSTEM_PLAN.md) | แผนพัฒนาระบบ (ภาษาไทย) |
 | [CHANGELOG.md](docs/CHANGELOG.md) | ประวัติการเปลี่ยนแปลง |
+| [migration-runbook.md](docs/migration-runbook.md) | คู่มือ apply Phase B migration + rollback |
+| [phase-b-tenant-scope.md](docs/phase-b-tenant-scope.md) | รายละเอียด multi-tenant implementation |
 
 ---
 
