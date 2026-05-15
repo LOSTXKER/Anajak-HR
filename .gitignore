@@ -46,6 +46,9 @@ next-env.d.ts
 scripts/migration/.env.migration
 scripts/migration/backup/
 
+# DB backups (data sensitive — keep local only)
+backups/
+
 
 
 

@@ -10,7 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "backup": "node scripts/backup-db.mjs",
+    "restore": "node scripts/restore-db.mjs"
   },
   "dependencies": {
     "@prisma/client": "^7.3.0",

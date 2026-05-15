@@ -66,6 +66,36 @@ app/admin/tools/
 - Phase D recommendation: rename path เป็น `/admin/ops` หรือ `/admin/quick-fix` โดยตรง ถ้า scope ยังเล็กแบบนี้
   แต่ตัดสินใจสุดท้ายใน Phase D หลังดู Pain #7 scope ครบ
 
+## DB Backup Strategy
+
+**Approach**: pg_dump local (ฟรี — ไม่ใช้ Supabase Pro backup feature $25/mo)
+
+**Connection**: ใช้ `DIRECT_URL` (port 5432, direct connection) — ไม่ใช่ `DATABASE_URL` (pooler port 6543)
+- pg_dump ไม่รองรับ pgbouncer pooler → ต้องใช้ direct เท่านั้น
+- `DIRECT_URL` อยู่ใน `.env.local` แล้ว
+
+**Scripts**:
+| Command | ไฟล์ | หน้าที่ |
+|---|---|---|
+| `npm run backup` | `scripts/backup-db.mjs` | สร้าง SQL snapshot → `backups/` |
+| `npm run backup -- --label=pre-phase-b` | ← เดิม | ตั้งชื่อ label |
+| `npm run restore backups/file.sql` | `scripts/restore-db.mjs` | restore พร้อม double-confirm |
+
+**Backup ก่อน Phase B (2026-05-19) — mandatory**:
+```
+npm run backup -- --label=pre-phase-b
+```
+
+**Output location**: `backups/YYYY-MM-DD-HHmm-{label}.sql`
+- folder ถูก gitignore แล้ว — ไฟล์อยู่บนเครื่องเบสเท่านั้น
+- แนะนำ copy ไปเก็บบน Google Drive / USB หลัง backup สำเร็จ
+
+**Requirements**: PostgreSQL client tools (`pg_dump` + `psql`) ต้องอยู่ใน PATH
+- ดาวน์โหลด: https://www.postgresql.org/download/windows/ (เลือก v15)
+- หรือ: `scoop install postgresql` / `choco install postgresql`
+
+---
+
 ## Sidebar Check (Phase D todo)
 
 - [ ] ตรวจ `components/admin/AdminLayout.tsx` หรือ sidebar component ว่ามี link ไป `/admin/tools/quick-fix` หรือไม่
