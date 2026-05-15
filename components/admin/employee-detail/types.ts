@@ -11,6 +11,7 @@ export interface Employee {
   role: string;
   position: string | null;
   branch_id: string | null;
+  organization_id: string | null;
   hire_date: string | null;
   base_salary: number | null;
   commission: number | null;
@@ -20,6 +21,7 @@ export interface Employee {
   personal_leave_quota: number;
   annual_leave_quota: number;
   branch?: { id: string; name: string };
+  organization?: { id: string; name: string };
 }
 
 export interface Branch {

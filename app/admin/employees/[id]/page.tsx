@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { User } from "lucide-react";
@@ -24,9 +24,21 @@ import {
   ResetPasswordModal,
 } from "@/components/admin/employee-detail";
 
+const VALID_TABS = ["info", "attendance", "ot", "leave", "wfh", "late", "gamification", "employment_history"] as const;
+type ValidTab = (typeof VALID_TABS)[number];
+
+function isValidTab(t: string | null): t is ValidTab {
+  return VALID_TABS.includes(t as ValidTab);
+}
+
 function EmployeeProfileContent() {
   const params = useParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const employeeId = params.id as string;
+
+  const tabParam = searchParams.get("tab");
+  const initialTab: ValidTab = isValidTab(tabParam) ? tabParam : "info";
 
   const {
     // Data
@@ -60,7 +72,17 @@ function EmployeeProfileContent() {
     setDeleteModal,
     handleSave,
     handleDelete,
-  } = useEmployeeDetail({ employeeId });
+  } = useEmployeeDetail({ employeeId, initialTab });
+
+  // Sync URL when tab changes
+  const handleTabChange = (tab: ValidTab) => {
+    setActiveTab(tab);
+    setEditMode(false);
+    const params = new URLSearchParams();
+    if (tab !== "info") params.set("tab", tab);
+    const query = params.toString();
+    router.replace(`/admin/employees/${employeeId}${query ? `?${query}` : ""}`, { scroll: false });
+  };
 
   const [showResetPassword, setShowResetPassword] = useState(false);
 
@@ -108,10 +130,7 @@ function EmployeeProfileContent() {
       <TabNavigation
         activeTab={activeTab}
         currentMonth={currentMonth}
-        onTabChange={(tab) => {
-          setActiveTab(tab);
-          setEditMode(false);
-        }}
+        onTabChange={handleTabChange}
         onMonthChange={setCurrentMonth}
       />
 
@@ -186,7 +205,17 @@ function EmployeeProfileContent() {
 export default function EmployeeProfilePage() {
   return (
     <ProtectedRoute allowedRoles={["admin", "supervisor"]}>
-      <EmployeeProfileContent />
+      <Suspense
+        fallback={
+          <AdminLayout title="โปรไฟล์พนักงาน">
+            <div className="flex justify-center py-20">
+              <div className="w-10 h-10 border-3 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
+            </div>
+          </AdminLayout>
+        }
+      >
+        <EmployeeProfileContent />
+      </Suspense>
     </ProtectedRoute>
   );
 }
