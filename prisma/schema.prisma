@@ -46,6 +46,7 @@ model announcements {
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// Table created via SQL patch (add-auto-checkout.sql / fix-attendance-update-rls.sql), reconciled Phase A 2026-05-16
 model attendance_anomalies {
   id                                                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   attendance_id                                         String?          @db.Uuid
@@ -65,6 +66,7 @@ model attendance_anomalies {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// Columns late_minutes/edit_reason/edited_by/edited_at/original_clock_out/auto_checkout/auto_checkout_reason/reminder_count: Added via SQL patches (add-auto-checkout.sql, add-late-minutes.sql), reconciled Phase A 2026-05-16
 model attendance_logs {
   id                                               String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   employee_id                                      String                 @db.Uuid
@@ -120,6 +122,10 @@ model branches {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// Columns account_status/approved_by/approved_at/rejection_reason: Added via SQL patch (add-account-status.sql), reconciled Phase A 2026-05-16
+/// Columns base_salary/commission/is_system_account: Added via SQL patches (add-base-salary.sql, add-employee-payroll-fields.sql), reconciled Phase A 2026-05-16
+/// Column line_user_id: Added via SQL patch (add-line-user-id.sql), reconciled Phase A 2026-05-16
+/// Columns deleted_at/deleted_by: Added via SQL patch (add-employee-soft-delete.sql) → migration 20260203055818, reconciled Phase A 2026-05-16
 model employees {
   id                                                               String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   name                                                             String                 @db.VarChar(255)
@@ -224,6 +230,7 @@ model employment_history {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// Table + columns (cancelled_by/cancelled_at/cancel_reason): Added via SQL patches (add-field-work-requests.sql, add-cancel-functionality.sql), reconciled Phase A 2026-05-16
 model field_work_requests {
   id                                                    String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   employee_id                                           String     @db.Uuid
@@ -265,6 +272,7 @@ model holidays {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// Table: Created via SQL patch (add-late-requests.sql). Columns approved_at/cancelled_*: Added via SQL patches (add-approved-at-column.sql, add-cancel-functionality.sql), reconciled Phase A 2026-05-16
 model late_requests {
   id                                              String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   employee_id                                     String     @db.Uuid
@@ -317,6 +325,7 @@ model leave_balances {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// Columns approved_at/cancelled_*: Added via SQL patches (add-approved-at-column.sql, add-cancel-functionality.sql), reconciled Phase A 2026-05-16
 model leave_requests {
   id                                               String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   employee_id                                      String     @db.Uuid
@@ -348,6 +357,7 @@ model leave_requests {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// Columns approved_at: Added via SQL patch (fix-ot-approved-at.sql). Columns start/end_gps_lat/lng: add-ot-gps-columns.sql. Columns cancelled_*: add-cancel-functionality.sql. All reconciled Phase A 2026-05-16
 model ot_requests {
   id                                            String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   employee_id                                   String     @db.Uuid
@@ -416,6 +426,7 @@ model system_settings {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// Columns approved_at/cancelled_*: Added via SQL patches (add-approved-at-column.sql, add-cancel-functionality.sql), reconciled Phase A 2026-05-16
 model wfh_requests {
   id                                             String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   employee_id                                    String     @db.Uuid
