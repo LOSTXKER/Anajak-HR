@@ -6,7 +6,10 @@
 --   2. Step 2 backfill complete (all organization_id = Anajak UUID)
 --   3. _organization_helpers.sql applied (current_user_org() etc.)
 --   4. NOT NULL constraints added (separate statement below)
+-- ATOMIC: wrapped in BEGIN/COMMIT — full rollback if any statement fails
 -- =============================================================
+
+BEGIN;
 
 -- -------------------------------------------------------
 -- 0. Finalize NOT NULL constraints (run AFTER Step 2 backfill)
@@ -605,3 +608,5 @@ USING (public.is_admin_in_org(organization_id));
 -- END of Phase B Step 3 RLS rewrite
 -- Run order: _organization_helpers.sql → this file
 -- =============================================================
+
+COMMIT;

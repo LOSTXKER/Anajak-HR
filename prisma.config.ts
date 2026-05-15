@@ -1,9 +1,17 @@
 // Prisma Configuration for Anajak HR System
 import { config } from "dotenv";
 import { defineConfig } from "prisma/config";
+import { existsSync } from "fs";
 
-// Load .env.local for local development
-config({ path: ".env.local" });
+// Phase B migration workaround:
+// .env.migration = Session Pooler (port 5432, IPv4-compatible) for local migration runs
+// .env.local = production runtime (DIRECT_URL = db.xxx.supabase.co:5432 IPv6-only)
+if (existsSync(".env.migration")) {
+  config({ path: ".env.migration" });
+} else {
+  // Load .env.local for local development
+  config({ path: ".env.local" });
+}
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
