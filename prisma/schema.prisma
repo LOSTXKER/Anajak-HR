@@ -48,7 +48,7 @@ model announcement_reads {
   employee_id     String        @db.Uuid
   read_at         DateTime?     @default(now()) @db.Timestamptz(6)
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id String?       @db.Uuid
+  organization_id String       @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   announcements   announcements @relation(fields: [announcement_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   employees       employees     @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   organizations   organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
@@ -80,7 +80,7 @@ model announcements {
   updated_at           DateTime?            @default(now()) @db.Timestamptz(6)
   deleted_at           DateTime?            @db.Timestamptz(6)
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id      String?              @db.Uuid
+  organization_id      String              @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   announcement_reads   announcement_reads[]
   employees            employees            @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   branches             branches?            @relation(fields: [target_branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -104,7 +104,7 @@ model attendance_anomalies {
   resolved_at                                           DateTime?        @db.Timestamptz(6)
   created_at                                            DateTime?        @default(now()) @db.Timestamptz(6)
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id                                       String?          @db.Uuid
+  organization_id                                       String          @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   attendance_logs                                       attendance_logs? @relation(fields: [attendance_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   employees_attendance_anomalies_employee_idToemployees employees?       @relation("attendance_anomalies_employee_idToemployees", fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   employees_attendance_anomalies_resolved_byToemployees employees?       @relation("attendance_anomalies_resolved_byToemployees", fields: [resolved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -145,7 +145,7 @@ model attendance_logs {
   auto_checkout_reason                             String?
   reminder_count                                   Int?                   @default(0)
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id                                  String?                @db.Uuid
+  organization_id                                  String                @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   attendance_anomalies                             attendance_anomalies[]
   employees_attendance_logs_edited_byToemployees   employees?             @relation("attendance_logs_edited_byToemployees", fields: [edited_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_attendance_logs_employee_idToemployees employees              @relation("attendance_logs_employee_idToemployees", fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -168,7 +168,7 @@ model branches {
   created_at      DateTime?       @default(now()) @db.Timestamptz(6)
   updated_at      DateTime?       @default(now()) @db.Timestamptz(6)
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id String?         @db.Uuid
+  organization_id String         @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   announcements   announcements[]
   employees       employees[]
   holidays        holidays[]
@@ -261,7 +261,7 @@ model employees {
   employment_history_employee                                      employment_history[]   @relation("employment_history_employee_idToemployees")
   employment_history_performed                                     employment_history[]   @relation("employment_history_performed_byToemployees")
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id                                                  String?                @db.Uuid
+  organization_id                                                  String                @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   organizations                                                    organizations?         @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([account_status], map: "idx_employees_account_status")
@@ -283,7 +283,7 @@ model employment_history {
   performed_by                                                String?    @db.Uuid
   created_at                                                  DateTime?  @default(now()) @db.Timestamptz(6)
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id                                             String?    @db.Uuid
+  organization_id                                             String    @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees_employment_history_employee_idToemployees         employees  @relation("employment_history_employee_idToemployees", fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   employees_employment_history_performed_byToemployees        employees? @relation("employment_history_performed_byToemployees", fields: [performed_by], references: [id], onDelete: SetNull, onUpdate: NoAction)
   organizations                                               organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
@@ -313,7 +313,7 @@ model field_work_requests {
   cancelled_at                                          DateTime?  @db.Timestamptz(6)
   cancel_reason                                         String?
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id                                       String?    @db.Uuid
+  organization_id                                       String    @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees_field_work_requests_approved_byToemployees  employees? @relation("field_work_requests_approved_byToemployees", fields: [approved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_field_work_requests_cancelled_byToemployees employees? @relation("field_work_requests_cancelled_byToemployees", fields: [cancelled_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_field_work_requests_employee_idToemployees  employees  @relation("field_work_requests_employee_idToemployees", fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -360,7 +360,7 @@ model late_requests {
   cancelled_at                                    DateTime?  @db.Timestamptz(6)
   cancel_reason                                   String?
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id                                 String?    @db.Uuid
+  organization_id                                 String    @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees_late_requests_approved_byToemployees  employees? @relation("late_requests_approved_byToemployees", fields: [approved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_late_requests_cancelled_byToemployees employees? @relation("late_requests_cancelled_byToemployees", fields: [cancelled_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_late_requests_employee_idToemployees  employees  @relation("late_requests_employee_idToemployees", fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -390,7 +390,7 @@ model leave_balances {
   created_at               DateTime? @default(now()) @db.Timestamptz(6)
   updated_at               DateTime? @default(now()) @db.Timestamptz(6)
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id          String?   @db.Uuid
+  organization_id          String   @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees                employees @relation(fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   organizations            organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
@@ -422,7 +422,7 @@ model leave_requests {
   cancelled_at                                     DateTime?  @db.Timestamptz(6)
   cancel_reason                                    String?
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id                                  String?    @db.Uuid
+  organization_id                                  String    @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees_leave_requests_approved_byToemployees  employees? @relation("leave_requests_approved_byToemployees", fields: [approved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_leave_requests_cancelled_byToemployees employees? @relation("leave_requests_cancelled_byToemployees", fields: [cancelled_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_leave_requests_employee_idToemployees  employees  @relation("leave_requests_employee_idToemployees", fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -471,7 +471,7 @@ model ot_requests {
   cancelled_at                                  DateTime?  @db.Timestamptz(6)
   cancel_reason                                 String?
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id                               String?    @db.Uuid
+  organization_id                               String    @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees_ot_requests_approved_byToemployees  employees? @relation("ot_requests_approved_byToemployees", fields: [approved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_ot_requests_cancelled_byToemployees employees? @relation("ot_requests_cancelled_byToemployees", fields: [cancelled_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_ot_requests_employee_idToemployees  employees  @relation("ot_requests_employee_idToemployees", fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -506,7 +506,7 @@ model system_settings {
   created_at      DateTime?      @default(now()) @db.Timestamptz(6)
   updated_at      DateTime?      @default(now()) @db.Timestamptz(6)
   /// Phase B: tenant scope — nullable until Step 2 backfill. NOTE: unique constraint on setting_key moves to (setting_key, organization_id) in Step 3
-  organization_id String?        @db.Uuid
+  organization_id String        @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   organizations   organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([setting_key], map: "idx_system_settings_key")
@@ -532,7 +532,7 @@ model wfh_requests {
   cancelled_at                                   DateTime?  @db.Timestamptz(6)
   cancel_reason                                  String?
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id                                String?    @db.Uuid
+  organization_id                                String    @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees_wfh_requests_approved_byToemployees  employees? @relation("wfh_requests_approved_byToemployees", fields: [approved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_wfh_requests_cancelled_byToemployees employees? @relation("wfh_requests_cancelled_byToemployees", fields: [cancelled_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_wfh_requests_employee_idToemployees  employees  @relation("wfh_requests_employee_idToemployees", fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -554,7 +554,7 @@ model salary_history {
   effective_date  DateTime       @db.Date
   created_at      DateTime?      @default(now()) @db.Timestamptz(6)
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id String?        @db.Uuid
+  organization_id String        @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees       employees      @relation(fields: [employee_id], references: [id], onDelete: Cascade)
   organizations   organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
@@ -588,7 +588,7 @@ model employee_badges {
   earned_at         DateTime?        @default(now()) @db.Timestamptz(6)
   month_context     String?          @db.VarChar(7)
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id   String?          @db.Uuid
+  organization_id   String          @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   badge_definitions badge_definitions @relation(fields: [badge_id], references: [id], onDelete: Cascade)
   employees         employees        @relation(fields: [employee_id], references: [id], onDelete: Cascade)
   organizations     organizations?   @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
@@ -611,7 +611,7 @@ model point_transactions {
   reference_type  String?        @db.VarChar(30)
   created_at      DateTime?      @default(now()) @db.Timestamptz(6)
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id String?        @db.Uuid
+  organization_id String        @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees       employees      @relation(fields: [employee_id], references: [id], onDelete: Cascade)
   organizations   organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
@@ -636,7 +636,7 @@ model employee_points {
   last_streak_date  DateTime?      @db.Date
   updated_at        DateTime?      @default(now()) @db.Timestamptz(6)
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id   String?        @db.Uuid
+  organization_id   String        @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees         employees      @relation(fields: [employee_id], references: [id], onDelete: Cascade)
   organizations     organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
@@ -662,7 +662,7 @@ model kpi_periods {
   created_at           DateTime?             @default(now()) @db.Timestamptz(6)
   updated_at           DateTime?             @default(now()) @db.Timestamptz(6)
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id      String?               @db.Uuid
+  organization_id      String               @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees            employees?            @relation("kpi_periods_created_byToemployees", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   kpi_period_templates kpi_period_templates[]
   kpi_goals            kpi_goals[]
@@ -727,7 +727,7 @@ model kpi_goals {
   created_at                                    DateTime?           @default(now()) @db.Timestamptz(6)
   updated_at                                    DateTime?           @default(now()) @db.Timestamptz(6)
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id                               String?             @db.Uuid
+  organization_id                               String             @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees_kpi_goals_employee_idToemployees    employees           @relation("kpi_goals_employee_idToemployees", fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   employees_kpi_goals_approved_byToemployees    employees?          @relation("kpi_goals_approved_byToemployees", fields: [approved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   kpi_periods                                   kpi_periods         @relation(fields: [period_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -752,7 +752,7 @@ model kpi_goal_progress {
   created_by                                        String?   @db.Uuid
   created_at                                        DateTime? @default(now()) @db.Timestamptz(6)
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id                                   String?    @db.Uuid
+  organization_id                                   String    @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   kpi_goals                                         kpi_goals @relation(fields: [goal_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   employees_kpi_goal_progress_created_byToemployees employees? @relation("kpi_goal_progress_created_byToemployees", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   organizations                                     organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
@@ -777,7 +777,7 @@ model kpi_evaluations {
   created_at                                            DateTime?             @default(now()) @db.Timestamptz(6)
   updated_at                                            DateTime?             @default(now()) @db.Timestamptz(6)
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id                                       String?               @db.Uuid
+  organization_id                                       String               @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees_kpi_evaluations_employee_idToemployees      employees             @relation("kpi_evaluations_employee_idToemployees", fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   employees_kpi_evaluations_evaluator_idToemployees     employees             @relation("kpi_evaluations_evaluator_idToemployees", fields: [evaluator_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   kpi_periods                                           kpi_periods           @relation(fields: [period_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -803,7 +803,7 @@ model kpi_evaluation_items {
   weight          Decimal          @default(0) @db.Decimal(5, 2)
   comment         String?
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id String?          @db.Uuid
+  organization_id String          @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   kpi_evaluations kpi_evaluations  @relation(fields: [evaluation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   kpi_templates   kpi_templates?   @relation(fields: [template_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   kpi_goals       kpi_goals?       @relation(fields: [goal_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -832,7 +832,7 @@ model kpi_auto_metrics {
   created_at         DateTime?   @default(now()) @db.Timestamptz(6)
   updated_at         DateTime?   @default(now()) @db.Timestamptz(6)
   /// Phase B: tenant scope — nullable until Step 2 backfill
-  organization_id    String?        @db.Uuid
+  organization_id    String        @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees          employees      @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   kpi_periods        kpi_periods    @relation(fields: [period_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   organizations      organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
