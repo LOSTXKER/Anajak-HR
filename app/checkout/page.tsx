@@ -192,7 +192,7 @@ function CheckoutContent() {
         }).catch((err) => console.error("Failed to send late checkout notification:", err));
       }
 
-      authFetch("/api/checkout-notification", {
+      authFetch("/api/notifications/checkout", {
         method: "POST",
         body: JSON.stringify({
           employeeName: employee.name,

@@ -148,7 +148,7 @@ function CheckinContent() {
       const { attendance, isLate } = result.data;
       const now = new Date();
 
-      authFetch("/api/checkin-notification", {
+      authFetch("/api/notifications/checkin", {
         method: "POST",
         body: JSON.stringify({
           employeeName: employee.name,
