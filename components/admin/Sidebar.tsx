@@ -24,6 +24,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
+import { OrgSwitcher } from "@/components/OrgSwitcher";
 import { useState, useEffect } from "react";
 
 interface MenuSection {
@@ -155,6 +156,13 @@ export function Sidebar() {
           </span>
         )}
       </div>
+
+      {/* Org Switcher — admin only */}
+      {employee?.role === "admin" && (
+        <div className="px-4 py-3 border-b border-[#e8e8ed]">
+          <OrgSwitcher />
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 py-3 px-3 overflow-y-auto">
