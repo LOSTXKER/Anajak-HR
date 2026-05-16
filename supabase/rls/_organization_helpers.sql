@@ -1,6 +1,7 @@
 -- =============================================================
 -- RLS Helper Functions: Organization-aware helpers
--- Phase B Step 1 — write only, NOT APPLIED until Step 3
+-- Status: APPLIED 2026-05-16 — functions live in production DB
+-- Phase B Step 1 — helper functions used by _phase_b_step3_rewrite.sql
 -- =============================================================
 
 -- -------------------------------------------------------

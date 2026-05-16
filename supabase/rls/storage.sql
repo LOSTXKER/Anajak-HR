@@ -1,5 +1,6 @@
 -- =============================================================
 -- Storage policies: attendance-photos bucket
+-- Status: APPLIED 2026-05-16 — bucket + policies live in production
 -- Source: setup-storage.sql (reconciled Phase A 2026-05-16)
 -- =============================================================
 

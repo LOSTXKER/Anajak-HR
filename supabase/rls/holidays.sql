@@ -1,7 +1,9 @@
 -- =============================================================
 -- RLS Policies: holidays
+-- Status: APPLIED 2026-05-16 — policies live in production DB
 -- Source: fix-holidays-rls.sql (reconciled Phase A 2026-05-16)
--- Note: Also covered in multi-entity.sql — use either, not both
+-- Note: multi-entity.sql (archived) had duplicate holidays section — this file is canonical
+-- DB state (2026-05-16): has 3 duplicate SELECT policies — will be cleaned by migration 20260517000007
 -- =============================================================
 
 DROP POLICY IF EXISTS "Allow anyone to read holidays" ON holidays;
