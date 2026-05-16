@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/lib/supabase/client";
 
 export interface OrgOption {
   id: string;
@@ -22,6 +23,7 @@ const DEFAULT_ORG = ORGANIZATIONS[0]; // Anajak
 export function useOrg() {
   const [currentOrg, setCurrentOrg] = useState<OrgOption>(DEFAULT_ORG);
   const [loading, setLoading] = useState(true);
+  const [switching, setSwitching] = useState(false);
 
   useEffect(() => {
     // Fetch current org from cookie via API
@@ -39,15 +41,43 @@ export function useOrg() {
   }, []);
 
   const switchOrg = useCallback(async (org: OrgOption) => {
+    setSwitching(true);
     setCurrentOrg(org);
-    await fetch("/api/auth/switch-org", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ org_id: org.id }),
-    });
-    // Reload to pick up new org context in server components
-    window.location.reload();
+
+    try {
+      // 1. Get current access token to authenticate the switch-org API call
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+
+      // 2. Call switch-org: updates Supabase user app_metadata (server-side)
+      const res = await fetch("/api/auth/switch-org", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ org_id: org.id }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error("switch-org error:", err);
+        setSwitching(false);
+        return;
+      }
+
+      // 3. Refresh JWT so new app_metadata.selected_org_id is in the token.
+      //    Without this, RLS current_user_org() still sees the OLD org
+      //    even though app_metadata was updated on the server.
+      await supabase.auth.refreshSession();
+
+      // 4. Hard reload so all server components + hooks re-fetch with new org
+      window.location.reload();
+    } catch (err) {
+      console.error("switchOrg unexpected error:", err);
+      setSwitching(false);
+    }
   }, []);
 
-  return { currentOrg, loading, switchOrg, organizations: ORGANIZATIONS };
+  return { currentOrg, loading, switching, switchOrg, organizations: ORGANIZATIONS };
 }

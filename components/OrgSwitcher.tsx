@@ -5,7 +5,7 @@ import { Building2, ChevronDown, Check } from "lucide-react";
 import { useOrg, OrgOption } from "@/lib/hooks/use-org";
 
 export function OrgSwitcher() {
-  const { currentOrg, loading, switchOrg, organizations } = useOrg();
+  const { currentOrg, loading, switching, switchOrg, organizations } = useOrg();
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -23,7 +23,7 @@ export function OrgSwitcher() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  if (loading) {
+  if (loading || switching) {
     return (
       <div className="h-8 w-24 bg-[#f5f5f7] rounded-lg animate-pulse" />
     );
@@ -80,10 +80,10 @@ export function OrgSwitcher() {
             ))}
           </div>
 
-          {/* Phase B hint: Step 1 only — org isolation not yet active */}
+          {/* Phase B Step 4 — org isolation active */}
           <div className="border-t border-[#d2d2d7]/30 px-3 py-2">
             <p className="text-[11px] text-[#86868b]">
-              ข้อมูลแยกตาม org จะเริ่ม Sun 5/18
+              ข้อมูลแยกตาม org (active)
             </p>
           </div>
         </div>
