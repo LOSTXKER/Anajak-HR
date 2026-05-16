@@ -6,18 +6,57 @@ datasource db {
   provider = "postgresql"
 }
 
+/// Phase B: Multi-tenancy — one row per business unit (anajak, ibear, meecard, meelike, channel)
+model organizations {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug       String   @unique @db.VarChar(50)
+  name       String   @db.VarChar(200)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  // Relations — each tenant table back-links here
+  employees            employees[]
+  branches             branches[]
+  attendance_logs      attendance_logs[]
+  attendance_anomalies attendance_anomalies[]
+  leave_requests       leave_requests[]
+  leave_balances       leave_balances[]
+  ot_requests          ot_requests[]
+  wfh_requests         wfh_requests[]
+  late_requests        late_requests[]
+  field_work_requests  field_work_requests[]
+  salary_history       salary_history[]
+  announcements        announcements[]
+  announcement_reads   announcement_reads[]
+  system_settings      system_settings[]
+  employment_history   employment_history[]
+  employee_badges      employee_badges[]
+  employee_points      employee_points[]
+  point_transactions   point_transactions[]
+  kpi_periods          kpi_periods[]
+  kpi_goals            kpi_goals[]
+  kpi_goal_progress    kpi_goal_progress[]
+  kpi_evaluations      kpi_evaluations[]
+  kpi_evaluation_items kpi_evaluation_items[]
+  kpi_auto_metrics     kpi_auto_metrics[]
+}
+
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model announcement_reads {
   id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   announcement_id String        @db.Uuid
   employee_id     String        @db.Uuid
   read_at         DateTime?     @default(now()) @db.Timestamptz(6)
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id String       @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   announcements   announcements @relation(fields: [announcement_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   employees       employees     @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  organizations   organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([announcement_id, employee_id])
   @@index([announcement_id], map: "idx_announcement_reads_announcement")
   @@index([employee_id, read_at(sort: Desc)], map: "idx_announcement_reads_employee")
+  @@index([organization_id], map: "idx_announcement_reads_org")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -40,12 +79,18 @@ model announcements {
   created_at           DateTime?            @default(now()) @db.Timestamptz(6)
   updated_at           DateTime?            @default(now()) @db.Timestamptz(6)
   deleted_at           DateTime?            @db.Timestamptz(6)
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id      String              @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   announcement_reads   announcement_reads[]
   employees            employees            @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   branches             branches?            @relation(fields: [target_branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations        organizations?       @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([organization_id], map: "idx_announcements_org")
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// Table created via SQL patch (add-auto-checkout.sql / fix-attendance-update-rls.sql), reconciled Phase A 2026-05-16
 model attendance_anomalies {
   id                                                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   attendance_id                                         String?          @db.Uuid
@@ -58,13 +103,19 @@ model attendance_anomalies {
   resolved_by                                           String?          @db.Uuid
   resolved_at                                           DateTime?        @db.Timestamptz(6)
   created_at                                            DateTime?        @default(now()) @db.Timestamptz(6)
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id                                       String          @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   attendance_logs                                       attendance_logs? @relation(fields: [attendance_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   employees_attendance_anomalies_employee_idToemployees employees?       @relation("attendance_anomalies_employee_idToemployees", fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   employees_attendance_anomalies_resolved_byToemployees employees?       @relation("attendance_anomalies_resolved_byToemployees", fields: [resolved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations                                         organizations?   @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([organization_id], map: "idx_attendance_anomalies_org")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// Columns late_minutes/edit_reason/edited_by/edited_at/original_clock_out/auto_checkout/auto_checkout_reason/reminder_count: Added via SQL patches (add-auto-checkout.sql, add-late-minutes.sql), reconciled Phase A 2026-05-16
 model attendance_logs {
   id                                               String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   employee_id                                      String                 @db.Uuid
@@ -93,33 +144,46 @@ model attendance_logs {
   auto_checkout                                    Boolean?               @default(false)
   auto_checkout_reason                             String?
   reminder_count                                   Int?                   @default(0)
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id                                  String                @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   attendance_anomalies                             attendance_anomalies[]
   employees_attendance_logs_edited_byToemployees   employees?             @relation("attendance_logs_edited_byToemployees", fields: [edited_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_attendance_logs_employee_idToemployees employees              @relation("attendance_logs_employee_idToemployees", fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations                                    organizations?         @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([employee_id, work_date], map: "attendance_logs_employee_date_unique")
   @@index([employee_id, work_date], map: "idx_attendance_employee_date")
   @@index([work_date], map: "idx_attendance_work_date")
+  @@index([organization_id], map: "idx_attendance_logs_org")
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model branches {
-  id            String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name          String          @db.VarChar(255)
-  address       String
-  gps_lat       Decimal         @db.Decimal(10, 8)
-  gps_lng       Decimal         @db.Decimal(11, 8)
-  radius_meters Int?            @default(100)
-  created_at    DateTime?       @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime?       @default(now()) @db.Timestamptz(6)
-  announcements announcements[]
-  employees     employees[]
-  holidays      holidays[]
+  id              String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name            String          @db.VarChar(255)
+  address         String
+  gps_lat         Decimal         @db.Decimal(10, 8)
+  gps_lng         Decimal         @db.Decimal(11, 8)
+  radius_meters   Int?            @default(100)
+  created_at      DateTime?       @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime?       @default(now()) @db.Timestamptz(6)
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id String         @default("00000000-0000-0000-0000-000000000001") @db.Uuid
+  announcements   announcements[]
+  employees       employees[]
+  holidays        holidays[]
+  organizations   organizations?  @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([organization_id], map: "idx_branches_org")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// Columns account_status/approved_by/approved_at/rejection_reason: Added via SQL patch (add-account-status.sql), reconciled Phase A 2026-05-16
+/// Columns base_salary/commission/is_system_account: Added via SQL patches (add-base-salary.sql, add-employee-payroll-fields.sql), reconciled Phase A 2026-05-16
+/// Column line_user_id: Added via SQL patch (add-line-user-id.sql), reconciled Phase A 2026-05-16
+/// Columns deleted_at/deleted_by: Added via SQL patch (add-employee-soft-delete.sql) → migration 20260203055818, reconciled Phase A 2026-05-16
 model employees {
   id                                                               String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   name                                                             String                 @db.VarChar(255)
@@ -196,6 +260,9 @@ model employees {
   kpi_auto_metrics                                                 kpi_auto_metrics[]
   employment_history_employee                                      employment_history[]   @relation("employment_history_employee_idToemployees")
   employment_history_performed                                     employment_history[]   @relation("employment_history_performed_byToemployees")
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id                                                  String                @default("00000000-0000-0000-0000-000000000001") @db.Uuid
+  organizations                                                    organizations?         @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([account_status], map: "idx_employees_account_status")
   @@index([branch_id], map: "idx_employees_branch")
@@ -203,6 +270,7 @@ model employees {
   @@index([role], map: "idx_employees_role")
   @@index([deleted_at], map: "idx_employees_deleted_at")
   @@index([employment_status], map: "idx_employees_employment_status")
+  @@index([organization_id], map: "idx_employees_org")
 }
 
 /// Employment history: tracks hire/resign/terminate/rehire events
@@ -214,16 +282,21 @@ model employment_history {
   reason                                                      String?
   performed_by                                                String?    @db.Uuid
   created_at                                                  DateTime?  @default(now()) @db.Timestamptz(6)
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id                                             String    @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees_employment_history_employee_idToemployees         employees  @relation("employment_history_employee_idToemployees", fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   employees_employment_history_performed_byToemployees        employees? @relation("employment_history_performed_byToemployees", fields: [performed_by], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  organizations                                               organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([employee_id], map: "idx_employment_history_employee")
   @@index([created_at(sort: Desc)], map: "idx_employment_history_created")
+  @@index([organization_id], map: "idx_employment_history_org")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// Table + columns (cancelled_by/cancelled_at/cancel_reason): Added via SQL patches (add-field-work-requests.sql, add-cancel-functionality.sql), reconciled Phase A 2026-05-16
 model field_work_requests {
   id                                                    String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   employee_id                                           String     @db.Uuid
@@ -239,14 +312,18 @@ model field_work_requests {
   cancelled_by                                          String?    @db.Uuid
   cancelled_at                                          DateTime?  @db.Timestamptz(6)
   cancel_reason                                         String?
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id                                       String    @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees_field_work_requests_approved_byToemployees  employees? @relation("field_work_requests_approved_byToemployees", fields: [approved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_field_work_requests_cancelled_byToemployees employees? @relation("field_work_requests_cancelled_byToemployees", fields: [cancelled_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_field_work_requests_employee_idToemployees  employees  @relation("field_work_requests_employee_idToemployees", fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations                                         organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([date], map: "idx_field_work_date")
   @@index([employee_id], map: "idx_field_work_employee")
   @@index([cancelled_by], map: "idx_field_work_requests_cancelled_by")
   @@index([status], map: "idx_field_work_status")
+  @@index([organization_id], map: "idx_field_work_requests_org")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -265,6 +342,7 @@ model holidays {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// Table: Created via SQL patch (add-late-requests.sql). Columns approved_at/cancelled_*: Added via SQL patches (add-approved-at-column.sql, add-cancel-functionality.sql), reconciled Phase A 2026-05-16
 model late_requests {
   id                                              String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   employee_id                                     String     @db.Uuid
@@ -281,14 +359,18 @@ model late_requests {
   cancelled_by                                    String?    @db.Uuid
   cancelled_at                                    DateTime?  @db.Timestamptz(6)
   cancel_reason                                   String?
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id                                 String    @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees_late_requests_approved_byToemployees  employees? @relation("late_requests_approved_byToemployees", fields: [approved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_late_requests_cancelled_byToemployees employees? @relation("late_requests_cancelled_byToemployees", fields: [cancelled_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_late_requests_employee_idToemployees  employees  @relation("late_requests_employee_idToemployees", fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  organizations                                   organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([cancelled_by], map: "idx_late_requests_cancelled_by")
   @@index([request_date], map: "idx_late_requests_date")
   @@index([employee_id], map: "idx_late_requests_employee")
   @@index([status], map: "idx_late_requests_status")
+  @@index([organization_id], map: "idx_late_requests_org")
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -307,16 +389,21 @@ model leave_balances {
   personal_leave_remaining Decimal?  @default(3) @db.Decimal(5, 2)
   created_at               DateTime? @default(now()) @db.Timestamptz(6)
   updated_at               DateTime? @default(now()) @db.Timestamptz(6)
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id          String   @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees                employees @relation(fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations            organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([employee_id, year])
   @@index([employee_id], map: "idx_leave_balances_employee")
   @@index([year], map: "idx_leave_balances_year")
+  @@index([organization_id], map: "idx_leave_balances_org")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// Columns approved_at/cancelled_*: Added via SQL patches (add-approved-at-column.sql, add-cancel-functionality.sql), reconciled Phase A 2026-05-16
 model leave_requests {
   id                                               String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   employee_id                                      String     @db.Uuid
@@ -334,20 +421,25 @@ model leave_requests {
   cancelled_by                                     String?    @db.Uuid
   cancelled_at                                     DateTime?  @db.Timestamptz(6)
   cancel_reason                                    String?
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id                                  String    @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees_leave_requests_approved_byToemployees  employees? @relation("leave_requests_approved_byToemployees", fields: [approved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_leave_requests_cancelled_byToemployees employees? @relation("leave_requests_cancelled_byToemployees", fields: [cancelled_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_leave_requests_employee_idToemployees  employees  @relation("leave_requests_employee_idToemployees", fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations                                    organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([employee_id], map: "idx_leave_requests_employee")
   @@index([status], map: "idx_leave_requests_status")
   @@index([approved_by], map: "idx_leave_requests_approved_by")
   @@index([cancelled_by], map: "idx_leave_requests_cancelled_by")
   @@index([start_date, end_date], map: "idx_leave_requests_dates")
+  @@index([organization_id], map: "idx_leave_requests_org")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// Columns approved_at: Added via SQL patch (fix-ot-approved-at.sql). Columns start/end_gps_lat/lng: add-ot-gps-columns.sql. Columns cancelled_*: add-cancel-functionality.sql. All reconciled Phase A 2026-05-16
 model ot_requests {
   id                                            String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   employee_id                                   String     @db.Uuid
@@ -378,13 +470,17 @@ model ot_requests {
   cancelled_by                                  String?    @db.Uuid
   cancelled_at                                  DateTime?  @db.Timestamptz(6)
   cancel_reason                                 String?
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id                               String    @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees_ot_requests_approved_byToemployees  employees? @relation("ot_requests_approved_byToemployees", fields: [approved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_ot_requests_cancelled_byToemployees employees? @relation("ot_requests_cancelled_byToemployees", fields: [cancelled_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_ot_requests_employee_idToemployees  employees  @relation("ot_requests_employee_idToemployees", fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations                                 organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([cancelled_by], map: "idx_ot_requests_cancelled_by")
   @@index([employee_id], map: "idx_ot_requests_employee")
   @@index([status], map: "idx_ot_requests_status")
+  @@index([organization_id], map: "idx_ot_requests_org")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -403,19 +499,24 @@ model push_subscriptions {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model system_settings {
-  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  setting_key   String    @unique @db.VarChar(100)
-  setting_value String?
-  description   String?
-  created_at    DateTime? @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+  id              String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  setting_key     String         @db.VarChar(100)
+  setting_value   String?
+  description     String?
+  created_at      DateTime?      @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime?      @default(now()) @db.Timestamptz(6)
+  /// Phase B: tenant scope — nullable until Step 2 backfill. NOTE: unique constraint on setting_key moves to (setting_key, organization_id) in Step 3
+  organization_id String        @default("00000000-0000-0000-0000-000000000001") @db.Uuid
+  organizations   organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([setting_key], map: "idx_system_settings_key")
+  @@index([organization_id], map: "idx_system_settings_org")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// Columns approved_at/cancelled_*: Added via SQL patches (add-approved-at-column.sql, add-cancel-functionality.sql), reconciled Phase A 2026-05-16
 model wfh_requests {
   id                                             String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   employee_id                                    String     @db.Uuid
@@ -430,27 +531,35 @@ model wfh_requests {
   cancelled_by                                   String?    @db.Uuid
   cancelled_at                                   DateTime?  @db.Timestamptz(6)
   cancel_reason                                  String?
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id                                String    @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees_wfh_requests_approved_byToemployees  employees? @relation("wfh_requests_approved_byToemployees", fields: [approved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_wfh_requests_cancelled_byToemployees employees? @relation("wfh_requests_cancelled_byToemployees", fields: [cancelled_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employees_wfh_requests_employee_idToemployees  employees  @relation("wfh_requests_employee_idToemployees", fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations                                  organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([employee_id], map: "idx_wfh_requests_employee")
   @@index([status], map: "idx_wfh_requests_status")
   @@index([approved_by], map: "idx_wfh_requests_approved_by")
   @@index([cancelled_by], map: "idx_wfh_requests_cancelled_by")
   @@index([date], map: "idx_wfh_requests_date")
+  @@index([organization_id], map: "idx_wfh_requests_org")
 }
 
 model salary_history {
-  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  employee_id    String    @db.Uuid
-  base_salary    Decimal   @default(0) @db.Decimal(12, 2)
-  commission     Decimal   @default(0) @db.Decimal(12, 2)
-  effective_date DateTime  @db.Date
-  created_at     DateTime? @default(now()) @db.Timestamptz(6)
-  employees      employees @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+  id              String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  employee_id     String         @db.Uuid
+  base_salary     Decimal        @default(0) @db.Decimal(12, 2)
+  commission      Decimal        @default(0) @db.Decimal(12, 2)
+  effective_date  DateTime       @db.Date
+  created_at      DateTime?      @default(now()) @db.Timestamptz(6)
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id String        @default("00000000-0000-0000-0000-000000000001") @db.Uuid
+  employees       employees      @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+  organizations   organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([employee_id, effective_date(sort: Desc)], map: "idx_salary_history_employee_date")
+  @@index([organization_id], map: "idx_salary_history_org")
 }
 
 /// Gamification: Master badge definitions
@@ -478,51 +587,63 @@ model employee_badges {
   badge_id          String           @db.Uuid
   earned_at         DateTime?        @default(now()) @db.Timestamptz(6)
   month_context     String?          @db.VarChar(7)
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id   String          @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   badge_definitions badge_definitions @relation(fields: [badge_id], references: [id], onDelete: Cascade)
   employees         employees        @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+  organizations     organizations?   @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([employee_id, badge_id, month_context])
   @@index([employee_id], map: "idx_employee_badges_employee")
   @@index([badge_id], map: "idx_employee_badges_badge")
   @@index([earned_at(sort: Desc)], map: "idx_employee_badges_earned")
+  @@index([organization_id], map: "idx_employee_badges_org")
 }
 
 /// Gamification: Point transaction ledger
 model point_transactions {
-  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  employee_id    String    @db.Uuid
-  points         Int
-  action_type    String    @db.VarChar(50)
-  description    String?
-  reference_id   String?   @db.Uuid
-  reference_type String?   @db.VarChar(30)
-  created_at     DateTime? @default(now()) @db.Timestamptz(6)
-  employees      employees @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employee_id     String         @db.Uuid
+  points          Int
+  action_type     String         @db.VarChar(50)
+  description     String?
+  reference_id    String?        @db.Uuid
+  reference_type  String?        @db.VarChar(30)
+  created_at      DateTime?      @default(now()) @db.Timestamptz(6)
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id String        @default("00000000-0000-0000-0000-000000000001") @db.Uuid
+  employees       employees      @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+  organizations   organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([employee_id], map: "idx_point_transactions_employee")
   @@index([created_at(sort: Desc)], map: "idx_point_transactions_created")
   @@index([action_type], map: "idx_point_transactions_action")
+  @@index([organization_id], map: "idx_point_transactions_org")
 }
 
 /// Gamification: Aggregated point summary per employee
 model employee_points {
-  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  employee_id       String    @unique @db.Uuid
-  total_points      Int       @default(0)
-  quarterly_points  Int       @default(0)
-  current_quarter   String    @default("") @db.VarChar(7)
-  level             Int       @default(1)
-  level_name        String    @default("Rookie") @db.VarChar(50)
-  rank_tier         String    @default("Unranked") @db.VarChar(20)
-  current_streak    Int       @default(0)
-  longest_streak    Int       @default(0)
-  last_streak_date  DateTime? @db.Date
-  updated_at        DateTime? @default(now()) @db.Timestamptz(6)
-  employees         employees @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employee_id       String         @unique @db.Uuid
+  total_points      Int            @default(0)
+  quarterly_points  Int            @default(0)
+  current_quarter   String         @default("") @db.VarChar(7)
+  level             Int            @default(1)
+  level_name        String         @default("Rookie") @db.VarChar(50)
+  rank_tier         String         @default("Unranked") @db.VarChar(20)
+  current_streak    Int            @default(0)
+  longest_streak    Int            @default(0)
+  last_streak_date  DateTime?      @db.Date
+  updated_at        DateTime?      @default(now()) @db.Timestamptz(6)
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id   String        @default("00000000-0000-0000-0000-000000000001") @db.Uuid
+  employees         employees      @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+  organizations     organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([total_points(sort: Desc)], map: "idx_employee_points_total")
   @@index([quarterly_points(sort: Desc)], map: "idx_employee_points_quarterly")
   @@index([level(sort: Desc)], map: "idx_employee_points_level")
+  @@index([organization_id], map: "idx_employee_points_org")
 }
 
 /// KPI: Evaluation periods
@@ -540,14 +661,18 @@ model kpi_periods {
   created_by           String?               @db.Uuid
   created_at           DateTime?             @default(now()) @db.Timestamptz(6)
   updated_at           DateTime?             @default(now()) @db.Timestamptz(6)
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id      String               @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees            employees?            @relation("kpi_periods_created_byToemployees", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   kpi_period_templates kpi_period_templates[]
   kpi_goals            kpi_goals[]
   kpi_evaluations      kpi_evaluations[]
   kpi_auto_metrics     kpi_auto_metrics[]
+  organizations        organizations?        @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([status], map: "idx_kpi_periods_status")
   @@index([start_date, end_date], map: "idx_kpi_periods_dates")
+  @@index([organization_id], map: "idx_kpi_periods_org")
 }
 
 /// KPI: Template criteria definitions
@@ -601,15 +726,19 @@ model kpi_goals {
   rejection_reason                              String?
   created_at                                    DateTime?           @default(now()) @db.Timestamptz(6)
   updated_at                                    DateTime?           @default(now()) @db.Timestamptz(6)
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id                               String             @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees_kpi_goals_employee_idToemployees    employees           @relation("kpi_goals_employee_idToemployees", fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   employees_kpi_goals_approved_byToemployees    employees?          @relation("kpi_goals_approved_byToemployees", fields: [approved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   kpi_periods                                   kpi_periods         @relation(fields: [period_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   kpi_goal_progress                             kpi_goal_progress[]
   kpi_evaluation_items                          kpi_evaluation_items[]
+  organizations                                 organizations?      @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([employee_id], map: "idx_kpi_goals_employee")
   @@index([period_id], map: "idx_kpi_goals_period")
   @@index([status], map: "idx_kpi_goals_status")
+  @@index([organization_id], map: "idx_kpi_goals_org")
 }
 
 /// KPI: Goal progress updates
@@ -622,11 +751,15 @@ model kpi_goal_progress {
   attachment_url                                    String?
   created_by                                        String?   @db.Uuid
   created_at                                        DateTime? @default(now()) @db.Timestamptz(6)
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id                                   String    @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   kpi_goals                                         kpi_goals @relation(fields: [goal_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   employees_kpi_goal_progress_created_byToemployees employees? @relation("kpi_goal_progress_created_byToemployees", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations                                     organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([goal_id], map: "idx_kpi_goal_progress_goal")
   @@index([created_at(sort: Desc)], map: "idx_kpi_goal_progress_created")
+  @@index([organization_id], map: "idx_kpi_goal_progress_org")
 }
 
 /// KPI: Evaluation records (self or supervisor)
@@ -643,16 +776,20 @@ model kpi_evaluations {
   submitted_at                                          DateTime?             @db.Timestamptz(6)
   created_at                                            DateTime?             @default(now()) @db.Timestamptz(6)
   updated_at                                            DateTime?             @default(now()) @db.Timestamptz(6)
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id                                       String               @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   employees_kpi_evaluations_employee_idToemployees      employees             @relation("kpi_evaluations_employee_idToemployees", fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   employees_kpi_evaluations_evaluator_idToemployees     employees             @relation("kpi_evaluations_evaluator_idToemployees", fields: [evaluator_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   kpi_periods                                           kpi_periods           @relation(fields: [period_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   kpi_evaluation_items                                  kpi_evaluation_items[]
+  organizations                                         organizations?        @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([employee_id, period_id, evaluation_type])
   @@index([employee_id], map: "idx_kpi_evaluations_employee")
   @@index([period_id], map: "idx_kpi_evaluations_period")
   @@index([evaluator_id], map: "idx_kpi_evaluations_evaluator")
   @@index([status], map: "idx_kpi_evaluations_status")
+  @@index([organization_id], map: "idx_kpi_evaluations_org")
 }
 
 /// KPI: Individual evaluation item scores
@@ -665,12 +802,16 @@ model kpi_evaluation_items {
   score           Decimal?         @db.Decimal(5, 2)
   weight          Decimal          @default(0) @db.Decimal(5, 2)
   comment         String?
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id String          @default("00000000-0000-0000-0000-000000000001") @db.Uuid
   kpi_evaluations kpi_evaluations  @relation(fields: [evaluation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   kpi_templates   kpi_templates?   @relation(fields: [template_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   kpi_goals       kpi_goals?       @relation(fields: [goal_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations   organizations?   @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([evaluation_id], map: "idx_kpi_eval_items_evaluation")
   @@index([template_id], map: "idx_kpi_eval_items_template")
+  @@index([organization_id], map: "idx_kpi_eval_items_org")
 }
 
 /// KPI: Auto-calculated metrics snapshot per period
@@ -690,10 +831,14 @@ model kpi_auto_metrics {
   calculated_at      DateTime?   @db.Timestamptz(6)
   created_at         DateTime?   @default(now()) @db.Timestamptz(6)
   updated_at         DateTime?   @default(now()) @db.Timestamptz(6)
-  employees          employees   @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  kpi_periods        kpi_periods @relation(fields: [period_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  /// Phase B: tenant scope — nullable until Step 2 backfill
+  organization_id    String        @default("00000000-0000-0000-0000-000000000001") @db.Uuid
+  employees          employees      @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  kpi_periods        kpi_periods    @relation(fields: [period_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  organizations      organizations? @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([employee_id, period_id])
   @@index([employee_id], map: "idx_kpi_auto_metrics_employee")
   @@index([period_id], map: "idx_kpi_auto_metrics_period")
+  @@index([organization_id], map: "idx_kpi_auto_metrics_org")
 }

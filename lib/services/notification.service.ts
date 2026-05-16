@@ -56,7 +56,7 @@ export async function sendCheckinNotification(data: {
 }): Promise<boolean> {
   try {
     const headers = await getAuthHeaders();
-    const response = await fetch("/api/checkin-notification", {
+    const response = await fetch("/api/notifications/checkin", {
       method: "POST",
       headers,
       body: JSON.stringify(data),
@@ -79,7 +79,7 @@ export async function sendCheckoutNotification(data: {
 }): Promise<boolean> {
   try {
     const headers = await getAuthHeaders();
-    const response = await fetch("/api/checkout-notification", {
+    const response = await fetch("/api/notifications/checkout", {
       method: "POST",
       headers,
       body: JSON.stringify(data),

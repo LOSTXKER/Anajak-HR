@@ -13,6 +13,7 @@ import {
   Phone,
   Edit,
   KeyRound,
+  Building2,
 } from "lucide-react";
 import { Employee, getRoleLabel } from "./types";
 
@@ -71,6 +72,12 @@ export function EmployeeHeader({
                 <span className="flex items-center gap-1">
                   <MapPin className="w-4 h-4" />
                   {employee.branch.name}
+                </span>
+              )}
+              {employee.organization?.name && (
+                <span className="flex items-center gap-1">
+                  <Building2 className="w-4 h-4" />
+                  {employee.organization.name}
                 </span>
               )}
               <span className="flex items-center gap-1">

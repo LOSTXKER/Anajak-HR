@@ -24,9 +24,10 @@ import type {
 
 interface UseEmployeeDetailOptions {
   employeeId: string;
+  initialTab?: TabType;
 }
 
-export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
+export function useEmployeeDetail({ employeeId, initialTab = "info" }: UseEmployeeDetailOptions) {
   const router = useRouter();
   const toast = useToast();
 
@@ -34,7 +35,7 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>("info");
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   // Data for tabs
@@ -75,7 +76,7 @@ export function useEmployeeDetail({ employeeId }: UseEmployeeDetailOptions) {
       const [empRes, branchRes] = await Promise.all([
         supabase
           .from("employees")
-          .select("*, branch:branches(id, name)")
+          .select("*, branch:branches(id, name), organization:organizations(id, name)")
           .eq("id", employeeId)
           .single(),
         supabase.from("branches").select("id, name").order("name"),

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
-import { Camera, Edit, RefreshCw } from "lucide-react";
+import { Camera, Edit, RefreshCw, User } from "lucide-react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import type { AttendanceRow, Branch, DateMode } from "./types";
@@ -53,7 +53,7 @@ export function AttendanceTable({
     return <Badge variant="default">{row.status}</Badge>;
   };
 
-  const colSpan = dateMode === "range" ? 9 : 8;
+  const colSpan = dateMode === "range" ? 10 : 9;
 
   return (
     <Card elevated className="overflow-hidden">
@@ -89,6 +89,9 @@ export function AttendanceTable({
               </th>
               <th className="px-4 py-3 text-center text-xs font-semibold text-[#86868b]">
                 จัดการ
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-[#86868b]">
+                โปรไฟล์
               </th>
             </tr>
           </thead>
@@ -219,6 +222,15 @@ export function AttendanceTable({
                     ) : (
                       <span className="text-[#86868b]">-</span>
                     )}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <Link
+                      href={`/admin/employees/${row.employee.id}?tab=attendance`}
+                      className="p-1.5 text-[#86868b] hover:text-[#0071e3] hover:bg-[#0071e3]/10 rounded-lg transition-colors inline-flex"
+                      title="ดูโปรไฟล์พนักงาน"
+                    >
+                      <User className="w-4 h-4" />
+                    </Link>
                   </td>
                 </tr>
               ))
