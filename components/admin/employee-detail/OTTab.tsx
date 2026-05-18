@@ -37,6 +37,12 @@ export function OTTab({ data, onDelete }: OTTabProps) {
                 ประเภท
               </th>
               <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase">
+                ขอ
+              </th>
+              <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase">
+                ทำจริง
+              </th>
+              <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase">
                 ชม.
               </th>
               <th className="text-center px-3 py-3 text-xs font-semibold text-[#86868b] uppercase">
@@ -62,9 +68,19 @@ export function OTTab({ data, onDelete }: OTTabProps) {
                 <td className="text-center px-3 py-3 text-sm text-[#1d1d1f]">
                   {getOTTypeLabel(ot.ot_type)}
                 </td>
+                <td className="text-center px-3 py-3 text-xs text-[#86868b] whitespace-nowrap">
+                  {ot.requested_start_time && ot.requested_end_time
+                    ? `${format(new Date(ot.requested_start_time), "HH:mm")}-${format(new Date(ot.requested_end_time), "HH:mm")}`
+                    : "-"}
+                </td>
+                <td className="text-center px-3 py-3 text-xs text-[#1d1d1f] whitespace-nowrap">
+                  {ot.actual_start_time && ot.actual_end_time
+                    ? `${format(new Date(ot.actual_start_time), "HH:mm")}-${format(new Date(ot.actual_end_time), "HH:mm")}`
+                    : "-"}
+                </td>
                 <td className="text-center px-3 py-3 text-sm font-semibold text-[#0071e3]">
-                  {ot.actual_ot_hours?.toFixed(1) ||
-                    ot.approved_ot_hours?.toFixed(1) ||
+                  {ot.actual_ot_hours?.toFixed(2) ||
+                    ot.approved_ot_hours?.toFixed(2) ||
                     "-"}
                 </td>
                 <td className="text-center px-3 py-3 text-sm text-[#86868b]">

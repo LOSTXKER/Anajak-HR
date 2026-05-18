@@ -22,6 +22,10 @@ export interface OTRecord {
   ot_rate: number | null;
   status: string;
   reason: string;
+  requested_start_time: string | null;
+  requested_end_time: string | null;
+  actual_start_time: string | null;
+  actual_end_time: string | null;
 }
 
 export interface LeaveRecord {

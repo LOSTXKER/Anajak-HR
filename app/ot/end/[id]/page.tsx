@@ -193,12 +193,9 @@ function OTEndContent({ id }: { id: string }) {
 
       const now = new Date();
       const startTime = new Date(otRequest.actual_start_time);
-      const approvedEndTime = new Date(otRequest.approved_end_time || otRequest.requested_end_time);
 
-      // Calculate actual OT hours
-      // ถ้าจบหลังเวลาที่อนุมัติ → ใช้เวลาที่อนุมัติ
-      // ถ้าจบก่อนเวลาที่อนุมัติ → ใช้เวลาจริง
-      const effectiveEndTime = now > approvedEndTime ? approvedEndTime : now;
+      // Policy: จ่ายตามเวลาที่ทำจริง (ขอเป็นพิธี — กำหนดเวลาจบไม่ได้)
+      const effectiveEndTime = now;
       const actualMinutes = differenceInMinutes(effectiveEndTime, startTime);
       const actualOTHours = Math.max(0, actualMinutes / 60);
 

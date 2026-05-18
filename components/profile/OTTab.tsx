@@ -34,15 +34,33 @@ export function OTTab({ data }: OTTabProps) {
             {getStatusBadge(ot.status)}
           </div>
           <div className="flex items-center justify-between">
-            <div>
+            <div className="min-w-0 flex-1 pr-3">
               <p className="text-[15px] font-medium text-[#1d1d1f]">
                 {getOTTypeLabel(ot.ot_type)}
               </p>
-              <p className="text-[13px] text-[#86868b] truncate max-w-[200px]">{ot.reason}</p>
+              <p className="text-[13px] text-[#86868b] truncate">{ot.reason}</p>
+              {(ot.requested_start_time || ot.actual_start_time) && (
+                <div className="mt-1.5 text-[12px] text-[#86868b] space-y-0.5">
+                  {ot.requested_start_time && ot.requested_end_time && (
+                    <p>
+                      <span className="text-[#86868b]/70">ขอ:</span>{" "}
+                      {format(new Date(ot.requested_start_time), "HH:mm")}-{format(new Date(ot.requested_end_time), "HH:mm")}
+                    </p>
+                  )}
+                  {ot.actual_start_time && ot.actual_end_time && (
+                    <p>
+                      <span className="text-[#86868b]/70">ทำจริง:</span>{" "}
+                      <span className="text-[#1d1d1f] font-medium">
+                        {format(new Date(ot.actual_start_time), "HH:mm")}-{format(new Date(ot.actual_end_time), "HH:mm")}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="text-right">
+            <div className="text-right shrink-0">
               <p className="text-lg font-bold text-[#ff9500]">
-                {ot.actual_ot_hours?.toFixed(1) || ot.approved_ot_hours?.toFixed(1) || 0} ชม.
+                {ot.actual_ot_hours?.toFixed(2) || ot.approved_ot_hours?.toFixed(2) || 0} ชม.
               </p>
               {ot.ot_amount && (
                 <p className="text-sm font-semibold text-[#34c759]">฿{ot.ot_amount.toLocaleString()}</p>

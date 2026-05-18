@@ -52,6 +52,8 @@ export interface OTRecord {
   ot_amount: number | null;
   ot_rate: number | null;
   status: string;
+  requested_start_time: string | null;
+  requested_end_time: string | null;
   actual_start_time: string | null;
   actual_end_time: string | null;
   reason: string;
