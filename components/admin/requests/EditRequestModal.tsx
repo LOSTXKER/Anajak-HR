@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Toggle } from "@/components/ui/Toggle";
 import { TimeInput } from "@/components/ui/TimeInput";
 import { RequestItem, typeConfig, leaveTypeLabels } from "@/lib/types/request";
+import { getOTRateForDate } from "@/lib/utils/holiday";
 
 interface EditRequestModalProps {
   request: RequestItem | null;
@@ -31,7 +32,8 @@ export function EditRequestModal({
     if (!request) return;
 
     switch (request.type) {
-      case "ot":
+      case "ot": {
+        const storedRate = request.rawData.ot_rate as number | null | undefined;
         setEditData({
           requested_start_time: request.rawData.requested_start_time
             ? format(new Date(request.rawData.requested_start_time), "HH:mm")
@@ -39,10 +41,26 @@ export function EditRequestModal({
           requested_end_time: request.rawData.requested_end_time
             ? format(new Date(request.rawData.requested_end_time), "HH:mm")
             : "",
-          ot_rate: request.rawData.ot_rate ?? 1.5,
+          ot_rate: storedRate ?? null,
           reason: request.reason || "",
         });
+
+        if (storedRate == null) {
+          const requestDate = request.rawData.request_date as string | undefined;
+          const branchId = request.rawData.employee?.branch_id as string | undefined;
+          if (requestDate) {
+            getOTRateForDate(requestDate, branchId)
+              .then((info) =>
+                setEditData((prev: any) => ({
+                  ...prev,
+                  ot_rate: prev.ot_rate ?? info.rate,
+                }))
+              )
+              .catch(() => {});
+          }
+        }
         break;
+      }
       case "leave":
         setEditData({
           leave_type: request.rawData.leave_type || "sick",
@@ -129,13 +147,13 @@ export function EditRequestModal({
                   min={0.5}
                   max={5}
                   step={0.5}
-                  value={editData.ot_rate ?? 1.5}
+                  value={editData.ot_rate ?? ""}
                   onChange={(e) =>
                     updateEditData("ot_rate", parseFloat(e.target.value) || 1)
                   }
                 />
                 <span className="text-[15px] font-bold text-[#ff9500] whitespace-nowrap">
-                  {(editData.ot_rate ?? 1.5)}x
+                  {editData.ot_rate != null ? `${editData.ot_rate}x` : "..."}
                 </span>
               </div>
               <p className="text-[12px] text-[#86868b] mt-1">
