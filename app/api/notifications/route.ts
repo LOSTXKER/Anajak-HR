@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { supabaseServer } from "@/lib/supabase/server";
 import { withAuth } from "@/lib/auth/api-middleware";
+import { toThaiDate } from "@/lib/utils/date";
 
 export const POST = withAuth(async (request: NextRequest) => {
   try {
@@ -75,8 +76,8 @@ export const POST = withAuth(async (request: NextRequest) => {
           console.debug("[Notifications API] Processing OT approval...");
           try {
             const dateStr = data.date ? format(new Date(data.date), "d MMMM yyyy", { locale: th }) : "ไม่ระบุ";
-            const startTimeStr = data.startTime ? format(new Date(data.startTime), "HH:mm") : "ไม่ระบุ";
-            const endTimeStr = data.endTime ? format(new Date(data.endTime), "HH:mm") : "ไม่ระบุ";
+            const startTimeStr = data.startTime ? format(toThaiDate(data.startTime), "HH:mm") : "ไม่ระบุ";
+            const endTimeStr = data.endTime ? format(toThaiDate(data.endTime), "HH:mm") : "ไม่ระบุ";
             
             message = await formatOTApprovalMessage(
               data.employeeName || "ไม่ระบุชื่อ",
@@ -95,7 +96,7 @@ export const POST = withAuth(async (request: NextRequest) => {
 
       case "ot_start":
         if (settingsMap.ot_notify_on_start !== "false") {
-          const timeStr = data.time || format(new Date(), "HH:mm");
+          const timeStr = data.time || format(toThaiDate(new Date()), "HH:mm");
           message = `🟢 เริ่มทำ OT
 
 👤 พนักงาน: ${data.employeeName || "ไม่ระบุ"}
@@ -109,7 +110,7 @@ export const POST = withAuth(async (request: NextRequest) => {
 
       case "ot_end":
         if (settingsMap.ot_notify_on_end !== "false") {
-          const timeStr = data.time || format(new Date(), "HH:mm");
+          const timeStr = data.time || format(toThaiDate(new Date()), "HH:mm");
           const hours = data.totalHours ? `${data.totalHours.toFixed(1)} ชั่วโมง` : "ไม่ระบุ";
           message = `🔴 จบ OT
 
