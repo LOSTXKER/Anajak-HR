@@ -62,8 +62,17 @@ interface UseRequestsReturn {
   handleCancel: (request: RequestItem, adminId: string, cancelReason: string) => Promise<{ success: boolean; error?: string }>;
   handleCreateRequest: (type: RequestType, formData: CreateFormData, adminId: string) => Promise<boolean>;
   handleEditRequest: (request: RequestItem, editData: Record<string, unknown>, adminId: string) => Promise<boolean>;
+  handleManualCompleteOT: (request: RequestItem, data: ManualCompleteOTPayload) => Promise<boolean>;
   detectOTRate: (dateStr: string) => OTRateInfo;
   fetchEmployees: () => Promise<void>;
+  daysPerMonth: number;
+  hoursPerDay: number;
+}
+
+export interface ManualCompleteOTPayload {
+  actual_start_time: string;
+  actual_end_time: string;
+  admin_note: string;
 }
 
 // ─── Notification Helper ─────────────────────────────────
@@ -434,6 +443,60 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
     [query.employees, query.daysPerMonth, query.hoursPerDay]
   );
 
+  // ── Manual Complete OT (admin override) ─────────────
+
+  const handleManualCompleteOT = useCallback(
+    async (request: RequestItem, data: ManualCompleteOTPayload): Promise<boolean> => {
+      setProcessing(true);
+      try {
+        if (request.type !== "ot") return false;
+        const requestDate = request.rawData.request_date as string;
+        const startISO = buildLocalISO(requestDate, data.actual_start_time);
+        const endISO = buildLocalISO(requestDate, data.actual_end_time);
+        if (new Date(endISO) <= new Date(startISO)) return false;
+
+        const otRate = parseFloat(request.rawData.ot_rate ?? "1") || 1;
+        const emp = query.employees.find((e) => e.id === request.employeeId);
+        const calc = calculateOTAmount({
+          startTime: startISO,
+          endTime: endISO,
+          baseSalary: emp?.base_salary || 0,
+          otRate,
+          daysPerMonth: query.daysPerMonth,
+          hoursPerDay: query.hoursPerDay,
+        });
+
+        const { error } = await supabase
+          .from("ot_requests")
+          .update({
+            actual_start_time: startISO,
+            actual_end_time: endISO,
+            actual_ot_hours: calc.hours,
+            ot_amount: calc.amount,
+            status: "completed",
+            admin_note: data.admin_note,
+          })
+          .eq("id", request.id);
+        if (error) throw error;
+
+        sendNotification("ot_end", {
+          employeeName: request.employeeName,
+          time: data.actual_end_time,
+          hours: calc.hours.toFixed(2),
+          location: `ปิด manual โดย admin (${data.admin_note})`,
+        });
+
+        return true;
+      } catch (error) {
+        console.error("Error manual complete OT:", error);
+        return false;
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [query.employees, query.daysPerMonth, query.hoursPerDay]
+  );
+
   // ── Bound fetchAll with dateRange ───────────────────
   const fetchAll = useCallback(async () => {
     await query.fetchAll(dateRange);
@@ -472,6 +535,9 @@ export function useRequests(options: UseRequestsOptions = {}): UseRequestsReturn
     fetchAll,
     handleApprove, handleReject, handleCancel,
     handleCreateRequest, handleEditRequest,
+    handleManualCompleteOT,
     detectOTRate, fetchEmployees: query.fetchEmployees,
+    daysPerMonth: query.daysPerMonth,
+    hoursPerDay: query.hoursPerDay,
   };
 }

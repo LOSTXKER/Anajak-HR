@@ -15,6 +15,7 @@ import { RequestDetailModal } from "@/components/admin/requests/RequestDetailMod
 import { RejectReasonModal } from "@/components/admin/requests/RejectReasonModal";
 import { RequestCancelModal } from "@/components/admin/requests/RequestCancelModal";
 import { EditRequestModal } from "@/components/admin/requests/EditRequestModal";
+import { ManualCompleteOTModal, ManualCompleteOTData } from "@/components/admin/requests/ManualCompleteOTModal";
 import { CreateTab } from "@/components/admin/requests/CreateTab";
 
 function RequestsPageContent() {
@@ -42,7 +43,10 @@ function RequestsPageContent() {
     handleCancel,
     handleCreateRequest,
     handleEditRequest,
+    handleManualCompleteOT,
     detectOTRate,
+    daysPerMonth,
+    hoursPerDay,
   } = useRequests({ dateRange });
 
   // Re-fetch when date range changes
@@ -56,6 +60,7 @@ function RequestsPageContent() {
   const [cancelModal, setCancelModal] = useState<RequestItem | null>(null);
   const [rejectModal, setRejectModal] = useState<RequestItem | null>(null);
   const [editModal, setEditModal] = useState<RequestItem | null>(null);
+  const [manualCompleteModal, setManualCompleteModal] = useState<RequestItem | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
   // ── Action handlers ─────────────────────────────────
@@ -140,6 +145,20 @@ function RequestsPageContent() {
     [currentAdmin, handleEditRequest, toast, fetchAll]
   );
 
+  const onManualCompleteSubmit = useCallback(
+    async (request: RequestItem, data: ManualCompleteOTData) => {
+      const success = await handleManualCompleteOT(request, data);
+      if (success) {
+        toast.success("ปิด OT สำเร็จ", `${request.employeeName} — บันทึกเรียบร้อย`);
+        setManualCompleteModal(null);
+        fetchAll();
+      } else {
+        toast.error("เกิดข้อผิดพลาด", "ไม่สามารถปิด OT ได้");
+      }
+    },
+    [handleManualCompleteOT, toast, fetchAll]
+  );
+
   return (
     <div className="space-y-4">
       {/* Toolbar: filters + create button */}
@@ -209,6 +228,10 @@ function RequestsPageContent() {
           setDetailModal(null);
           setCancelModal(r);
         }}
+        onManualCompleteOT={(r) => {
+          setDetailModal(null);
+          setManualCompleteModal(r);
+        }}
       />
 
       {/* Reject */}
@@ -233,6 +256,21 @@ function RequestsPageContent() {
         processing={processing}
         onClose={() => setEditModal(null)}
         onSubmit={onEditSubmit}
+      />
+
+      {/* Manual Complete OT */}
+      <ManualCompleteOTModal
+        request={manualCompleteModal}
+        baseSalary={
+          (manualCompleteModal
+            && employees.find((e) => e.id === manualCompleteModal.employeeId)?.base_salary)
+          || 0
+        }
+        daysPerMonth={daysPerMonth}
+        hoursPerDay={hoursPerDay}
+        processing={processing}
+        onClose={() => setManualCompleteModal(null)}
+        onSubmit={onManualCompleteSubmit}
       />
     </div>
   );

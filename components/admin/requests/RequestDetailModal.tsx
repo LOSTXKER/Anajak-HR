@@ -2,7 +2,7 @@
 
 import { format, parseISO } from "date-fns";
 import { th } from "date-fns/locale";
-import { X, Check, Edit, Ban, DollarSign, CheckCircle, XCircle } from "lucide-react";
+import { X, Check, Edit, Ban, DollarSign, CheckCircle, XCircle, ClipboardCheck } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
@@ -17,6 +17,7 @@ interface RequestDetailModalProps {
   onReject: (request: RequestItem) => void;
   onEdit: (request: RequestItem) => void;
   onCancel: (request: RequestItem) => void;
+  onManualCompleteOT?: (request: RequestItem) => void;
 }
 
 export function RequestDetailModal({
@@ -27,6 +28,7 @@ export function RequestDetailModal({
   onReject,
   onEdit,
   onCancel,
+  onManualCompleteOT,
 }: RequestDetailModalProps) {
   if (!request) return null;
 
@@ -40,6 +42,11 @@ export function RequestDetailModal({
     request.status === "pending" || request.status === "approved" || request.status === "completed";
   const canEdit =
     request.status === "pending" || request.status === "approved" || request.status === "completed";
+  const canManualCompleteOT =
+    request.type === "ot"
+    && request.status === "approved"
+    && !request.rawData.actual_start_time
+    && !!onManualCompleteOT;
 
   return (
     <Modal isOpen={!!request} onClose={onClose} title="รายละเอียดคำขอ">
@@ -254,6 +261,17 @@ export function RequestDetailModal({
                 ปฏิเสธ
               </Button>
             </>
+          )}
+
+          {canManualCompleteOT && (
+            <Button
+              className="flex-1 bg-[#ff9500] hover:bg-[#e68500]"
+              onClick={() => onManualCompleteOT!(request)}
+              disabled={processing}
+            >
+              <ClipboardCheck className="w-4 h-4 mr-1" />
+              ปิด OT (manual)
+            </Button>
           )}
 
           {canEdit && (
