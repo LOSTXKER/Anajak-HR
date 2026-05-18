@@ -97,11 +97,15 @@ export const POST = withAuth(async (request: NextRequest) => {
       case "ot_start":
         if (settingsMap.ot_notify_on_start !== "false") {
           const timeStr = data.time || format(toThaiDate(new Date()), "HH:mm");
+          const locationStr = data.location
+            || (data.gpsLat != null && data.gpsLng != null
+              ? `https://maps.google.com/?q=${data.gpsLat},${data.gpsLng}`
+              : "ไม่ระบุ");
           message = `🟢 เริ่มทำ OT
 
 👤 พนักงาน: ${data.employeeName || "ไม่ระบุ"}
 ⏰ เวลาเริ่ม: ${timeStr}
-📍 สถานที่: ${data.location || "ไม่ระบุ"}
+📍 สถานที่: ${locationStr}
 
 กำลังทำ OT...`;
           success = await sendLineMessage(message);
@@ -111,13 +115,21 @@ export const POST = withAuth(async (request: NextRequest) => {
       case "ot_end":
         if (settingsMap.ot_notify_on_end !== "false") {
           const timeStr = data.time || format(toThaiDate(new Date()), "HH:mm");
-          const hours = data.totalHours ? `${data.totalHours.toFixed(1)} ชั่วโมง` : "ไม่ระบุ";
+          const hoursRaw = data.hours ?? data.totalHours;
+          const hoursNum = typeof hoursRaw === "string" ? parseFloat(hoursRaw) : hoursRaw;
+          const hours = hoursNum != null && !Number.isNaN(hoursNum)
+            ? `${hoursNum.toFixed(1)} ชั่วโมง`
+            : "ไม่ระบุ";
+          const locationStr = data.location
+            || (data.gpsLat != null && data.gpsLng != null
+              ? `https://maps.google.com/?q=${data.gpsLat},${data.gpsLng}`
+              : "ไม่ระบุ");
           message = `🔴 จบ OT
 
 👤 พนักงาน: ${data.employeeName || "ไม่ระบุ"}
 ⏰ เวลาจบ: ${timeStr}
 ⏱️ รวม OT: ${hours}
-📍 สถานที่: ${data.location || "ไม่ระบุ"}
+📍 สถานที่: ${locationStr}
 
 OT เสร็จสิ้น`;
           success = await sendLineMessage(message);
