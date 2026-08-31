@@ -64,10 +64,15 @@ export function DailyTrendChart({ data }: DailyTrendChartProps) {
                   border: "none",
                   boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
                 }}
-                formatter={(value: number, name: string) => [
-                  name === "เข้างาน" ? `${value} คน` : `${value.toFixed(1)} ชม.`,
-                  name,
-                ]}
+                formatter={(value, name) => {
+                  const numericValue = Number(value ?? 0);
+                  return [
+                    name === "เข้างาน"
+                      ? `${numericValue} คน`
+                      : `${numericValue.toFixed(1)} ชม.`,
+                    name,
+                  ];
+                }}
               />
               <Legend iconType="circle" />
               <Area

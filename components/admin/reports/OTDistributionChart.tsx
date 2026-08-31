@@ -37,7 +37,9 @@ export function OTDistributionChart({ data }: OTDistributionChartProps) {
               ))}
             </Pie>
             <Tooltip
-              formatter={(value: number) => [`${value.toFixed(1)} ชม.`]}
+              formatter={(value) => [
+                `${Number(value ?? 0).toFixed(1)} ชม.`,
+              ]}
               contentStyle={{
                 borderRadius: "12px",
                 border: "none",
