@@ -6,6 +6,9 @@ export interface EmploymentHistoryRecord {
   effective_date: string;
 }
 
+const DEFAULT_WORKING_DAYS = [1, 2, 3, 4, 5];
+const CALENDAR_DAYS = [1, 2, 3, 4, 5, 6, 7];
+
 /**
  * Determine whether an employee was actively employed on a given date
  * by walking their employment_history events in chronological order.
@@ -115,6 +118,54 @@ export function countEmployedWeekdays(
   endDate: string,
   history: EmploymentHistoryRecord[]
 ): number {
+  return countEmployedWorkingDays(
+    empId,
+    startDate,
+    endDate,
+    history,
+    DEFAULT_WORKING_DAYS
+  );
+}
+
+/**
+ * Calculate the share of a monthly salary owed for the employment period.
+ * A complete month is always paid in full. Partial months use the configured
+ * payroll day divisor (normally 30) against active calendar days.
+ */
+export function calculateEmploymentProrationRatio(
+  empId: string,
+  startDate: string,
+  endDate: string,
+  history: EmploymentHistoryRecord[],
+  daysPerMonth: number
+): number {
+  const totalCalendarDays = countWorkingDaysInRange(
+    startDate,
+    endDate,
+    CALENDAR_DAYS
+  );
+  if (totalCalendarDays === 0) return 1;
+
+  const employedCalendarDays = countEmployedWorkingDays(
+    empId,
+    startDate,
+    endDate,
+    history,
+    CALENDAR_DAYS
+  );
+  if (employedCalendarDays >= totalCalendarDays) return 1;
+  if (daysPerMonth <= 0) return 0;
+
+  return Math.min(1, employedCalendarDays / daysPerMonth);
+}
+
+function countEmployedWorkingDays(
+  empId: string,
+  startDate: string,
+  endDate: string,
+  history: EmploymentHistoryRecord[],
+  workingDays: number[]
+): number {
   const empHistory = history
     .filter((h) => h.employee_id === empId)
     .sort((a, b) =>
@@ -123,7 +174,7 @@ export function countEmployedWeekdays(
 
   // No history = employed the entire range
   if (empHistory.length === 0) {
-    return countWeekdaysInRange(startDate, endDate);
+    return countWorkingDaysInRange(startDate, endDate, workingDays);
   }
 
   // Build active periods [from, to) -- to is exclusive (first day NOT employed)
@@ -152,7 +203,7 @@ export function countEmployedWeekdays(
     if (firstResign) {
       periods.push({ from: "0000-01-01", to: firstResign.effective_date.slice(0, 10) });
     } else {
-      return countWeekdaysInRange(startDate, endDate);
+      return countWorkingDaysInRange(startDate, endDate, workingDays);
     }
   }
 
@@ -164,28 +215,35 @@ export function countEmployedWeekdays(
     // to is exclusive, so last employed day = day before "to"
     const lastDay = pEnd <= endDate ? dayBefore(pEnd) : endDate;
     if (clampedFrom <= lastDay) {
-      total += countWeekdaysInRange(clampedFrom, lastDay);
+      total += countWorkingDaysInRange(clampedFrom, lastDay, workingDays);
     }
   }
   return total;
 }
 
 function dayBefore(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setDate(d.getDate() - 1);
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const d = new Date(Date.UTC(year, month - 1, day));
+  d.setUTCDate(d.getUTCDate() - 1);
   return d.toISOString().slice(0, 10);
 }
 
-function countWeekdaysInRange(from: string, to: string): number {
+function countWorkingDaysInRange(
+  from: string,
+  to: string,
+  workingDays: number[]
+): number {
   const start = new Date(from + "T00:00:00");
   const end = new Date(to + "T00:00:00");
   if (start > end) return 0;
 
+  const scheduledDays = new Set(workingDays);
   let count = 0;
   const current = new Date(start);
   while (current <= end) {
     const dow = current.getDay();
-    if (dow !== 0 && dow !== 6) count++;
+    const isoDow = dow === 0 ? 7 : dow;
+    if (scheduledDays.has(isoDow)) count++;
     current.setDate(current.getDate() + 1);
   }
   return count;

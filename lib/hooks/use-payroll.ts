@@ -14,7 +14,7 @@ import type {
 import {
   wasEmployedOnDate,
   wasEmployedDuringPeriod,
-  countEmployedWeekdays,
+  calculateEmploymentProrationRatio,
   fetchEmploymentHistory,
   type EmploymentHistoryRecord,
 } from "@/lib/utils/employment";
@@ -357,13 +357,16 @@ export function usePayroll() {
         const historicalBaseSalary = historicalSalary ? historicalSalary.base_salary : (emp.base_salary || 0);
         const historicalCommission = historicalSalary ? historicalSalary.commission : (emp.commission || 0);
 
-        // Prorate using period-overlap weekday count
-        const totalWorkingDaysInMonth = settings.days_per_month || 26;
-        const employedWorkingDays = countEmployedWeekdays(
-          emp.id, startDate, endDate, employmentHistory
+        // Pay a full salary for complete months. Only partial employment periods
+        // use the configured payroll day divisor against active calendar days.
+        const prorateRatio = calculateEmploymentProrationRatio(
+          emp.id,
+          startDate,
+          endDate,
+          employmentHistory,
+          settings.days_per_month
         );
 
-        const prorateRatio = Math.min(1, employedWorkingDays / totalWorkingDaysInMonth);
         const basePay = Math.round(historicalBaseSalary * prorateRatio);
         const commission = Math.round(historicalCommission * prorateRatio);
         const latePenalty = lateMinutes * settings.late_deduction_per_minute;

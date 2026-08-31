@@ -106,7 +106,7 @@ export function PayrollTable({
                 />
                 <ColumnHeader
                   label="เงินเดือน"
-                  tooltip="เงินเดือนหลังคำนวณตามสัดส่วนวันทำงานจริง (Prorate)"
+                  tooltip={`เงินเดือนเต็มเมื่ออยู่ครบเดือน; เดือนเข้า/ออกงานเฉลี่ยด้วยฐาน ${settings.days_per_month} วัน`}
                   align="right"
                 />
                 <ColumnHeader

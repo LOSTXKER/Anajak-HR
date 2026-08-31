@@ -82,12 +82,11 @@ function PayrollContent() {
             <p className="font-medium text-[#1d1d1f] mb-1">สูตรคำนวณ:</p>
             <ul className="list-disc list-inside space-y-1">
               <li>
-                เงินเดือน = เงินเดือนตามประวัติ ณ เดือนนั้น × (วันทำงานจริง /{" "}
-                {settings.days_per_month})
+                เงินเดือน = เต็มจำนวนเมื่ออยู่ครบเดือน; เดือนเข้า/ออกงาน = เงินเดือนตามประวัติ ÷{" "}
+                {settings.days_per_month} × จำนวนวันตามปฏิทินที่เป็นพนักงาน
               </li>
               <li>
-                คอมมิชชั่น = คอมมิชชั่น ณ เดือนนั้น × (วันทำงานจริง /{" "}
-                {settings.days_per_month})
+                คอมมิชชั่น = ใช้สัดส่วนช่วงการจ้างงานเดียวกับเงินเดือน
               </li>
               <li>
                 หักสาย = นาทีสาย × {settings.late_deduction_per_minute}{" "}

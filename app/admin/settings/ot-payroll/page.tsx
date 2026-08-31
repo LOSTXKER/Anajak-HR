@@ -159,7 +159,9 @@ function OTPayrollSettingsContent() {
               </div>
               <div>
                 <h3 className="text-[17px] font-semibold text-[#1d1d1f]">การคำนวณเงินเดือน</h3>
-                <p className="text-[13px] text-[#86868b]">ใช้คำนวณค่าแรงรายชั่วโมง</p>
+                <p className="text-[13px] text-[#86868b]">
+                  ใช้คำนวณค่าแรงรายวัน/รายชั่วโมง และเฉลี่ยเดือนเข้า/ออกงาน
+                </p>
               </div>
             </div>
 
@@ -175,7 +177,9 @@ function OTPayrollSettingsContent() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[#1d1d1f] mb-2">วันทำงาน/เดือน</label>
+                  <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
+                    ฐานหารค่าแรง (วัน/เดือน)
+                  </label>
                   <input
                     type="number"
                     value={settings.daysPerMonth}
